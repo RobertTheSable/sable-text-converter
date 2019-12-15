@@ -1,0 +1,316 @@
+#include <iostream>
+#include <string>
+#include <fstream>
+#include "yaml-cpp/yaml.h"
+#include "lib/asar/asardll.h"
+#include "script.h"
+#ifdef _WIN32
+#include <experimental/filesystem>
+#elif __linux__
+#include <filesystem>
+#endif
+
+/*
+ * TODO:
+ * -Incorporate ASAR checksum fix.
+ * -Add support for address mapping in config files rather than having to do it in text files.
+ * -Add config setting to set default text mode.
+ */
+
+namespace ParseOptions {
+    static const int nothingToDo = 0;
+    static const int printHelp = 1;
+    static const int assembleRoms = 2;
+    static const int convertScript = 4;
+    static const int verbose = 8;
+}
+using namespace std;
+#ifdef _WIN32
+namespace fs = std::experimental::filesystem;
+#elif __linux__
+namespace fs = std::filesystem;
+#endif
+
+bool validateConfig(YAML::Node configYML) {
+    bool isValid = true;
+    if (!configYML["files"].IsDefined() || !configYML["files"].IsMap()) {
+        isValid = false;
+        cout << "Error: files section is missing or not a map." << endl;
+    } else {
+        string mainDir = "";
+        if (configYML["files"]["mainDir"].IsDefined() && configYML["files"]["mainDir"].IsScalar()) {
+            mainDir = configYML["files"]["mainDir"].Scalar();
+        }
+        if (!configYML["files"]["input"].IsDefined() || !configYML["files"]["input"].IsMap()) {
+            isValid = false;
+            cout << "Error: input section is missing or not a map." << endl;
+        } else {
+            if (!configYML["files"]["input"]["directory"].IsDefined() || !configYML["files"]["input"]["directory"].IsScalar()) {
+                isValid = false;
+                cout << "Error: input directory for project is missing from files config." << endl;
+            } else {
+                fs::path textPath = fs::path(mainDir) / configYML["files"]["input"]["directory"].Scalar();
+                if (!fs::exists(textPath)) {
+                    isValid = false;
+                    cout << "Error: input directory " << textPath << " does not exist." << endl;
+                }
+            }
+        }
+        if (!configYML["files"]["output"].IsDefined() || !configYML["files"]["output"].IsMap()) {
+            isValid = false;
+            cout << "Error: input section is missing or not a map." << endl;
+        } else {
+            if (!configYML["files"]["output"]["directory"].IsDefined() || !configYML["files"]["output"]["directory"].IsScalar()) {
+                isValid = false;
+                cout << "Error: output directory for project is missing from files config." << endl;
+            }
+            if (!configYML["files"]["output"]["binaries"].IsDefined() || !configYML["files"]["output"]["binaries"].IsMap()) {
+                isValid = false;
+                cout << "Error: output binaries subdirectory section is missing or not a map." << endl;
+            } else {
+                if (!configYML["files"]["output"]["binaries"]["mainDir"].IsDefined() || !configYML["files"]["output"]["binaries"]["mainDir"].IsScalar()) {
+                    isValid = false;
+                    cout << "Error: output binaries subdirectory mainDir value is missing from files config." << endl;
+                }
+                if (!configYML["files"]["output"]["binaries"]["textDir"].IsDefined() || !configYML["files"]["output"]["binaries"]["textDir"].IsScalar()) {
+                    isValid = false;
+                    cout << "Error: output binaries subdirectory textDir value is missing from files config." << endl;
+                }
+                if (configYML["files"]["output"]["binaries"]["extras"].IsDefined() && !configYML["files"]["output"]["binaries"]["extras"].IsSequence()) {
+                    isValid = false;
+                    cout << "Error: extras section for output binaries must be a sequence." << endl;
+                }
+            }
+            if (configYML["files"]["output"]["includes"].IsDefined() && !configYML["files"]["output"]["includes"].IsSequence()) {
+                isValid = false;
+                cout << "Error: includes section for output must be a sequence." << endl;
+            }
+        }
+        if (!configYML["files"]["romDir"].IsDefined() || !configYML["files"]["romDir"].IsScalar()) {
+            isValid = false;
+            cout << "Error: romDir for project is missing from files config." << endl;
+        } else {
+            if (!fs::exists(configYML["files"]["romDir"].Scalar())) {
+                isValid = false;
+                cout << "Error: directory \"" << configYML["files"]["romDir"].Scalar() << "\" does not exist." << endl;
+            }
+        }
+    }
+    if (!configYML["config"].IsDefined() || !configYML["config"].IsMap()) {
+        isValid = false;
+        cout << "Error: config section is missing or not a map." << endl;
+    } else {
+        if (!configYML["config"]["directory"].IsDefined() || !configYML["config"]["directory"].IsScalar()) {
+            isValid = false;
+            cout << "Error: directory for config section is missing or is not a scalar." << endl;
+        }
+        if (!configYML["config"]["inMapping"].IsDefined() || !configYML["config"]["inMapping"].IsScalar()) {
+            isValid = false;
+            cout << "Error: inMapping for config section is missing or is not a scalar." << endl;
+        }
+        if (configYML["config"]["asarOptions"].IsDefined() &&
+                !(configYML["config"]["asarOptions"].IsScalar() || configYML["config"]["asarOptions"].IsSequence()) ) {
+            isValid = false;
+            cout << "Error: asarOptions should be either a single string or a sequence." << endl;
+        }
+    }
+    if (!configYML["roms"].IsDefined()) {
+        isValid = false;
+        cout << "Error: roms section is missing." << endl;
+    } else {
+        if (!configYML["roms"].IsSequence()) {
+            isValid = false;
+            cout << "Error: roms section in config must be a sequence." << endl;
+        } else {
+            int romindex = 0;
+            for(auto node: configYML["roms"]) {
+                string romName;
+                if (!node["name"].IsDefined() || !node["name"].IsScalar()) {
+                    cout << "Error: rom at index " << romindex << " is missing a name value." << endl;
+                    char temp[50];
+                    sprintf(temp, "at index %d", romindex);
+                    romName = temp;
+                    isValid = false;
+                } else {
+                    romName = node["name"].Scalar();
+                }
+                if (!node["file"].IsDefined() || !node["file"].IsScalar()) {
+                    cout << "Error: rom " << romName << " is missing a file value." << endl;
+                    isValid = false;
+                }
+                if (node["header"].IsDefined() && (!node["header"].IsScalar() || (
+                node["header"].Scalar() != "auto" && node["header"].Scalar() != "true" && node["header"].Scalar() != "false"))) {
+                    cout << "Error: rom " << romName << " does not have a valid header option - must be \"true\", \"false\", \"auto\", or not defined." << endl;
+                    isValid = false;
+                }
+            }
+        }
+    }
+    return isValid;
+}
+
+int parseOptions(int argc, char * argv[]) {
+    int returnValue = ParseOptions::assembleRoms | ParseOptions::convertScript;
+    if (argc > 0) {
+        argv++;
+        for (int i = 0; i < argc; i++) {
+            string option = argv[i];
+            if (option == "--help") {
+                returnValue = ParseOptions::printHelp;
+            } else if (option == "--no-assembly") {
+                returnValue &= ~ParseOptions::assembleRoms;
+            } else if (option == "--no-script") {
+                returnValue &= ~ParseOptions::convertScript;
+            } else if (option == "--verbose") {
+                returnValue |= ParseOptions::verbose;
+            }
+        }
+    }
+    return returnValue;
+}
+
+int main(int argc, char * argv[])
+{
+    int options = parseOptions(argc-1, argv);
+    if (options == ParseOptions::nothingToDo) {
+        cout << "Nothing to do, printing help." << endl;
+        options = ParseOptions::printHelp;
+    }
+    int verbosity = 0;
+    if((options&ParseOptions::verbose) != 0) {
+        options &= ~ParseOptions::verbose;
+        verbosity++;
+    }
+    if (options == ParseOptions::printHelp) {
+        cout << "Usage: " << argv[0] << " <options>" << endl
+             << "Program to convert script for FE3 into Asar-compatible files for assembly" << endl
+             << "and assemble files into a ROM." << endl
+             << endl
+             << "Options:" << endl
+             << "--no-assembly : run without running Asar assembly." << endl
+             << "--no-script : run without updating the script." << endl
+             << "--verbose : run with increased verbosity." << endl;
+    } else {
+        bool parseScript = (options&ParseOptions::convertScript) != 0;
+        if (!fs::exists("config.yml")) {
+            cout << "Error: Missing config file" << endl;
+        } else {
+            YAML::Node configYML = YAML::LoadFile("config.yml");
+            if (!validateConfig(configYML)) {
+                cout << "Config file contains errors, aborting." << endl;
+            }
+        else {
+            if (parseScript) {
+                if (verbosity > 0) {
+                    cout << "Converting script..." << endl;
+                }
+                fs::path configDir = configYML["config"]["directory"].Scalar();
+                Script sc( (configDir / configYML["config"]["inMapping"].Scalar()).string().c_str());
+                fs::current_path(configYML["files"]["mainDir"].Scalar());
+                fs::path inputDirectory = configYML["files"]["input"]["directory"].Scalar();
+                std::string defaultMode = "Normal";
+                if (configYML["config"]["defaultMode"].IsDefined() && configYML["config"]["defaultMode"].IsScalar()) {
+                    defaultMode = configYML["config"]["defaultMode"].Scalar();
+                }
+                sc.loadScript(inputDirectory.string().c_str(), defaultMode);
+                sc.writeScript(configYML["files"]["output"]);
+                fs::current_path(fs::current_path().parent_path());
+            }
+            if ((options&ParseOptions::assembleRoms) != 0) {
+                if (verbosity > 0) {
+                    cout << "Assembling ROMs..." << endl;
+                }
+                if (asar_init()) {
+                    if (verbosity > 0) {
+                        cout << "Asar initialized successfully." << endl;
+                    }
+                    for (auto romNode : configYML["roms"]) {
+                        fs::path romPath = fs::path(configYML["files"]["romDir"].Scalar()) / romNode["file"].Scalar();
+                        if (fs::exists(romPath)) {
+                            std::string test = romPath.string();
+                            ifstream romFile;
+                            romFile.open(romPath.string(), ios::in | ios::binary);
+                            romFile.seekg(0, std::ios::end);
+                            int outputSize = romFile.tellg();
+                            char* outBuffer = new char[4194816];
+                            for (int it = 0; it < 4194816 ; it++){
+                                outBuffer[it] = 0;
+                            }
+                            romFile.seekg(0, ios_base::beg);
+                            romFile.read(reinterpret_cast<char*>(outBuffer), outputSize);
+                            romFile.close();
+                            int headerSize;
+                            if(romNode["header"].IsDefined() && romNode["header"].Scalar() != "auto") {
+                                if (romNode["header"].Scalar() == "true") {
+                                    headerSize = 512;
+                                } else if (romNode["header"].Scalar() == "false") {
+                                    headerSize = 0;
+                                }
+                            } else {
+                                headerSize = ((outputSize % 1024));
+                            }
+                            fs::current_path(configYML["files"]["mainDir"].Scalar());
+                            fs::path patchFile = romNode["name"].Scalar() +".asm";
+                            bool regenerate = !romNode["regenMain"].IsDefined() || (romNode["regenMain"].IsScalar() && romNode["regenMain"].Scalar() != "no");
+                            if (!fs::exists(patchFile) || regenerate){
+                                ofstream mainfile(patchFile.string());
+                                mainfile << "lorom" << endl
+                                         << endl;
+                                for (auto include : romNode["includes"]) {
+                                    mainfile << "incsrc " << configYML["files"]["output"]["directory"].Scalar() << "/"
+                                             << include.Scalar() << endl;
+                                }
+                                for (auto include : configYML["files"]["output"]["includes"]) {
+                                    mainfile << "incsrc " << configYML["files"]["output"]["directory"].Scalar() << "/"
+                                             << include.Scalar() << endl;
+                                }
+                                for (auto include : configYML["files"]["output"]["binaries"]["extras"]) {
+                                    mainfile << "incsrc " << configYML["files"]["output"]["directory"].Scalar() << "/"
+                                             << configYML["files"]["output"]["binaries"]["mainDir"] << "/"
+                                             << include.Scalar() << "/"
+                                             << include.Scalar() << ".asm" << endl;
+                                }
+                                mainfile << "incsrc " << configYML["files"]["output"]["directory"].Scalar() << "/" << "textDefines.exp" << endl;
+                                mainfile << "incsrc " << configYML["files"]["output"]["directory"].Scalar() << "/" << "text.asm" << endl;
+                                mainfile.close();
+                            }
+                            if ((headerSize%512)== 0 && asar_patch(patchFile.string().c_str(), outBuffer+headerSize, 4*1024*1024, &outputSize)) {
+                                fs::current_path(fs::current_path().parent_path());
+                                string outPath = (fs::path(configYML["files"]["romDir"].Scalar()) / romNode["name"].Scalar()).string() + ((headerSize == 512) ? ".smc" : ".sfc");
+                                ofstream output(outPath, ios::binary);
+                                if (headerSize == 512) {
+                                    output.write(outBuffer, 512 + (4*1024*1024));
+                                } else {
+                                    output.write(outBuffer, (4*1024*1024));
+                                }
+                                output.close();
+                                int printcount;
+                                const char* const* prints = asar_getprints(&printcount);
+                                for (int i = 0; i< printcount; i++)  {
+                                    cout << prints[i] << endl;
+                                }
+                                cout << "Assembly for " << romNode["name"].Scalar() << " completed successfully." << endl;
+                            } else {
+                                fs::current_path(fs::current_path().parent_path());
+                                int errorCount;
+                                const errordata* errors = asar_geterrors(&errorCount);
+                                for(int i = 0; i < errorCount; i++) {
+                                    cerr << errors[i].fullerrdata << endl;
+                                }
+                            }
+                            asar_reset();
+                            delete [] outBuffer;
+                        } else {
+                             cout << "Error: Rom file " << romPath << " is missing." << endl;
+                        }
+                    }
+                }
+            }
+            }
+        }
+        cout << "Press enter to continue.";
+        cin.get();
+        cout << endl;
+    }
+    return 0;
+}
