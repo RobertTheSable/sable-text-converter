@@ -1,21 +1,12 @@
 #include <iostream>
-#include <string>
 #include <fstream>
-#include "yaml-cpp/yaml.h"
-#include "lib/asar/asardll.h"
-#include "script.h"
 #ifdef _WIN32
 #include <experimental/filesystem>
 #elif __linux__
 #include <filesystem>
 #endif
-
-/*
- * TODO:
- * -Incorporate ASAR checksum fix.
- * -Add support for address mapping in config files rather than having to do it in text files.
- * -Add config setting to set default text mode.
- */
+#include "lib/asar/asardll.h"
+#include "script.h"
 
 namespace ParseOptions {
     static const int nothingToDo = 0;

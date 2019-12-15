@@ -3,13 +3,13 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
+#include <cctype>
 #ifdef _WIN32
 #include <experimental/filesystem>
 #else
 #include <filesystem>
 #endif
-#include <stdexcept>
-#include <cctype>
 #include "lib/utf8/utf8.h"
 
 using std::setw;
@@ -24,12 +24,10 @@ namespace fs = std::filesystem;
 //dialogue max width: 8 * 20 px
 int PCToLoROM(int addr, bool header = false)
 {
-    if (header)
-    {
+    if (header) {
         addr-=512;
     }
-    if (addr<0 || addr>=0x400000)
-    {
+    if (addr<0 || addr>=0x400000) {
         return -1;
     }
     addr=((addr<<1)&0x7F0000)|(addr&0x7FFF)|0x8000;
@@ -38,12 +36,10 @@ int PCToLoROM(int addr, bool header = false)
 }
 int PCToLoROMLow(int addr, bool header = false)
 {
-    if (header)
-    {
+    if (header) {
         addr-=512;
     }
-    if (addr<0 || addr>=0x400000)
-    {
+    if (addr<0 || addr>=0x400000) {
         return -1;
     }
     addr=((addr<<1)&0x7F0000)|(addr&0x7FFF)|0x8000;
@@ -75,22 +71,13 @@ Script::Script() : isScriptValid(false)
     if (fs::exists(configFile)) {
         inConfig = YAML::LoadFile(configFile.string());
     }
-    if (fs::exists(outFile)) {
-        outConfig = YAML::LoadFile(outFile.string());
-    }
 }
 
-Script::Script(const char *configFile, const char *outFile) : isScriptValid(false)
+Script::Script(const char *configFile) : isScriptValid(false)
 {
     fs::path configFilePath = configFile;
     if (fs::exists(configFilePath)) {
         inConfig = YAML::LoadFile(configFile);
-    }
-    if (outFile != nullptr) {
-        fs::path outConfigFile = outFile;
-        if (fs::exists(outConfigFile)) {
-            outConfig = YAML::LoadFile(outFile);
-        }
     }
 }
 

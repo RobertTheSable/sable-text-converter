@@ -29,7 +29,7 @@ private:
     std::map<int, std::string> labels;
 public:
     Script();
-    Script(const char* inConfig, const char* outConfig = nullptr);
+    Script(const char* inConfig);
     void loadScript(const char* inDir, std::string defaultMode);
     void writeScript(YAML::Node config);
     explicit operator bool() const;
