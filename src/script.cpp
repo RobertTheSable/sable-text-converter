@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
+#include <algorithm>
 #include <cctype>
 #ifdef _WIN32
 #include <experimental/filesystem>
@@ -56,11 +57,17 @@ int LoROMToPC(int addr, bool header = false)
     return addr;
 }
 
-std::string getUtf8Char(std::string::iterator& start, std::string::iterator end)
+std::string getUtf8Char(std::string::iterator& start, std::string::iterator end, bool advance = true)
 {
     auto currentIt = start;
-    utf8::advance(start, 1, end);
-    return std::string(currentIt, start);
+    if (advance) {
+        utf8::advance(start, 1, end);
+        return std::string(currentIt, start);
+    } else {
+        auto tempIt = start;
+        utf8::advance(tempIt, 1, end);
+        return std::string(currentIt, tempIt);
+    }
 }
 
 Script::Script() : isScriptValid(false)
@@ -100,7 +107,6 @@ void Script::loadScript(const char *inDir, std::string defaultMode)
             int tableAddress = 0;
             int tableLength = 0;
             bool isFileListValid = true;
-            bool digraphs = ! (defaultMode == "nodigraph");
             bool storeWidths = false;
             if (fs::exists(dirItr.path() / "table.txt")) {
                 isTable= true;
@@ -186,19 +192,21 @@ void Script::loadScript(const char *inDir, std::string defaultMode)
                 }
             }
             if (isFileListValid) {
+                std::sort(files.begin(), files.end());
+                std::string textType = defaultMode;
+                bool digraphs = inConfig["TextTypes"][textType]["HasDigraphs"].Scalar() == "true";
+                int byteWidth = inConfig["TextTypes"][textType]["ByteWidth"].as<int>();
+                int commandValue = inConfig["TextTypes"][textType]["CommandValue"].IsDefined() ? inConfig["TextTypes"][textType]["CommandValue"].as<int>() : -1;
+                int fixedWidth = inConfig["TextTypes"][textType]["FixedWidth"].IsDefined() ? inConfig["TextTypes"][textType]["FixedWidth"].as<int>() : -1;
+                int maxWidth = inConfig["TextTypes"][textType]["MaxWidth"].IsDefined() ? inConfig["TextTypes"][textType]["MaxWidth"].as<int>() : 0;
                 for (auto textFileItr: files) {
-                    textNode currentTextNode = {nextAddress, "", false, storeWidths, false, 160, {}};
+                    textNode currentTextNode = {nextAddress, "", commandValue == -1, storeWidths, false, maxWidth, {}};
                     std::ifstream textFile(textFileItr.string());
                     std::string input;
-                    int lineNumber= 1;
+                    int lineNumber = 1;
+                    bool fileMaxWidth = false;
                     bool isFileValid = true;
                     bool autoEnd = true;
-                    digraphs = !(defaultMode == "nodigraph");
-                    std::string currentConfig = defaultMode;
-                    if (defaultMode == "nodigraph") {
-                        currentConfig = "Normal";
-                    }
-
                     while (isFileValid && getline(textFile, input, '\n')) {
                         if(input.find('\r') != std::string::npos) {
                            input.erase(input.find('\r'), 1);
@@ -208,14 +216,17 @@ void Script::loadScript(const char *inDir, std::string defaultMode)
                         bool parsing = true;
                         std::vector<unsigned short> line = {};
                         bool parseNewLines = true;
-
                         if (input.empty()) {
                             if (textFile.peek() != '#' && textFile.peek() != '@') {
-                                if (currentTextNode.isMenuText) {
-                                    currentTextNode.data.push_back(0xFFFD);
+                                if (commandValue == -1) {
+                                    currentTextNode.data.push_back(
+                                                inConfig["TextTypes"][textType]["Commands"]["NewLine"]["code"].as<int>()
+                                            );
                                 } else {
-                                    currentTextNode.data.push_back(0x00);
-                                    currentTextNode.data.push_back(0x01);
+                                    currentTextNode.data.push_back(commandValue);
+                                    currentTextNode.data.push_back(
+                                        inConfig["TextTypes"][textType]["Commands"]["NewLine"]["code"].as<int>()
+                                            );
                                 }
                             }
                         } else {
@@ -252,29 +263,31 @@ void Script::loadScript(const char *inDir, std::string defaultMode)
                                                     }
                                                 }
                                             } else if (settingName == "type") {
-                                                if (settingOption == "menu") {
-                                                    digraphs = false;
-                                                    currentTextNode.isMenuText = true;
-                                                    currentConfig = "Menu";
-                                                } else if (settingOption == "normal") {
-                                                    digraphs = true;
-                                                    currentTextNode.isMenuText = false;
-                                                    currentConfig = "Normal";
-                                                } else if (settingOption == "nodigraph") {
-                                                    digraphs = false;
-                                                    currentTextNode.isMenuText = false;
-                                                    currentConfig = "Normal";
-                                                } else if (settingOption == "credits") {
-                                                    digraphs = false;
-                                                    currentTextNode.isMenuText = false;
-                                                    currentConfig = "Credits";
+                                                if (settingOption == "default") {
+                                                    settingOption = defaultMode;
+                                                }
+                                                if (inConfig["TextTypes"][settingOption].IsDefined() && inConfig["TextTypes"][settingOption].IsMap()) {
+                                                    textType = settingOption;
+                                                    digraphs = inConfig["TextTypes"][textType]["HasDigraphs"].Scalar() == "true";
+                                                    byteWidth = inConfig["TextTypes"][textType]["ByteWidth"].as<int>();
+                                                    commandValue = inConfig["TextTypes"][textType]["CommandValue"].IsDefined() ? inConfig["TextTypes"][textType]["CommandValue"].as<int>() : -1;
+                                                    fixedWidth = inConfig["TextTypes"][textType]["FixedWidth"].IsDefined() ? inConfig["TextTypes"][textType]["FixedWidth"].as<int>() : -1;
+                                                    if (!fileMaxWidth) {
+                                                        maxWidth = inConfig["TextTypes"][textType]["MaxWidth"].IsDefined() ? inConfig["TextTypes"][textType]["MaxWidth"].as<int>() : 0;
+                                                        currentTextNode.maxWidth = maxWidth;
+                                                    }
+                                                    currentTextNode.isMenuText = (commandValue == -1);
+                                                } else {
+                                                    throw std::runtime_error(std::string("Error: type ") + settingOption + " is not defined in config file.");
                                                 }
                                             } else if (settingName == "width") {
                                                 if (settingOption == "off") {
                                                     currentTextNode.maxWidth = 0;
+                                                    fileMaxWidth = true;
                                                 } else  {
                                                     try {
                                                         currentTextNode.maxWidth = std::stoi(settingOption);
+                                                        fileMaxWidth = true;
                                                     } catch (const std::invalid_argument& e) {
                                                         std::cerr << "Warning: width " << settingOption << " on line " << lineNumber << " is not valid and will be ignored - width argument needs to be \"off\" or a decimal number." << endl;
                                                     }
@@ -317,7 +330,7 @@ void Script::loadScript(const char *inDir, std::string defaultMode)
                                                     if (sz != convert.length()) {
                                                         throw std::invalid_argument("");
                                                     }
-                                                    dataWidth = (convert.length()+1)>>(currentTextNode.isMenuText ? 2 : 1);
+                                                    dataWidth = (convert.length()+1)>>byteWidth;
                                                     if (dataWidth > 3) {
                                                         std::cerr << "Error in " << textFileItr << " on line " << lineNumber << ": Numbers must be no more than three bytes long.";
                                                         isFileListValid = false;
@@ -325,32 +338,35 @@ void Script::loadScript(const char *inDir, std::string defaultMode)
                                                         convertedValue = data;
                                                     }
                                                 } catch (const std::invalid_argument& e) {
-                                                    dataWidth = currentTextNode.isMenuText ? 2 : 1;
-                                                    if( !currentTextNode.isMenuText && inConfig["Commands"][convert].IsDefined()) {
+                                                    dataWidth = byteWidth;
+                                                    if (inConfig["TextTypes"][textType]["Commands"][convert].IsDefined()) {
                                                         // normal text command
-                                                        line.push_back(0);
+                                                        if (commandValue != -1) {
+                                                            line.push_back(commandValue);
+                                                        }
                                                         config = "Commands";
+                                                        convertedValue = inConfig["TextTypes"][textType]["Commands"][convert]["code"].as<int>();
+                                                        parseNewLines = !inConfig["TextTypes"][textType]["Commands"][convert]["newline"].IsDefined();
                                                     } else {
                                                         std::string withBrackets  = std::string({'['}) + convert + ']';
-                                                        if (inConfig[currentConfig][withBrackets].IsDefined()) {
-                                                            config = currentConfig;
+                                                        if (inConfig["TextTypes"][textType]["Encoding"][withBrackets].IsDefined()) {
+                                                            config = "Encoding";
                                                             convert = withBrackets;
-                                                        } else if (inConfig["Extras"][convert].IsDefined() && inConfig["Extras"][convert].IsScalar()) {
+                                                            convertedValue = inConfig["TextTypes"][textType]["Encoding"][convert]["code"].as<int>();
+                                                            if(currentTextNode.maxWidth > 0 && inConfig["TextTypes"][textType]["Encoding"][convert]["length"].IsDefined()) {
+                                                                if (fixedWidth != -1) {
+                                                                    currentLineLength += fixedWidth;
+                                                                } else {
+                                                                    currentLineLength += inConfig["TextTypes"][textType]["Encoding"][convert]["length"].as<int>();
+                                                                }
+                                                            }
+                                                        } else if (inConfig["TextTypes"][textType]["Extras"][convert].IsDefined() && inConfig["TextTypes"][textType]["Extras"][convert].IsScalar()) {
                                                             config = "Extras";
+                                                            convertedValue = inConfig["TextTypes"][textType]["Extras"][convert].as<int>();
                                                         } else {
                                                             std::cerr << "Error in " << textFileItr << ": " << convert << " is not valid hexadecimal or is not a valid command/extra define." << endl;
                                                             isFileValid = false;
                                                         }
-                                                    }
-                                                    YAML::Node valueNode = inConfig[config][convert]["code"].IsDefined() ? inConfig[config][convert]["code"] : inConfig[config][convert];
-                                                    if (valueNode.IsScalar()) {
-                                                        convertedValue = valueNode.as<int>();
-                                                        if(currentTextNode.maxWidth > 0 && inConfig[config][convert]["length"].IsDefined()) {
-                                                            currentLineLength += inConfig[config][convert]["length"].as<int>();
-                                                        }
-                                                        parseNewLines = !inConfig[config][convert]["newline"].IsDefined();
-                                                    } else {
-                                                        //error
                                                     }
                                                 }
                                                 if (convertedValue >= 0) {
@@ -359,8 +375,8 @@ void Script::loadScript(const char *inDir, std::string defaultMode)
                                                         line.push_back(pushValue);
                                                         if (!config.empty()) {
                                                             if (autoEnd && (
-                                                                    (inConfig[config]["[End]"].IsDefined() && pushValue == inConfig[config]["[End]"]["code"].as<int>()) ||
-                                                                    (inConfig[config]["End"].IsDefined() && pushValue == inConfig[config]["End"]["code"].as<int>()))) {
+                                                                    (inConfig["TextTypes"][textType][config]["[End]"].IsDefined() && pushValue == inConfig["TextTypes"][textType][config]["[End]"]["code"].as<int>()) ||
+                                                                    (inConfig["TextTypes"][textType][config]["End"].IsDefined() && pushValue == inConfig["TextTypes"][textType][config]["End"]["code"].as<int>()))) {
                                                                 if (!line.empty()) {
                                                                     currentTextNode.data.insert(currentTextNode.data.end(), line.begin(), line.end());
                                                                     line = {};
@@ -384,16 +400,22 @@ void Script::loadScript(const char *inDir, std::string defaultMode)
                                                 }
                                             }
                                         } else {
-                                            std::string currentCharAsString = std::string({current});
-                                            if (inConfig[currentConfig][currentCharAsString].IsDefined()) {
+                                            std::string encodingString = std::string({current});
+                                            if (inConfig["TextTypes"][textType]["Encoding"][encodingString].IsDefined()) {
                                                 unsigned short value;
-                                                if (digraphs && stringChar != input.end() && inConfig[currentConfig][currentCharAsString + *stringChar].IsDefined()) {
-                                                    value = inConfig[currentConfig][currentCharAsString + *(stringChar++)]["code"].as<int>();
-                                                } else {
-                                                    value = inConfig[currentConfig][currentCharAsString]["code"].as<int>();
+                                                if (digraphs &&
+                                                        stringChar != input.end() &&
+                                                        inConfig["TextTypes"][textType]["Encoding"][encodingString + getUtf8Char(stringChar, input.end(), false)].IsDefined()
+                                                    ) {
+                                                    encodingString = encodingString + getUtf8Char(stringChar, input.end());
                                                 }
-                                                if(currentTextNode.maxWidth > 0 && inConfig[currentConfig][currentCharAsString]["length"].IsDefined()) {
-                                                    currentLineLength += inConfig[currentConfig][currentCharAsString]["length"].as<int>();
+                                                value = inConfig["TextTypes"][textType]["Encoding"][encodingString]["code"].as<int>();
+                                                if(currentTextNode.maxWidth > 0) {
+                                                    if (fixedWidth != -1 && inConfig["TextTypes"][textType]["Encoding"][encodingString]["length"].IsDefined()) {
+                                                        currentLineLength += fixedWidth;
+                                                    } else {
+                                                        currentLineLength += inConfig["TextTypes"][textType]["Encoding"][encodingString]["length"].as<int>();
+                                                    }
                                                 }
                                                 line.push_back(value);
                                             } else {
@@ -427,21 +449,29 @@ void Script::loadScript(const char *inDir, std::string defaultMode)
                                 }
                             }*/
                             if (addNewline) {
-                                if (currentTextNode.isMenuText) {
-                                    currentTextNode.data.push_back(0xFFFD);
+                                if (commandValue == -1) {
+                                    currentTextNode.data.push_back(
+                                                inConfig["TextTypes"][textType]["Commands"]["NewLine"]["code"].as<int>()
+                                            );
                                 } else {
-                                    currentTextNode.data.push_back(00);
-                                    currentTextNode.data.push_back(01);
+                                    currentTextNode.data.push_back(commandValue);
+                                    currentTextNode.data.push_back(
+                                                inConfig["TextTypes"][textType]["Commands"]["NewLine"]["code"].as<int>()
+                                            );
                                 }
                             }
                         }
                     }
                     if (autoEnd) {
-                        if (currentTextNode.isMenuText) {
-                            currentTextNode.data.push_back(0xFFFF);
+                        if (commandValue == -1) {
+                            currentTextNode.data.push_back(
+                                        inConfig["TextTypes"][textType]["Commands"]["End"]["code"].as<int>()
+                                    );
                         } else {
-                            currentTextNode.data.push_back(0);
-                            currentTextNode.data.push_back(0);
+                            currentTextNode.data.push_back(commandValue);
+                            currentTextNode.data.push_back(
+                                        inConfig["TextTypes"][textType]["Commands"]["End"]["code"].as<int>()
+                                    );
                         }
                     }
                     if (isFileValid) {
@@ -451,12 +481,13 @@ void Script::loadScript(const char *inDir, std::string defaultMode)
                         binNodes.push_back(currentTextNode);
                         labels[currentTextNode.address] = currentTextNode.label;
                         if (isTable) {
-                            binLengths[currentTextNode.label] = currentTextNode.data.size() * (currentTextNode.isMenuText ? 2 : 1);
+                            binLengths[currentTextNode.label] = currentTextNode.data.size() * byteWidth;
                         }
-                        nextAddress = currentTextNode.address + ((currentTextNode.isMenuText) ? currentTextNode.data.size()*2 : currentTextNode.data.size());
+                        nextAddress = currentTextNode.address + (currentTextNode.data.size()* byteWidth);
                     }
                     textFile.close();
                     fileindex++;
+                    digraphs = inConfig["TextTypes"][textType]["HasDigraphs"].Scalar() == "true";
                 } // end file list loop
                 if (isTable) {
                     for (auto it = tableEntries.begin(); it != tableEntries.end(); ++it) {
