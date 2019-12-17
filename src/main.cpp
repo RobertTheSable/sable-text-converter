@@ -5,7 +5,7 @@
 #elif __linux__
 #include <filesystem>
 #endif
-#include "lib/asar/asardll.h"
+#include "asar/asardll.h"
 #include "script.h"
 
 namespace ParseOptions {

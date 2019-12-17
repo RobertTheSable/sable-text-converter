@@ -11,7 +11,7 @@
 #else
 #include <filesystem>
 #endif
-#include "lib/utf8/utf8.h"
+#include "utf8.h"
 
 using std::setw;
 using std::endl;

@@ -23,7 +23,7 @@ tags
 .DS_Store
 .directory
 *.debug
-Makefile*
+*Makefile*
 *.prl
 *.app
 moc_*.cpp
@@ -32,6 +32,7 @@ qrc_*.cpp
 Thumbs.db
 *.res
 *.rc
+*.pc
 /.qmake.cache
 /.qmake.stash
 
@@ -75,12 +76,14 @@ CMakeLists.txt.user*
 build/
 
 CMakeLists.txt.user
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
+*CMakeCache.txt
+*CMakeFiles
+*CMakeScripts
 Testing
-cmake_install.cmake
+*cmake_install.cmake
 install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps
+
+*asar-tests*
