@@ -1,9 +1,11 @@
 [submodule "external/yaml-cpp"]
 	path = external/yaml-cpp
 	url = git@github.com:jbeder/yaml-cpp.git
+	ignore = dirty
 [submodule "external/asar"]
 	path = external/asar
 	url = git@github.com:RPGHacker/asar.git
+	ignore = dirty
 [submodule "external/utf8"]
 	path = external/utf8
 	url = git@github.com:nemtrif/utfcpp.git
