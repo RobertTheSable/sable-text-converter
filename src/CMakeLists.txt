@@ -2,13 +2,6 @@ set(FE3_SHARED_FILES "")
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-find_library(YAML yaml-cpp)
-
-if(NOT YAML)
-    message("yaml-cpp library not found.")
-endif()
-message("yaml-cpp library found.")
-
 list(
     APPEND FE3_SHARED_FILES
     
