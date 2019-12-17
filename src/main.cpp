@@ -1,10 +1,5 @@
 #include <iostream>
 #include <fstream>
-#ifdef _WIN32
-#include <experimental/filesystem>
-#elif __linux__
-#include <filesystem>
-#endif
 #include "asar/asardll.h"
 #include "script.h"
 
@@ -16,11 +11,6 @@ namespace ParseOptions {
     static const int verbose = 8;
 }
 using namespace std;
-#ifdef _WIN32
-namespace fs = std::experimental::filesystem;
-#elif __linux__
-namespace fs = std::filesystem;
-#endif
 
 bool validateConfig(YAML::Node configYML) {
     bool isValid = true;

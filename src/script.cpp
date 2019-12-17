@@ -6,21 +6,11 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cctype>
-#ifdef _WIN32
-#include <experimental/filesystem>
-#else
-#include <filesystem>
-#endif
 #include "utf8.h"
 
 using std::setw;
 using std::endl;
 using std::hex;
-#ifdef _WIN32
-namespace fs = std::experimental::filesystem;
-#else
-namespace fs = std::filesystem;
-#endif
 
 //dialogue max width: 8 * 20 px
 int PCToLoROM(int addr, bool header = false)
