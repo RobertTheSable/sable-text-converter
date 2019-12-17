@@ -162,6 +162,7 @@ int parseOptions(int argc, char * argv[]) {
 
 int main(int argc, char * argv[])
 {
+    string starting_path = fs::current_path();
     int options = parseOptions(argc-1, argv);
     if (options == ParseOptions::nothingToDo) {
         cout << "Nothing to do, printing help." << endl;
@@ -211,6 +212,8 @@ int main(int argc, char * argv[])
                 if (verbosity > 0) {
                     cout << "Assembling ROMs..." << endl;
                 }
+                // Fix issue with symlinked directories.
+                fs::current_path(starting_path);
                 if (asar_init()) {
                     if (verbosity > 0) {
                         cout << "Asar initialized successfully." << endl;

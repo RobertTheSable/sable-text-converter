@@ -100,7 +100,6 @@ static bool asar_init_shared(void)
 bool asar_init(void)
 {
 	if (asardll) return true;
-    puts("Test");
 	asardll=getlib();
 	require(asardll);
 	if (!asar_init_shared()) return false;
