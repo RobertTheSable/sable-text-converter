@@ -35,7 +35,7 @@
 		{
 			void * rval=dlopen(names[i], RTLD_LAZY);
 			const char*e=dlerror();
-			if(e)puts(e);
+            if(e)puts(e);
 			if (rval) return rval;
 		}
 		return NULL;

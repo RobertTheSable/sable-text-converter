@@ -3,17 +3,7 @@
 #include <map>
 #include <string>
 #include "yaml-cpp/yaml.h"
-#ifdef _WIN32
-#include <experimental/filesystem>
-#elif __linux__
-#include <filesystem>
-#endif
-
-#ifdef _WIN32
-namespace fs = std::experimental::filesystem;
-#elif __linux__
-namespace fs = std::filesystem;
-#endif
+#include "wrapper/filesystem.h"
 
 class Script
 {

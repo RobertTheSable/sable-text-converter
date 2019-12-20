@@ -13,19 +13,9 @@ list(
 list(
     APPEND FE3_LIBRARIES
     
-    stdc++fs
     yaml-cpp
     asar
 )
-
-# Don't need ldl on windows
-if(NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
-    list(
-        APPEND FE3_LIBRARIES
-        
-        ${CMAKE_DL_LIBS}
-    )   
-endif()
 
 add_executable(
     fe3-inserter 
@@ -40,6 +30,10 @@ set_target_properties(fe3-inserter PROPERTIES
 )
 
 target_link_libraries(
-    fe3-inserter ${FE3_LIBRARIES}
+    fe3-inserter ${FE3_LIBRARIES} ${FE3_FS_LIBRARIES} ${FE3_PLATFORM_LIBRARIES}
 )
-target_compile_options(fe3-inserter PRIVATE -fPIC)
+target_compile_options(fe3-inserter PRIVATE -fPIC )
+if(FE3_ALT_FILESYSTEM)
+    message(STATUS "Defining ${FE3_ALT_FILESYSTEM}")
+    target_compile_definitions(fe3-inserter PUBLIC ${FE3_ALT_FILESYSTEM})
+endif()

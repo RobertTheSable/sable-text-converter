@@ -1,4 +1,6 @@
-find_library(YAML yaml-cpp)
+if (NOT FE3_REBUILD_YAML)
+    find_library(YAML yaml-cpp)
+endif()
 
 if(NOT YAML)
     message("-- yaml-cpp library not found, using git.")
@@ -15,7 +17,7 @@ if(NOT YAML)
         LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build"
     )
 else()
-    message("-- Using system yaml-cpp library.")
+    message(STATUS "Using system yaml-cpp library.")
 endif()
 
 execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/asar 
@@ -26,6 +28,9 @@ set_target_properties(asar PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build"
     LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build"
 )
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
+    set_target_properties(asar PROPERTIES PREFIX "")
+endif()
 
 execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/utf8 
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
