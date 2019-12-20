@@ -1,4 +1,4 @@
-if (NOT FE3_REBUILD_YAML)
+if (NOT SABLE_REBUILD_YAML)
     find_library(YAML yaml-cpp)
 endif()
 

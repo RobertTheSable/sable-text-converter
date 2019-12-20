@@ -1,39 +1,39 @@
 
-set(FE3_SOURCE_FILES "")
+set(SABLE_SOURCE_FILES "")
 
-set(FE3_LIBRARIES "")
+set(SABLE_LIBRARIES "")
 
 list(
-    APPEND FE3_SOURCE_FILES
+    APPEND SABLE_SOURCE_FILES
     
     "${PROJECT_SOURCE_DIR}/include/asar/asardll.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/script.cpp"
 )
 
 list(
-    APPEND FE3_LIBRARIES
+    APPEND SABLE_LIBRARIES
     
     yaml-cpp
     asar
 )
 
 add_executable(
-    fe3-inserter 
+    sable 
     
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
     
-    ${FE3_SOURCE_FILES}
+    ${SABLE_SOURCE_FILES}
 )
 
-set_target_properties(fe3-inserter PROPERTIES 
+set_target_properties(sable PROPERTIES 
     RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build"
 )
 
 target_link_libraries(
-    fe3-inserter ${FE3_LIBRARIES} ${FE3_FS_LIBRARIES} ${FE3_PLATFORM_LIBRARIES}
+    sable ${SABLE_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES}
 )
-target_compile_options(fe3-inserter PRIVATE -fPIC )
-if(FE3_ALT_FILESYSTEM)
-    message(STATUS "Defining ${FE3_ALT_FILESYSTEM}")
-    target_compile_definitions(fe3-inserter PUBLIC ${FE3_ALT_FILESYSTEM})
+target_compile_options(sable PRIVATE -fPIC )
+if(SABLE_ALT_FILESYSTEM)
+    message(STATUS "Defining ${SABLE_ALT_FILESYSTEM}")
+    target_compile_definitions(sable PUBLIC ${SABLE_ALT_FILESYSTEM})
 endif()

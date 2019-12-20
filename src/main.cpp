@@ -165,7 +165,7 @@ int main(int argc, char * argv[])
     }
     if (options == ParseOptions::printHelp) {
         cout << "Usage: " << argv[0] << " <options>" << endl
-             << "Program to convert script for FE3 into Asar-compatible files for assembly" << endl
+             << "Program to convert scripts into Asar-compatible files for assembly" << endl
              << "and assemble files into a ROM." << endl
              << endl
              << "Options:" << endl

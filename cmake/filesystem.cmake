@@ -1,12 +1,12 @@
 include(CheckCXXSourceCompiles)
 
-option(FE3_USE_STD_FS "Skip checks and try the std::filesystem library." OFF)
-option(FE3_USE_EXPERIMENTAL_FS "Skip checks and try the std::experimental::filesystem library." OFF)
-option(FE3_USE_BOOST_FS "Skip checks and try the boost::filesystem library." OFF)
+option(SABLE_USE_STD_FS "Skip checks and try the std::filesystem library." OFF)
+option(SABLE_USE_EXPERIMENTAL_FS "Skip checks and try the std::experimental::filesystem library." OFF)
+option(SABLE_USE_BOOST_FS "Skip checks and try the boost::filesystem library." OFF)
 
-set(FE3_FS_LIBRARIES "")
+set(SABLE_FS_LIBRARIES "")
     
-if (NOT (FE3_USE_STD_FS OR FE3_USE_EXPERIMENTAL_FS OR FE3_USE_BOOST_FS))
+if (NOT (SABLE_USE_STD_FS OR SABLE_USE_EXPERIMENTAL_FS OR SABLE_USE_BOOST_FS))
     set(STD_FILESYSTEM_TEST_PROGRAM "
         #include <filesystem>
         int main() {auto p = std::filesystem::current_path();}")
@@ -37,8 +37,8 @@ if (NOT (FE3_USE_STD_FS OR FE3_USE_EXPERIMENTAL_FS OR FE3_USE_BOOST_FS))
             HAS_EXPERIMENTAL_FILESYSTEM)
 else()
     message(STATUS "Skipping filesystem check")
-    set(HAS_STD_FILESYSTEM ${FE3_USE_STD_FS})
-    set(HAS_EXPERIMENTAL_FILESYSTEM ${FE3_USE_EXPERIMENTAL_FS})
+    set(HAS_STD_FILESYSTEM ${SABLE_USE_STD_FS})
+    set(HAS_EXPERIMENTAL_FILESYSTEM ${SABLE_USE_EXPERIMENTAL_FS})
 endif()
         
 if (NOT (HAS_STD_FILESYSTEM OR HAS_EXPERIMENTAL_FILESYSTEM) )
@@ -49,21 +49,21 @@ if (NOT (HAS_STD_FILESYSTEM OR HAS_EXPERIMENTAL_FILESYSTEM) )
         message(FATAL_ERROR "-- Boost Filesystem not found.")
     else()
         list(
-            APPEND FE3_FS_LIBRARIES
+            APPEND SABLE_FS_LIBRARIES
             
             boost_system
             boost_filesystem
         )
     endif()
-    set(FE3_ALT_FILESYSTEM USE_BOOST_FILESYSTEM)
+    set(SABLE_ALT_FILESYSTEM USE_BOOST_FILESYSTEM)
 else()
     if (NOT HAS_STD_FILESYSTEM )
-        set(FE3_ALT_FILESYSTEM USE_EXPERIMENTAL_FILESYSTEM)
+        set(SABLE_ALT_FILESYSTEM USE_EXPERIMENTAL_FILESYSTEM)
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            set(FE3_FS_LIBRARIES "stdc++fs")
+            set(SABLE_FS_LIBRARIES "stdc++fs")
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND HAS_STD_FILESYSTEM_WITH_CXXFS)
-            set(FE3_FS_LIBRARIES "c++fs")
+            set(SABLE_FS_LIBRARIES "c++fs")
         endif()
     endif()
 endif()
