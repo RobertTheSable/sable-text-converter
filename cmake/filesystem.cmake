@@ -9,19 +9,28 @@ set(FE3_FS_LIBRARIES "")
 if (NOT (FE3_USE_STD_FS OR FE3_USE_EXPERIMENTAL_FS OR FE3_USE_BOOST_FS))
     set(STD_FILESYSTEM_TEST_PROGRAM "
         #include <filesystem>
-        struct X { std::filesystem::path p; };
-        int main() {}")
+        int main() {auto p = std::filesystem::current_path();}")
 
     set(STD_FILESYSTEM_EXPERIMENTAL_TEST_PROGRAM "
         #include <experimental/filesystem>
-        struct X { std::experimental::filesystem::path p; };
-        int main() {}")
+        int main() {auto p = std::experimental::filesystem::current_path();}")
+        
+    set(CMAKE_REQUIRED_DEFINITIONS -std=c++17)
         
     # Check if we have std::filesystem at our disposal.
     check_cxx_source_compiles(
             "${STD_FILESYSTEM_TEST_PROGRAM}"
             HAS_STD_FILESYSTEM)
-
+            
+    if(NOT HAS_STD_FILESYSTEM AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(CMAKE_REQUIRED_LIBRARIES c++fs)
+        check_cxx_source_compiles(
+            "${STD_FILESYSTEM_TEST_PROGRAM}"
+            HAS_STD_FILESYSTEM_WITH_CXXFS)
+        set(HAS_STD_FILESYSTEM ${HAS_STD_FILESYSTEM_WITH_CXXFS})
+        set(CMAKE_REQUIRED_LIBRARIES "")
+    endif()
+    
     # Check if we have std::experimental::filesystem at our disposal.
     check_cxx_source_compiles(
             "${STD_FILESYSTEM_EXPERIMENTAL_TEST_PROGRAM}"
@@ -53,7 +62,7 @@ else()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             set(FE3_FS_LIBRARIES "stdc++fs")
-        elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND HAS_STD_FILESYSTEM_WITH_CXXFS)
             set(FE3_FS_LIBRARIES "c++fs")
         endif()
     endif()
