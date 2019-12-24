@@ -9,6 +9,7 @@ namespace ParseOptions {
     static const int assembleRoms = 2;
     static const int convertScript = 4;
     static const int verbose = 8;
+    static const int quiet = 16;
 }
 using namespace std;
 
@@ -144,6 +145,10 @@ int parseOptions(int argc, char * argv[]) {
                 returnValue &= ~ParseOptions::convertScript;
             } else if (option == "--verbose") {
                 returnValue |= ParseOptions::verbose;
+                returnValue &= ~ParseOptions::quiet;
+            } else if (option == "--quiet") {
+                returnValue |= ParseOptions::quiet;
+                returnValue &= ~ParseOptions::verbose;
             }
         }
     }
@@ -158,10 +163,13 @@ int main(int argc, char * argv[])
         cout << "Nothing to do, printing help." << endl;
         options = ParseOptions::printHelp;
     }
-    int verbosity = 0;
+    int verbosity = 1;
     if((options&ParseOptions::verbose) != 0) {
         options &= ~ParseOptions::verbose;
         verbosity++;
+    } else if ((options&ParseOptions::quiet) != 0) {
+        options &= ~ParseOptions::quiet;
+        verbosity--;
     }
     if (options == ParseOptions::printHelp) {
         cout << "Usage: " << argv[0] << " <options>" << endl
@@ -175,12 +183,12 @@ int main(int argc, char * argv[])
     } else {
         bool parseScript = (options&ParseOptions::convertScript) != 0;
         if (!fs::exists("config.yml")) {
-            cout << "Error: Missing config file" << endl;
+            cerr << "Error: Missing config file" << endl;
         } else {
             YAML::Node configYML = YAML::LoadFile("config.yml");
             YAML::Node outputSection = configYML["files"]["output"];
             if (!validateConfig(configYML)) {
-                cout << "Config file contains errors, aborting." << endl;
+                cerr << "Config file contains errors, aborting." << endl;
             }
             else {
                 bool scriptWasBuilt = false;
@@ -200,6 +208,9 @@ int main(int argc, char * argv[])
                     }
                     sc.loadScript(inputDirectory.string().c_str(), defaultMode, verbosity);
                     if (sc) {
+                        if (verbosity > 0) {
+                            cout << "Script converted, now generating files for assembly." << endl;
+                        }
                         scriptWasBuilt = sc.writeScript(outputSection);
                         if (outputSection["binaries"]["fonts"].IsDefined()) {
                             std::string baseOutputDir = outputSection["directory"].Scalar()
@@ -222,14 +233,11 @@ int main(int argc, char * argv[])
                     fs::current_path(starting_path);
                 }
                 if ((options&ParseOptions::assembleRoms) != 0 && scriptWasBuilt) {
-                    if (verbosity > 0) {
-                        cout << "Assembling ROMs..." << endl;
-                    }
                     // Fix issue with symlinked directories.
                     fs::current_path(starting_path);
                     if (asar_init()) {
                         if (verbosity > 0) {
-                            cout << "Asar initialized successfully." << endl;
+                            cout << "Asar initialized successfully, now assembling ROMs." << endl;
                         }
                         for (auto romNode : configYML["roms"]) {
                             fs::path romPath = fs::path(configYML["files"]["romDir"].Scalar()) / romNode["file"].Scalar();
@@ -305,7 +313,9 @@ int main(int argc, char * argv[])
                                     for (int i = 0; i< printcount; i++)  {
                                         cout << prints[i] << endl;
                                     }
-                                    cout << "Assembly for " << romNode["name"].Scalar() << " completed successfully." << endl;
+                                    if (verbosity > 0) {
+                                        cout << "Assembly for " << romNode["name"].Scalar() << " completed successfully." << endl;
+                                    }
                                 } else {
                                     fs::current_path(starting_path);
                                     int errorCount;
@@ -316,7 +326,7 @@ int main(int argc, char * argv[])
                                 }
                                 asar_reset();
                             } else {
-                                cout << "Error: Rom file " << fs::absolute(romPath) << " is missing." << endl;
+                                cerr << "Error: Rom file " << fs::absolute(romPath) << " is missing." << endl;
                             }
                         }
                     } else {

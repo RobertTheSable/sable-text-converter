@@ -128,7 +128,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                 if (fs::exists(tablePath)) {
                     isTable= true;
                     std::ifstream tablefile(tablePath.string());
-                    if (verbosity > 0) {
+                    if (verbosity > 1) {
                         std::cout << "Now reading: "
                                 << dirItr.path().string() + fs::path::preferred_separator + "table.txt" << endl;
                     }
@@ -144,7 +144,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                                 if (LoROMToPC(tableAddress) == -1 || sz != option.length()) {
                                     throw std::invalid_argument("");
                                 }
-                                labels[tableAddress] = std::string("table_") + dirItr.path().filename().string();
+                                labels[tableAddress] = "table_" + dirItr.path().filename().string();
                                 tableTextStream << labels[tableAddress] << ":" << endl;
                             } catch (const std::invalid_argument& e) {
                                 throwParseError(absolute(tablePath), option + " is not a valid SNES address.", tableLine);
@@ -223,9 +223,9 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                     fixedWidth = inConfig["TextTypes"][textType][FIXED_WIDTH].IsDefined() ? inConfig["TextTypes"][textType][FIXED_WIDTH].as<int>() : -1;
                     maxWidth = inConfig["TextTypes"][textType][MAX_WIDTH].IsDefined() ? inConfig["TextTypes"][textType][MAX_WIDTH].as<int>() : 0;
                     for (auto textFileItr: files) {
-                        if (verbosity > 0) {
+                        if (verbosity > 1) {
                             std::cout << "Now reading: "
-                                    << fs::absolute(textFileItr).string() + fs::path::preferred_separator + "table.txt" << endl;
+                                    << fs::absolute(textFileItr).string() << endl;
                         }
                         parseScriptFile(textFileItr, textType, isTable, storeWidths);
                     } // end file list loop
