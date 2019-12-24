@@ -103,7 +103,7 @@ void Script::throwParseError(fs::path&& file, std::string message, int line)
 void Script::loadScript(const char *inDir, const std::string& defaultTextMode, int verbosity)
 {
     defaultMode = defaultTextMode;
-    if (!inConfig["TextTypes"][defaultMode].IsDefined() ) {
+    if (!inConfig[defaultMode].IsDefined() ) {
         std::cerr << "Error: default text type " << defaultMode << " is not defined in inMapping config file, aborting." << std::endl;
         isScriptValid = false;
         return;
@@ -217,11 +217,11 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                 if (isFileListValid) {
                     std::sort(files.begin(), files.end());
                     std::string textType = defaultMode;
-                    digraphs = inConfig["TextTypes"][textType][USE_DIGRAPHS].Scalar() == "true";
-                    byteWidth = inConfig["TextTypes"][textType][BYTE_WIDTH].as<int>();
-                    commandValue = inConfig["TextTypes"][textType][CMD_CHAR].IsDefined() ? inConfig["TextTypes"][textType][CMD_CHAR].as<int>() : -1;
-                    fixedWidth = inConfig["TextTypes"][textType][FIXED_WIDTH].IsDefined() ? inConfig["TextTypes"][textType][FIXED_WIDTH].as<int>() : -1;
-                    maxWidth = inConfig["TextTypes"][textType][MAX_WIDTH].IsDefined() ? inConfig["TextTypes"][textType][MAX_WIDTH].as<int>() : 0;
+                    digraphs = inConfig[textType][USE_DIGRAPHS].Scalar() == "true";
+                    byteWidth = inConfig[textType][BYTE_WIDTH].as<int>();
+                    commandValue = inConfig[textType][CMD_CHAR].IsDefined() ? inConfig[textType][CMD_CHAR].as<int>() : -1;
+                    fixedWidth = inConfig[textType][FIXED_WIDTH].IsDefined() ? inConfig[textType][FIXED_WIDTH].as<int>() : -1;
+                    maxWidth = inConfig[textType][MAX_WIDTH].IsDefined() ? inConfig[textType][MAX_WIDTH].as<int>() : 0;
                     for (auto textFileItr: files) {
                         if (verbosity > 1) {
                             std::cout << "Now reading: "
@@ -286,12 +286,12 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
             if (textFile.peek() != '#' && textFile.peek() != '@') {
                 if (commandValue == -1) {
                     currentTextNode.data.push_back(
-                                inConfig["TextTypes"][textType]["Commands"]["NewLine"]["code"].as<int>()
+                                inConfig[textType]["Commands"]["NewLine"]["code"].as<int>()
                             );
                 } else {
                     currentTextNode.data.push_back(commandValue);
                     currentTextNode.data.push_back(
-                        inConfig["TextTypes"][textType]["Commands"]["NewLine"]["code"].as<int>()
+                        inConfig[textType]["Commands"]["NewLine"]["code"].as<int>()
                             );
                 }
             }
@@ -329,14 +329,14 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
                                 if (settingOption == "default") {
                                     settingOption = defaultMode;
                                 }
-                                if (inConfig["TextTypes"][settingOption].IsDefined() && inConfig["TextTypes"][settingOption].IsMap()) {
+                                if (inConfig[settingOption].IsDefined() && inConfig[settingOption].IsMap()) {
                                     textType = settingOption;
-                                    digraphs = inConfig["TextTypes"][textType][USE_DIGRAPHS].Scalar() == "true";
-                                    byteWidth = inConfig["TextTypes"][textType][BYTE_WIDTH].as<int>();
-                                    commandValue = inConfig["TextTypes"][textType][CMD_CHAR].IsDefined() ? inConfig["TextTypes"][textType][CMD_CHAR].as<int>() : -1;
-                                    fixedWidth = inConfig["TextTypes"][textType][FIXED_WIDTH].IsDefined() ? inConfig["TextTypes"][textType][FIXED_WIDTH].as<int>() : -1;
+                                    digraphs = inConfig[textType][USE_DIGRAPHS].Scalar() == "true";
+                                    byteWidth = inConfig[textType][BYTE_WIDTH].as<int>();
+                                    commandValue = inConfig[textType][CMD_CHAR].IsDefined() ? inConfig[textType][CMD_CHAR].as<int>() : -1;
+                                    fixedWidth = inConfig[textType][FIXED_WIDTH].IsDefined() ? inConfig[textType][FIXED_WIDTH].as<int>() : -1;
                                     if (!fileMaxWidth) {
-                                        maxWidth = inConfig["TextTypes"][textType][MAX_WIDTH].IsDefined() ? inConfig["TextTypes"][textType][MAX_WIDTH].as<int>() : 0;
+                                        maxWidth = inConfig[textType][MAX_WIDTH].IsDefined() ? inConfig[textType][MAX_WIDTH].as<int>() : 0;
                                         currentTextNode.maxWidth = maxWidth;
                                     }
                                     currentTextNode.isMenuText = (commandValue == -1);
@@ -404,30 +404,30 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
                                     }
                                 } catch (const std::invalid_argument& e) {
                                     dataWidth = byteWidth;
-                                    if (inConfig["TextTypes"][textType]["Commands"][convert].IsDefined()) {
+                                    if (inConfig[textType]["Commands"][convert].IsDefined()) {
                                         // normal text command
                                         if (commandValue != -1) {
                                             line.push_back(commandValue);
                                         }
                                         config = "Commands";
-                                        convertedValue = inConfig["TextTypes"][textType]["Commands"][convert]["code"].as<int>();
-                                        parseNewLines = !inConfig["TextTypes"][textType]["Commands"][convert]["newline"].IsDefined();
+                                        convertedValue = inConfig[textType]["Commands"][convert]["code"].as<int>();
+                                        parseNewLines = !inConfig[textType]["Commands"][convert]["newline"].IsDefined();
                                     } else {
                                         std::string withBrackets  = std::string({'['}) + convert + ']';
-                                        if (inConfig["TextTypes"][textType]["Encoding"][withBrackets].IsDefined()) {
+                                        if (inConfig[textType]["Encoding"][withBrackets].IsDefined()) {
                                             config = "Encoding";
                                             convert = withBrackets;
-                                            convertedValue = inConfig["TextTypes"][textType]["Encoding"][convert]["code"].as<int>();
-                                            if(currentTextNode.maxWidth > 0 && inConfig["TextTypes"][textType]["Encoding"][convert]["length"].IsDefined()) {
+                                            convertedValue = inConfig[textType]["Encoding"][convert]["code"].as<int>();
+                                            if(currentTextNode.maxWidth > 0 && inConfig[textType]["Encoding"][convert]["length"].IsDefined()) {
                                                 if (fixedWidth != -1) {
                                                     currentLineLength += fixedWidth;
                                                 } else {
-                                                    currentLineLength += inConfig["TextTypes"][textType]["Encoding"][convert]["length"].as<int>();
+                                                    currentLineLength += inConfig[textType]["Encoding"][convert]["length"].as<int>();
                                                 }
                                             }
-                                        } else if (inConfig["TextTypes"][textType]["Extras"][convert].IsDefined() && inConfig["TextTypes"][textType]["Extras"][convert].IsScalar()) {
+                                        } else if (inConfig[textType]["Extras"][convert].IsDefined() && inConfig[textType]["Extras"][convert].IsScalar()) {
                                             config = "Extras";
-                                            convertedValue = inConfig["TextTypes"][textType]["Extras"][convert].as<int>();
+                                            convertedValue = inConfig[textType]["Extras"][convert].as<int>();
                                         } else {
                                             throwParseError(fs::absolute(file), convert + " is not valid hexadecimal or is not a valid command/extra define.", lineNumber);
                                         }
@@ -439,8 +439,8 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
                                         line.push_back(pushValue);
                                         if (!config.empty()) {
                                             if (autoEnd && (
-                                                    (inConfig["TextTypes"][textType][config]["[End]"].IsDefined() && pushValue == inConfig["TextTypes"][textType][config]["[End]"]["code"].as<int>()) ||
-                                                    (inConfig["TextTypes"][textType][config]["End"].IsDefined() && pushValue == inConfig["TextTypes"][textType][config]["End"]["code"].as<int>()))) {
+                                                    (inConfig[textType][config]["[End]"].IsDefined() && pushValue == inConfig[textType][config]["[End]"]["code"].as<int>()) ||
+                                                    (inConfig[textType][config]["End"].IsDefined() && pushValue == inConfig[textType][config]["End"]["code"].as<int>()))) {
                                                 if (!line.empty()) {
                                                     currentTextNode.data.insert(currentTextNode.data.end(), line.begin(), line.end());
                                                     line = {};
@@ -465,20 +465,20 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
                             }
                         } else {
                             std::string encodingString = std::string({current});
-                            if (inConfig["TextTypes"][textType]["Encoding"][encodingString].IsDefined()) {
+                            if (inConfig[textType]["Encoding"][encodingString].IsDefined()) {
                                 unsigned short value;
                                 if (digraphs &&
                                         stringChar != input.end() &&
-                                        inConfig["TextTypes"][textType]["Encoding"][encodingString + getUtf8Char(stringChar, input.end(), false)].IsDefined()
+                                        inConfig[textType]["Encoding"][encodingString + getUtf8Char(stringChar, input.end(), false)].IsDefined()
                                     ) {
                                     encodingString = encodingString + getUtf8Char(stringChar, input.end());
                                 }
-                                value = inConfig["TextTypes"][textType]["Encoding"][encodingString]["code"].as<int>();
+                                value = inConfig[textType]["Encoding"][encodingString]["code"].as<int>();
                                 if(currentTextNode.maxWidth > 0) {
-                                    if (fixedWidth != -1 && inConfig["TextTypes"][textType]["Encoding"][encodingString]["length"].IsDefined()) {
+                                    if (fixedWidth != -1 && inConfig[textType]["Encoding"][encodingString]["length"].IsDefined()) {
                                         currentLineLength += fixedWidth;
                                     } else {
-                                        currentLineLength += inConfig["TextTypes"][textType]["Encoding"][encodingString]["length"].as<int>();
+                                        currentLineLength += inConfig[textType]["Encoding"][encodingString]["length"].as<int>();
                                     }
                                 }
                                 line.push_back(value);
@@ -512,12 +512,12 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
             if (addNewline) {
                 if (commandValue == -1) {
                     currentTextNode.data.push_back(
-                                inConfig["TextTypes"][textType]["Commands"]["NewLine"]["code"].as<int>()
+                                inConfig[textType]["Commands"]["NewLine"]["code"].as<int>()
                             );
                 } else {
                     currentTextNode.data.push_back(commandValue);
                     currentTextNode.data.push_back(
-                                inConfig["TextTypes"][textType]["Commands"]["NewLine"]["code"].as<int>()
+                                inConfig[textType]["Commands"]["NewLine"]["code"].as<int>()
                             );
                 }
             }
@@ -526,12 +526,12 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
     if (autoEnd) {
         if (commandValue == -1) {
             currentTextNode.data.push_back(
-                        inConfig["TextTypes"][textType]["Commands"]["End"]["code"].as<int>()
+                        inConfig[textType]["Commands"]["End"]["code"].as<int>()
                     );
         } else {
             currentTextNode.data.push_back(commandValue);
             currentTextNode.data.push_back(
-                        inConfig["TextTypes"][textType]["Commands"]["End"]["code"].as<int>()
+                        inConfig[textType]["Commands"]["End"]["code"].as<int>()
                     );
         }
     }
@@ -548,7 +548,7 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
     }
     textFile.close();
     fileindex++;
-    digraphs = inConfig["TextTypes"][textType][USE_DIGRAPHS].Scalar() == "true";
+    digraphs = inConfig[textType][USE_DIGRAPHS].Scalar() == "true";
 }
 
 bool Script::writeScript(const YAML::Node& outputConfig)
@@ -681,7 +681,7 @@ bool Script::writeFontData(const fs::path& fontFileName, const YAML::Node& inclu
             }
         }
     }
-    for (auto&& it = inConfig["TextTypes"].begin(); it != inConfig["TextTypes"].end(); ++it) {
+    for (auto&& it = inConfig.begin(); it != inConfig.end(); ++it) {
         if (it->second[FONT_ADDR].IsDefined()) {
             try {
                 std::string define = it->second[FONT_ADDR].Scalar();
