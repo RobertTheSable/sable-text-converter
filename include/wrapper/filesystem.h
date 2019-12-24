@@ -14,6 +14,7 @@ namespace fs = std::experimental::filesystem;
 #else
 
 #include <filesystem>
+#include <iostream>
 namespace fs = std::filesystem;
 
 #endif
