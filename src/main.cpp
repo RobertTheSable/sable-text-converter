@@ -178,7 +178,7 @@ int main(int argc, char * argv[])
             cout << "Error: Missing config file" << endl;
         } else {
             YAML::Node configYML = YAML::LoadFile("config.yml");
-            YAML::Node&& outputSection = configYML["files"]["output"];
+            YAML::Node outputSection = configYML["files"]["output"];
             if (!validateConfig(configYML)) {
                 cout << "Config file contains errors, aborting." << endl;
             }
@@ -191,10 +191,10 @@ int main(int argc, char * argv[])
                         cout << "Converting script..." << endl;
                     }
                     fs::path&& configDir = configYML["config"]["directory"].Scalar();
-                    Script sc( (configDir / configYML["config"]["inMapping"].Scalar()).string().c_str());
+                    Script sc((configDir / configYML["config"]["inMapping"].Scalar()).string().c_str());
                     fs::current_path(configYML["files"]["mainDir"].Scalar());
                     fs::path&& inputDirectory = configYML["files"]["input"]["directory"].Scalar();
-                    std::string defaultMode = "Normal";
+                    std::string defaultMode = "normal";
                     if (configYML["config"]["defaultMode"].IsDefined() && configYML["config"]["defaultMode"].IsScalar()) {
                         defaultMode = configYML["config"]["defaultMode"].Scalar();
                     }
