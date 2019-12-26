@@ -214,17 +214,17 @@ int main(int argc, char * argv[])
                         scriptWasBuilt = sc.writeScript(outputSection);
                         if (outputSection["binaries"]["fonts"].IsDefined()) {
                             std::string baseOutputDir = outputSection["directory"].Scalar()
-                                    + fs::path::preferred_separator
+                                    + sable_preferred_separator
                                     + outputSection["binaries"]["mainDir"].Scalar()
-                                    + fs::path::preferred_separator;
+                                    + sable_preferred_separator;
                             try {
                                 std::string fontName = outputSection["binaries"]["fonts"]["dir"].as<std::string>();
-                                fontLocation = baseOutputDir + fontName + fs::path::preferred_separator + fontName + ".asm";
+                                fontLocation = baseOutputDir + fontName + sable_preferred_separator + fontName + ".asm";
                                 fontWasBuilt = sc.writeFontData(fontLocation, outputSection["binaries"]["fonts"]["includes"]);
                             } catch (YAML::BadConversion &e) {
                                 if (outputSection["binaries"]["fonts"].IsScalar()) {
                                     std::string fontName = outputSection["binaries"]["fonts"].as<std::string>();
-                                    fontLocation = baseOutputDir + fontName + fs::path::preferred_separator + fontName + ".asm";
+                                    fontLocation = baseOutputDir + fontName + sable_preferred_separator + fontName + ".asm";
                                     fontWasBuilt = sc.writeFontData(fontLocation, outputSection["binaries"]["fonts"]["includes"]);
                                 }
                             }
@@ -246,12 +246,12 @@ int main(int argc, char * argv[])
                                 ifstream romFile(romPath.string(), ios::in | ios::binary);
                                 romFile.seekg(0, std::ios::end);
                                 int outputSize = romFile.tellg();
-                                char outBuffer[4194816];
+                                char* outBuffer = new char[4194816];
                                 for (int it = 0; it < 4194816 ; it++){
                                     outBuffer[it] = 0;
                                 }
                                 romFile.seekg(0, ios_base::beg);
-                                romFile.read(reinterpret_cast<char*>(outBuffer), outputSize);
+                                romFile.read(outBuffer, outputSize);
                                 romFile.close();
                                 int headerSize;
                                 if(romNode["header"].IsDefined() && romNode["header"].Scalar() != "auto") {
@@ -324,6 +324,7 @@ int main(int argc, char * argv[])
                                         cerr << errors[i].fullerrdata << endl;
                                     }
                                 }
+                                delete [] outBuffer;
                                 asar_reset();
                             } else {
                                 cerr << "Error: Rom file " << fs::absolute(romPath) << " is missing." << endl;

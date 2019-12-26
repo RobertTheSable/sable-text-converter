@@ -19,4 +19,10 @@ namespace fs = std::filesystem;
 
 #endif
 
+#ifdef _WIN32
+    static constexpr char sable_preferred_separator = '\\';
+#else
+    static constexpr char sable_preferred_separator = '/';
+#endif
+
 #endif

@@ -57,7 +57,7 @@ private:
     std::string defaultMode;
     bool digraphs;
     int byteWidth, commandValue, fixedWidth, maxWidth, fileindex;
-    uint nextAddress;
+    unsigned int nextAddress;
 
     void writeParseWarning(const fs::path &file, std::string message, int line = 0);
     void throwParseError(fs::path&& file, std::string message, int line = 0) noexcept(false);

@@ -130,7 +130,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                     std::ifstream tablefile(tablePath.string());
                     if (verbosity > 1) {
                         std::cout << "Now reading: "
-                                << dirItr.path().string() + fs::path::preferred_separator + "table.txt" << endl;
+                                << dirItr.path().string() + sable_preferred_separator + "table.txt" << endl;
                     }
                     std::string input;
                     int tableLine = 1;
@@ -556,11 +556,11 @@ bool Script::writeScript(const YAML::Node& outputConfig)
     if (!fs::exists(mainOutputDir)) {
         fs::create_directory(mainOutputDir);
     }
-    std::string outDir = mainOutputDir.string() + fs::path::preferred_separator + outputConfig["binaries"]["mainDir"].Scalar();
+    std::string outDir = mainOutputDir.string() + sable_preferred_separator + outputConfig["binaries"]["mainDir"].Scalar();
     if (!fs::exists(outDir)) {
         fs::create_directory(outDir);
     }
-    std::string textDir = outDir + fs::path::preferred_separator + outputConfig["binaries"]["textDir"].Scalar();
+    std::string textDir = outDir + sable_preferred_separator + outputConfig["binaries"]["textDir"].Scalar();
     if (!fs::exists(textDir)) {
         fs::create_directory(textDir);
     }
