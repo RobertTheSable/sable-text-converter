@@ -1,0 +1,9 @@
+address 818000
+width 3
+
+file 00.txt
+file 01.txt
+
+entry normal_00
+entry normal_01
+entry const $e000

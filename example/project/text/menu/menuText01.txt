@@ -1,0 +1,4 @@
+@address 828000
+@type menu
+This is some menu text.
+Maybe it's multi-line.

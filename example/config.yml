@@ -1,0 +1,29 @@
+files:
+    mainDir: project
+    input: 
+        directory: text
+    output:
+        directory: asm
+        binaries: 
+            mainDir: bin
+            textDir: text
+            fonts: 
+                dir: fonts
+            extras:
+                - test
+        includes:
+            - code.asm
+    romDir: roms
+config:
+    directory: config
+    inMapping: in.yml
+    defaultMode: normal
+roms:
+    - name: "something_translated"
+      file: "something.sfc"
+      header: false
+    - name: "something_rev2_translated"
+      file: "something_rev2.smc"
+      header: true
+      includes:
+        - rev2Custom.asm

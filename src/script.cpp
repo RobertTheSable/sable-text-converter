@@ -286,12 +286,12 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
             if (textFile.peek() != '#' && textFile.peek() != '@') {
                 if (commandValue == -1) {
                     currentTextNode.data.push_back(
-                                inConfig[textType]["Commands"]["NewLine"]["code"].as<int>()
+                                inConfig[textType][SABLE_FONT_CMD]["NewLine"]["code"].as<int>()
                             );
                 } else {
                     currentTextNode.data.push_back(commandValue);
                     currentTextNode.data.push_back(
-                        inConfig[textType]["Commands"]["NewLine"]["code"].as<int>()
+                        inConfig[textType][SABLE_FONT_CMD]["NewLine"]["code"].as<int>()
                             );
                 }
             }
@@ -404,30 +404,30 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
                                     }
                                 } catch (const std::invalid_argument& e) {
                                     dataWidth = byteWidth;
-                                    if (inConfig[textType]["Commands"][convert].IsDefined()) {
+                                    if (inConfig[textType][SABLE_FONT_CMD][convert].IsDefined()) {
                                         // normal text command
                                         if (commandValue != -1) {
                                             line.push_back(commandValue);
                                         }
-                                        config = "Commands";
-                                        convertedValue = inConfig[textType]["Commands"][convert]["code"].as<int>();
-                                        parseNewLines = !inConfig[textType]["Commands"][convert]["newline"].IsDefined();
+                                        config = SABLE_FONT_CMD;
+                                        convertedValue = inConfig[textType][SABLE_FONT_CMD][convert]["code"].as<int>();
+                                        parseNewLines = !inConfig[textType][SABLE_FONT_CMD][convert]["newline"].IsDefined();
                                     } else {
                                         std::string withBrackets  = std::string({'['}) + convert + ']';
-                                        if (inConfig[textType]["Encoding"][withBrackets].IsDefined()) {
-                                            config = "Encoding";
+                                        if (inConfig[textType][SABLE_FONT_ENC][withBrackets].IsDefined()) {
+                                            config = SABLE_FONT_ENC;
                                             convert = withBrackets;
-                                            convertedValue = inConfig[textType]["Encoding"][convert]["code"].as<int>();
-                                            if(currentTextNode.maxWidth > 0 && inConfig[textType]["Encoding"][convert]["length"].IsDefined()) {
+                                            convertedValue = inConfig[textType][SABLE_FONT_ENC][convert]["code"].as<int>();
+                                            if(currentTextNode.maxWidth > 0 && inConfig[textType][SABLE_FONT_ENC][convert]["length"].IsDefined()) {
                                                 if (fixedWidth != -1) {
                                                     currentLineLength += fixedWidth;
                                                 } else {
                                                     currentLineLength += inConfig[textType]["Encoding"][convert]["length"].as<int>();
                                                 }
                                             }
-                                        } else if (inConfig[textType]["Extras"][convert].IsDefined() && inConfig[textType]["Extras"][convert].IsScalar()) {
-                                            config = "Extras";
-                                            convertedValue = inConfig[textType]["Extras"][convert].as<int>();
+                                        } else if (inConfig[textType][SABLE_FONT_EX][convert].IsDefined() && inConfig[textType][SABLE_FONT_EX][convert].IsScalar()) {
+                                            config = SABLE_FONT_EX;
+                                            convertedValue = inConfig[textType][SABLE_FONT_EX][convert].as<int>();
                                         } else {
                                             throwParseError(fs::absolute(file), convert + " is not valid hexadecimal or is not a valid command/extra define.", lineNumber);
                                         }
@@ -439,7 +439,6 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
                                         line.push_back(pushValue);
                                         if (!config.empty()) {
                                             if (autoEnd && (
-                                                    (inConfig[textType][config]["[End]"].IsDefined() && pushValue == inConfig[textType][config]["[End]"]["code"].as<int>()) ||
                                                     (inConfig[textType][config]["End"].IsDefined() && pushValue == inConfig[textType][config]["End"]["code"].as<int>()))) {
                                                 if (!line.empty()) {
                                                     currentTextNode.data.insert(currentTextNode.data.end(), line.begin(), line.end());
@@ -512,12 +511,12 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
             if (addNewline) {
                 if (commandValue == -1) {
                     currentTextNode.data.push_back(
-                                inConfig[textType]["Commands"]["NewLine"]["code"].as<int>()
+                                inConfig[textType][SABLE_FONT_CMD]["NewLine"]["code"].as<int>()
                             );
                 } else {
                     currentTextNode.data.push_back(commandValue);
                     currentTextNode.data.push_back(
-                                inConfig[textType]["Commands"]["NewLine"]["code"].as<int>()
+                                inConfig[textType][SABLE_FONT_CMD]["NewLine"]["code"].as<int>()
                             );
                 }
             }
@@ -526,12 +525,12 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
     if (autoEnd) {
         if (commandValue == -1) {
             currentTextNode.data.push_back(
-                        inConfig[textType]["Commands"]["End"]["code"].as<int>()
+                        inConfig[textType][SABLE_FONT_CMD]["End"]["code"].as<int>()
                     );
         } else {
             currentTextNode.data.push_back(commandValue);
             currentTextNode.data.push_back(
-                        inConfig[textType]["Commands"]["End"]["code"].as<int>()
+                        inConfig[textType][SABLE_FONT_CMD]["End"]["code"].as<int>()
                     );
         }
     }
@@ -661,6 +660,9 @@ bool Script::writeScript(const YAML::Node& outputConfig)
 
 bool Script::writeFontData(const fs::path& fontFileName, const YAML::Node& includes)
 {
+    if (!fs::exists(fontFileName.parent_path())) {
+        fs::create_directory(fontFileName.parent_path());
+    }
     std::ofstream fontFile(fontFileName.string());
     if (includes.IsDefined() && includes.IsSequence()) {
         for (auto&& include: includes) {

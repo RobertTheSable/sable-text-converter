@@ -1,0 +1,9 @@
+@label normal_01
+Some text.
+Since we didn't specify a type, 
+the default type will be used.
+We didn't specify an address, 
+but it should be generated 
+from the table file data.
+
+This line is very long and should create a warning. 

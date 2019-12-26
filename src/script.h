@@ -16,6 +16,10 @@ public:
     static const constexpr char* MAX_CHAR = "MaxEncodedValue";
     static const constexpr char* MAX_WIDTH = "MaxWidth";
     static const constexpr char* FONT_ADDR = "FontWidthAddress";
+    static const constexpr char* SABLE_FONT_ENC = "Encoding";
+    static const constexpr char* SABLE_FONT_CMD = "Commands";
+    static const constexpr char* SABLE_FONT_EX = "Extras";
+
 
     Script();
     Script(const char* inConfig);
