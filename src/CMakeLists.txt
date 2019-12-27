@@ -7,7 +7,9 @@ list(
     APPEND SABLE_SOURCE_FILES
     
     "${PROJECT_SOURCE_DIR}/include/asar/asardll.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/options.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/script.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cache.cpp"
 )
 
 list(

@@ -74,6 +74,7 @@ CMakeLists.txt.user*
 *.exe
 
 build/
+example/cache/
 
 CMakeLists.txt.user
 *CMakeCache.txt

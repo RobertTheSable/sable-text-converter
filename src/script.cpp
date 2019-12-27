@@ -5,46 +5,16 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <memory>
 #include "utf8.h"
 
 using std::setw;
 using std::hex;
 
-//dialogue max width: 8 * 20 px
-int PCToLoROM(int addr, bool header = false)
-{
-    if (header) {
-        addr-=512;
-    }
-    if (addr<0 || addr>=0x400000) {
-        return -1;
-    }
-    addr=((addr<<1)&0x7F0000)|(addr&0x7FFF)|0x8000;
-    addr|=0x800000;
-    return addr;
-}
-int PCToLoROMLow(int addr, bool header = false)
-{
-    if (header) {
-        addr-=512;
-    }
-    if (addr<0 || addr>=0x400000) {
-        return -1;
-    }
-    addr=((addr<<1)&0x7F0000)|(addr&0x7FFF)|0x8000;
-    return addr;
-}
-int LoROMToPC(int addr, bool header = false)
-{
-    if (addr<0 || addr>0xFFFFFF ||//not 24bit
-                (addr&0xFE0000)==0x7E0000 ||//wram
-                (addr&0x408000)==0x000000)//hardware regs
-            return -1;
-    addr=((addr&0x7F0000)>>1|(addr&0x7FFF));
-    if (header) addr+=512;
-    return addr;
-}
+/* TODO: Add support for expanding LoROMs with low addressing type.
+* Need to copy old rom data to 0x400000.
+*/
 
 std::string getUtf8Char(std::string::iterator& start, std::string::iterator end, bool advance = true)
 {
@@ -59,7 +29,7 @@ std::string getUtf8Char(std::string::iterator& start, std::string::iterator end,
     }
 }
 
-Script::Script() : isScriptValid(false)
+Script::Script() : m_map(Mappers::LOROM), isScriptValid(false), maxAddress(0)
 {
     fs::path configFile= "config";
     configFile /= "in.yml";
@@ -68,11 +38,18 @@ Script::Script() : isScriptValid(false)
     }
 }
 
-Script::Script(const char *configFile) : isScriptValid(false)
+Script::Script(const char *configFile, const char* mapper) : m_map(Mappers::INVALID), isScriptValid(false), maxAddress(0)
 {
     fs::path configFilePath = configFile;
     if (fs::exists(configFilePath)) {
         inConfig = YAML::LoadFile(configFile);
+    }
+    if (mapper != nullptr) {
+        if (strcmp(mapper, "lorom") == 0) {
+            m_map = Mappers::LOROM;
+        } else if (strcmp(mapper, "exlorom") == 0) {
+            m_map = Mappers::EXLOROM;
+        }
     }
 }
 void Script::writeParseWarning(const fs::path &file, std::string message, int line)
@@ -140,7 +117,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                             try {
                                 std::string::size_type sz;
                                 tableAddress = std::stoi(option, &sz, 16);
-                                if (LoROMToPC(tableAddress) == -1 || sz != option.length()) {
+                                if (ROMToPC(tableAddress) == -1 || sz != option.length()) {
                                     throw std::invalid_argument("");
                                 }
                                 labels[tableAddress] = "table_" + dirItr.path().filename().string();
@@ -177,7 +154,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                                 try {
                                     std::string::size_type sz;
                                     nextAddress = std::stoi(option, &sz, 16);
-                                    if (LoROMToPC(nextAddress) == -1|| sz != option.length()) {
+                                    if (ROMToPC(nextAddress) == -1|| sz != option.length()) {
                                         throw std::invalid_argument("");
                                     }
                                 } catch (const std::invalid_argument& e) {
@@ -316,7 +293,7 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
                                     }
                                     try {
                                         unsigned int data = std::stoi(settingOption, nullptr, 16);
-                                        if (LoROMToPC(data) == -1) {
+                                        if (ROMToPC(data) == -1) {
                                             throwParseError(fs::absolute(file), settingOption + " is not a hexadecimal address.", lineNumber);
                                         }
                                         currentTextNode.address = data;
@@ -549,6 +526,18 @@ void Script::parseScriptFile(const fs::path &file, std::string& textType, bool i
     digraphs = inConfig[textType][USE_DIGRAPHS].Scalar() == "true";
 }
 
+int Script::ROMToPC(int addr, bool header) const
+{
+    switch (m_map) {
+    case Mappers::EXLOROM:
+        return EXLoROMToPC(addr, header);
+    case Mappers::LOROM:
+        return LoROMToPC(addr, header);
+    default:
+        return -1;
+    }
+}
+
 bool Script::writeScript(const YAML::Node& outputConfig)
 {
     fs::path mainOutputDir(outputConfig["directory"].Scalar());
@@ -650,6 +639,9 @@ bool Script::writeScript(const YAML::Node& outputConfig)
             }
             asmFile << textIt->second.text;
             lastAddress = textIt->first + textIt->second.length;
+            if (ROMToPC(lastAddress) > maxAddress) {
+                maxAddress = ROMToPC(lastAddress);
+            }
         }
         asmFile.close();
         textDefines.close();
@@ -790,7 +782,15 @@ bool Script::writeFontData(const fs::path& fontFileName, const YAML::Node& inclu
     return true;
 }
 
+unsigned int Script::getMaxAddress() const
+{
+    return maxAddress;
+}
+
 Script::operator bool() const
 {
-    return isScriptValid;
+    if (!binNodes.empty()) {
+        return isScriptValid;
+    }
+    return m_map != Mappers::INVALID;
 }
