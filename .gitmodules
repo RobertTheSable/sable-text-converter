@@ -9,3 +9,6 @@
 [submodule "external/utf8"]
 	path = external/utf8
 	url = git@github.com:nemtrif/utfcpp.git
+[submodule "external/cxxopts"]
+	path = external/cxxopts
+	url = git@github.com:jarro2783/cxxopts.git

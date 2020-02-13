@@ -25,8 +25,8 @@ add_executable(
     ${SABLE_SOURCE_FILES}
 )
 
-set_target_properties(sable PROPERTIES 
-    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build"
+set_target_properties(sable PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}"
 )
 
 target_link_libraries(

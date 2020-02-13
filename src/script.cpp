@@ -9,7 +9,6 @@
 #include "utf8.h"
 
 using std::setw;
-using std::endl;
 using std::hex;
 
 //dialogue max width: 8 * 20 px
@@ -79,10 +78,10 @@ Script::Script(const char *configFile) : isScriptValid(false)
 void Script::writeParseWarning(const fs::path &file, std::string message, int line)
 {
     if (line == 0) {
-        std::cerr << std::string("Warning in ") + file.string() + ": " + message << endl;
+        std::cerr << std::string("Warning in ") + file.string() + ": " + message << '\n';
     } else {
         std::cerr << std::string("Warning in ") + file.string() +
-                    " on line " + std::to_string(line) +": " + message << endl;
+                    " on line " + std::to_string(line) +": " + message << '\n';
     }
 }
 
@@ -104,7 +103,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
 {
     defaultMode = defaultTextMode;
     if (!inConfig[defaultMode].IsDefined() ) {
-        std::cerr << "Error: default text type " << defaultMode << " is not defined in inMapping config file, aborting." << std::endl;
+        std::cerr << "Error: default text type " << defaultMode << " is not defined in inMapping config file, aborting.\n";
         isScriptValid = false;
         return;
     }
@@ -130,7 +129,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                     std::ifstream tablefile(tablePath.string());
                     if (verbosity > 1) {
                         std::cout << "Now reading: "
-                                << dirItr.path().string() + sable_preferred_separator + "table.txt" << endl;
+                                << dirItr.path().string() + sable_preferred_separator + "table.txt\n";
                     }
                     std::string input;
                     int tableLine = 1;
@@ -145,7 +144,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                                     throw std::invalid_argument("");
                                 }
                                 labels[tableAddress] = "table_" + dirItr.path().filename().string();
-                                tableTextStream << labels[tableAddress] << ":" << endl;
+                                tableTextStream << labels[tableAddress] << ":\n";
                             } catch (const std::invalid_argument& e) {
                                 throwParseError(absolute(tablePath), option + " is not a valid SNES address.", tableLine);
                             }
@@ -225,7 +224,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                     for (auto textFileItr: files) {
                         if (verbosity > 1) {
                             std::cout << "Now reading: "
-                                    << fs::absolute(textFileItr).string() << endl;
+                                    << fs::absolute(textFileItr).string() << '\n';
                         }
                         parseScriptFile(textFileItr, textType, isTable, storeWidths);
                     } // end file list loop
@@ -234,9 +233,9 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                             //
                             if(it->front() == ' ') {
                                 if (tableAddresssDataWidth == 3) {
-                                    tableTextStream << "dl" << *it << endl;
+                                    tableTextStream << "dl" << *it << '\n';
                                 } else if (tableAddresssDataWidth == 2) {
-                                    tableTextStream << "dw" << *it << endl;
+                                    tableTextStream << "dw" << *it << '\n';
                                 }
                             } else {
                                 if (binLengths.count(*it) > 0 || it->front() == '$' ){
@@ -248,7 +247,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
                                     if (storeWidths) {
                                         tableTextStream << ", $" << hex << setw(4) << std::setfill('0') << binLengths[*it];
                                     }
-                                    tableTextStream  << endl;
+                                    tableTextStream  << '\n';
                                 }
                             }
                         }
@@ -259,7 +258,7 @@ void Script::loadScript(const char *inDir, const std::string& defaultTextMode, i
         } //end directory for loop
         isScriptValid = true;
     } catch (std::runtime_error& e) {
-        std::cerr << e.what() << endl;
+        std::cerr << e.what() << '\n';
         isScriptValid = false;
     }
 }
@@ -570,16 +569,16 @@ bool Script::writeScript(const YAML::Node& outputConfig)
             std::stringstream includeText;
             fs::path binFileName = textDir;
             binFileName /= binIt->label + ".bin";
-            includeText << binIt->label << ":" << endl
+            includeText << binIt->label << ":\n"
                         << "incbin " << fs::relative(textDir, mainOutputDir) / binFileName.filename()
-                        << endl;
+                        << '\n';
             if (binIt->printpc) {
-                includeText << "print pc" << endl;
+                includeText << "print pc\n";
             }
             tableText[binIt->address] = {false,dataSize,includeText.str()};
             std::ofstream binFile(binFileName.string(), std::ios::binary);
             if (!binFile) {
-                std::cerr << "Could not open " << fs::absolute(binFileName.string()).string() << " for writing" << endl;
+                std::cerr << "Could not open " << fs::absolute(binFileName.string()).string() << " for writing\n";
                 return false;
             }
             int addrCounter = binIt->address & 0xFFFF;
@@ -593,14 +592,14 @@ bool Script::writeScript(const YAML::Node& outputConfig)
                     tableText[binIt->address].length = cutoffLength;
                     binFileName = binFileName.parent_path() / (binIt->label  + "bank.bin");
                     int extrasize = dataSize - (newAddress - binIt->address);
-                    includeText << "incbin " << fs::path(textDir).parent_path().filename() / outputConfig["binaries"]["textDir"].Scalar() / binFileName.filename() << endl;
+                    includeText << "incbin " << fs::path(textDir).parent_path().filename() / outputConfig["binaries"]["textDir"].Scalar() / binFileName.filename() << '\n';
                     if (binIt->printpc) {
-                        includeText << "print pc" << endl;
+                        includeText << "print pc\n";
                     }
                     tableText[newAddress] = {false,extrasize,includeText.str()};
                     binFile.open(binFileName.string(), std::ios::binary);
                     if (!binFile) {
-                        std::cerr << "Could not open " << fs::absolute(binFileName.string()).string() << " for writing" << endl;
+                        std::cerr << "Could not open " << fs::absolute(binFileName.string()).string() << " for writing\n";
                         return false;
                     }
                     addrCounter = newAddress & 0xFFFF;
@@ -620,10 +619,10 @@ bool Script::writeScript(const YAML::Node& outputConfig)
         std::ofstream textDefines((fs::path(outDir).parent_path() / "textDefines.exp").string());
         std::ofstream asmFile((fs::path(outDir).parent_path() / "text.asm").string());
         if (!asmFile) {
-            std::cerr << "Could not open " << fs::absolute(fs::path(outDir).parent_path() / "textDefines.exp").string() << " for writing" << endl;
+            std::cerr << "Could not open " << fs::absolute(fs::path(outDir).parent_path() / "textDefines.exp").string() << " for writing\n";
             return false;
         } else if (!textDefines) {
-            std::cerr << "Could not open " << fs::absolute(fs::path(outDir).parent_path() / "text.asm").string() << " for writing" << endl;
+            std::cerr << "Could not open " << fs::absolute(fs::path(outDir).parent_path() / "text.asm").string() << " for writing\n";
             return false;
         }
         for (auto textIt = tableText.begin(); textIt != tableText.end(); ++textIt) {
@@ -633,20 +632,20 @@ bool Script::writeScript(const YAML::Node& outputConfig)
                     if(labels.count(textIt->first) > 0) {
                         std::string& currentLabel = labels[textIt->first];
                         if (difference < 0) {
-                            std::cerr << "Warning: " << currentLabel << " will overwrite prevviously assembled data" << endl;
+                            std::cerr << "Warning: " << currentLabel << " will overwrite prevviously assembled data\n";
                         }
-                        asmFile << endl << "org !def_" << currentLabel << endl;
+                        asmFile << '\n' << "org !def_" << currentLabel << '\n';
                         if (firstBankLabel != 0 && (firstBankLabel&0xFF0000) == (textIt->first&0xFF0000)) {
-                            textDefines << "!def_" << currentLabel << " = !def_" << labels[firstBankLabel] << "+$" << hex << textIt->first-firstBankLabel << endl;
+                            textDefines << "!def_" << currentLabel << " = !def_" << labels[firstBankLabel] << "+$" << hex << textIt->first-firstBankLabel << '\n';
                         } else {
-                            textDefines << "!def_" << currentLabel << " = $" << hex << textIt->first << endl;
+                            textDefines << "!def_" << currentLabel << " = $" << hex << textIt->first << '\n';
                             firstBankLabel = textIt->first;
                         }
                     } else {
-                        asmFile << endl << "org $" << hex << textIt->first << endl;
+                        asmFile << '\n' << "org $" << hex << textIt->first << '\n';
                     }
                 } else {
-                    asmFile << endl << "skip " << std::dec << difference << endl;
+                    asmFile << '\n' << "skip " << std::dec << difference << '\n';
                 }
             }
             asmFile << textIt->second.text;
@@ -665,43 +664,43 @@ bool Script::writeFontData(const fs::path& fontFileName, const YAML::Node& inclu
     }
     std::ofstream fontFile(fontFileName.string());
     if (includes.IsDefined() && includes.IsSequence()) {
-        for (auto&& include: includes) {
+        for (auto& include: includes) {
             try {
-                std::string&& incFile = include.as<std::string>();
+                std::string incFile = include.as<std::string>();
                 if (fs::path(incFile).extension().string() == ".bin") {
-                    fontFile << "incbin " << incFile << endl;
+                    fontFile << "incbin " << incFile << '\n';
                 } else {
                     fontFile << "incsrc " << incFile;
                     if(fs::path(incFile).extension().string().empty()) {
                         fontFile << ".asm";
                     }
-                    fontFile << endl;
+                    fontFile << '\n';
                 }
             } catch (YAML::BadConversion& e) {
-                std::cerr << "Error: " << include.Tag() << " field " << FONT_ADDR << " must be a scalar value." << endl;
+                std::cerr << "Error: " << include.Tag() << " field " << FONT_ADDR << " must be a scalar value.\n";
                 return false;
             }
         }
     }
-    for (auto&& it = inConfig.begin(); it != inConfig.end(); ++it) {
+    for (auto it = inConfig.begin(); it != inConfig.end(); ++it) {
         if (it->second[FONT_ADDR].IsDefined()) {
             try {
                 std::string define = it->second[FONT_ADDR].Scalar();
-                fontFile << endl << "ORG ";
+                fontFile << '\n' << "ORG ";
                 if (define[0] == '$') {
                    define = define.substr(1);
                 }
                 try {
                     int address = std::stoi(define, 0, 16);
-                    fontFile << '$' << hex << address << endl;
+                    fontFile << '$' << hex << address << '\n';
                 } catch(std::invalid_argument& e) {
                     if (define[0] != '!') {
                         fontFile << '!';
                     }
-                    fontFile << define << endl;
+                    fontFile << define << '\n';
                 }
             } catch (YAML::BadConversion& e) {
-                std::cerr << "Error: " << it->first.as<std::string>() << " field " << FONT_ADDR << " must be a scalar value." << endl;
+                std::cerr << "Error: " << it->first.as<std::string>() << " field " << FONT_ADDR << " must be a scalar value.\n";
                 return false;
             }
             int commandValue;
@@ -723,7 +722,7 @@ bool Script::writeFontData(const fs::path& fontFileName, const YAML::Node& inclu
             } else if (byteWidth == 1) {
                 arraySize = 0xFF;
             } else {
-                std::cerr << "Failed writing widths for " << it->first.Tag() << ": " << BYTE_WIDTH << " must be 1 or 2." << endl;
+                std::cerr << "Failed writing widths for " << it->first.Tag() << ": " << BYTE_WIDTH << " must be 1 or 2.\n";
                 return false;
             }
             short* widths = new short[arraySize];
@@ -742,7 +741,7 @@ bool Script::writeFontData(const fs::path& fontFileName, const YAML::Node& inclu
                     try {
                         maxEncoded = it->second[MAX_CHAR].as<int>();
                     } catch (YAML::BadConversion) {
-                        std::cerr << "Error: " << it->first.as<std::string>() << " has an invalid " << MAX_CHAR << endl;
+                        std::cerr << "Error: " << it->first.as<std::string>() << " has an invalid " << MAX_CHAR << '\n';
                         return false;
                     }
                 } else {
@@ -764,7 +763,7 @@ bool Script::writeFontData(const fs::path& fontFileName, const YAML::Node& inclu
                             fontFile.seekp(currentPos - 1);
                         }
                         stringLength = 0;
-                        fontFile << endl << "skip " << std::dec << difference << endl;
+                        fontFile << '\n' << "skip " << std::dec << difference << '\n';
                         difference = 0;
                     }
                     if (stringLength == 0) {
@@ -777,7 +776,7 @@ bool Script::writeFontData(const fs::path& fontFileName, const YAML::Node& inclu
                             fontFile << ',';
                         }
                     } else {
-                        fontFile << endl;
+                        fontFile << '\n';
                         stringLength = 0;
                     }
                 } else {

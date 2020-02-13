@@ -12,9 +12,9 @@ if(NOT YAML)
     set (YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
     set (YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "" FORCE)
     add_subdirectory(external/yaml-cpp)
-    set_target_properties(yaml-cpp PROPERTIES 
-        RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build"
-        LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build"
+    set_target_properties(yaml-cpp PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}/yaml-cpp"
+        LIBRARY_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}"
     )
 else()
     message(STATUS "Using system yaml-cpp library.")
@@ -24,9 +24,9 @@ execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/as
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 set (ASAR_GEN_EXE OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/asar/src/asar)
-set_target_properties(asar PROPERTIES 
-    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build"
-    LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build"
+set_target_properties(asar PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}/asar"
+    LIBRARY_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}"
 )
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
     set_target_properties(asar PROPERTIES PREFIX "")
