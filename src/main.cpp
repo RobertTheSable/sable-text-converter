@@ -7,10 +7,9 @@
 #include "cache.h"
 
 using namespace std;
+
 int main(int argc, char * argv[])
 {
-    SableCache cache;
-    unsigned int maxAddress = cache.getMaxAddress();
     cxxopts::Options programOptions(
                 argv[0],
             "Program to convert scripts into Asar-compatible files for assembly and assemble files into a ROM.");
@@ -38,7 +37,8 @@ int main(int argc, char * argv[])
     if (isCurrentDirNotProject) {
         fs::current_path(starting_path);
     }
-    cout << fs::current_path().string() << '\n';
+    SableCache cache;
+    unsigned int maxAddress = cache.getMaxAddress();
     if (showHelp) {
          cout << programOptions.help({"", "Group"}) << '\n';
     } else {
@@ -48,10 +48,9 @@ int main(int argc, char * argv[])
         } else {
             YAML::Node configYML = YAML::LoadFile("config.yml");
             YAML::Node outputSection = configYML["files"]["output"];
-            std::string mapType = "lorom";
-            if (configYML["config"]["mapper"].IsDefined()) {
-                mapType = configYML["config"]["mapper"].as<string>();
-            }
+            std::string mapType = configYML["config"]["mapper"].IsDefined() ?
+                configYML["config"]["mapper"].as<string>() :
+                "lorom";
             if (!validateConfig(configYML)) {
                 cerr << "Config file contains errors, aborting.\n";
             }
@@ -63,7 +62,7 @@ int main(int argc, char * argv[])
                     if (verbosity > 0) {
                         cout << "Converting script...\n";
                     }
-                    fs::path&& configDir = configYML["config"]["directory"].Scalar();
+                    fs::path configDir = configYML["config"]["directory"].Scalar();
                     Script sc(
                             (configDir / configYML["config"]["inMapping"].Scalar()).string().c_str(),
                             mapType.c_str()
@@ -72,7 +71,7 @@ int main(int argc, char * argv[])
                         cerr << "Error: mapper " << mapType << " is not supported." <<  endl;
                     } else {
                         fs::current_path(configYML["files"]["mainDir"].Scalar());
-                        fs::path&& inputDirectory = configYML["files"]["input"]["directory"].Scalar();
+                        fs::path inputDirectory = configYML["files"]["input"]["directory"].Scalar();
                         std::string defaultMode = "normal";
                         if (configYML["config"]["defaultMode"].IsDefined() && configYML["config"]["defaultMode"].IsScalar()) {
                             defaultMode = configYML["config"]["defaultMode"].Scalar();
@@ -80,7 +79,7 @@ int main(int argc, char * argv[])
                         sc.loadScript(inputDirectory.string().c_str(), defaultMode, verbosity);
                         if (sc) {
                             if (verbosity > 0) {
-                                cout << "Script converted, now generating files for assembly." << endl;
+                                cout << "Script converted, now generating files for assembly.\n";
                             }
                             scriptWasBuilt = sc.writeScript(outputSection);
                             maxAddress = sc.getMaxAddress();
@@ -129,8 +128,8 @@ int main(int argc, char * argv[])
                                 }
                                 if (maxAddress < inputSize) {
                                     if (maxAddress == 0) {
-                                        cerr << "Warning: output size could not be determined normally." << endl
-                                             << "Either the script wasn't parse or cache couldn't be read." << endl;
+                                        cerr << "Warning: output size could not be determined normally.\n"
+                                             << "Either the script wasn't parse or cache couldn't be read.\n";
                                     }
                                     outputSize = inputSize;
                                 } else {
@@ -181,27 +180,27 @@ int main(int argc, char * argv[])
                                     bool regenerate = !romNode["regenMain"].IsDefined() || (romNode["regenMain"].IsScalar() && romNode["regenMain"].Scalar() != "no");
                                     if ((!fs::exists(patchFile) || regenerate) && parseScript){
                                         ofstream mainfile(patchFile.string());
-                                        mainfile << mapType << endl
-                                                << endl;
+                                        mainfile << mapType << '\n'
+                                                << '\n';
                                         for (auto include : romNode["includes"]) {
                                             mainfile << "incsrc " << outputSection["directory"].Scalar() << "/"
-                                                    << include.Scalar() << endl;
+                                                    << include.Scalar() << '\n';
                                         }
                                         for (auto include : outputSection["includes"]) {
                                             mainfile << "incsrc " << outputSection["directory"].Scalar() << "/"
-                                                    << include.Scalar() << endl;
+                                                    << include.Scalar() << '\n';
                                         }
                                         for (auto include : outputSection["binaries"]["extras"]) {
                                             mainfile << "incsrc " << outputSection["directory"].Scalar() << "/"
                                                     << outputSection["binaries"]["mainDir"] << "/"
                                                     << include.Scalar() << "/"
-                                                    << include.Scalar() << ".asm" << endl;
+                                                    << include.Scalar() << ".asm\n";
                                         }
                                         if (fontWasBuilt) {
-                                            mainfile << "incsrc " << fontLocation.string() << endl;
+                                            mainfile << "incsrc " << fontLocation.string() << '\n';
                                         }
-                                        mainfile << "incsrc " << outputSection["directory"].Scalar() << "/" << "textDefines.exp" << endl;
-                                        mainfile << "incsrc " << outputSection["directory"].Scalar() << "/" << "text.asm" << endl;
+                                        mainfile << "incsrc " << outputSection["directory"].Scalar() << "/" << "textDefines.exp\n";
+                                        mainfile << "incsrc " << outputSection["directory"].Scalar() << "/" << "text.asm\n";
                                         mainfile.close();
                                     }
                                     if (asar_patch(
@@ -224,39 +223,39 @@ int main(int argc, char * argv[])
                                         int printcount;
                                         const char* const* prints = asar_getprints(&printcount);
                                         for (int i = 0; i< printcount; i++)  {
-                                            cout << prints[i] << endl;
+                                            cout << prints[i] << '\n';
                                         }
                                         if (verbosity > 0) {
-                                            cout << "Assembly for " << romNode["name"].Scalar() << " completed successfully." << endl;
+                                            cout << "Assembly for " << romNode["name"].Scalar() << " completed successfully.\n";
                                         }
                                     } else {
                                         fs::current_path(starting_path);
                                         int errorCount;
                                         const errordata* errors = asar_geterrors(&errorCount);
                                         for(int i = 0; i < errorCount; i++) {
-                                            cerr << errors[i].fullerrdata << endl;
+                                            cerr << errors[i].fullerrdata << '\n';
                                         }
                                     }
                                     delete [] outBuffer;
                                     asar_reset();
                                 } else {
-                                    cerr << "Error: Rom file " << fs::absolute(romPath) << " has a malformed header." << endl;
+                                    cerr << "Error: Rom file " << fs::absolute(romPath) << " has a malformed header.\n";
                                 }
                             } else {
-                                cerr << "Error: Rom file " << fs::absolute(romPath) << " is missing." << endl;
+                                cerr << "Error: Rom file " << fs::absolute(romPath) << " is missing.\n";
                             }
                         }
                     } else {
-                        cerr << "Could not initialize Asar." << endl;
+                        cerr << "Could not initialize Asar.\n";
                     }
                 } else {
-                    cerr << "Could not start assembly." << endl;
+                    cerr << "Could not start assembly.\n";
                 }
             }
         }
         cout << "Press enter to continue.";
         cin.get();
-        cout << endl;
+        cout << '\n';
     }
     return 0;
 }

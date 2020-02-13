@@ -643,7 +643,9 @@ bool Script::writeScript(const YAML::Node& outputConfig)
                 maxAddress = ROMToPC(lastAddress);
             }
         }
+        asmFile.flush();
         asmFile.close();
+        textDefines.flush();
         textDefines.close();
     }
     return true;
@@ -778,6 +780,7 @@ bool Script::writeFontData(const fs::path& fontFileName, const YAML::Node& inclu
             delete [] widths;
         }
     }
+    fontFile.flush();
     fontFile.close();
     return true;
 }
