@@ -20,17 +20,11 @@ bool validateConfig(const YAML::Node& configYML) {
             if (!configYML["files"]["input"]["directory"].IsDefined() || !configYML["files"]["input"]["directory"].IsScalar()) {
                 isValid = false;
                 cerr << "Error: input directory for project is missing from files config.\n";
-            } else {
-                fs::path textPath = fs::path(mainDir) / configYML["files"]["input"]["directory"].Scalar();
-                if (!fs::exists(textPath)) {
-                    isValid = false;
-                    cerr << "Error: input directory " << textPath << " does not exist.\n";
-                }
             }
         }
         if (!configYML["files"]["output"].IsDefined() || !configYML["files"]["output"].IsMap()) {
             isValid = false;
-            cerr << "Error: input section is missing or not a map.\n";
+            cerr << "Error: output section is missing or not a map.\n";
         } else {
             if (!configYML["files"]["output"]["directory"].IsDefined() || !configYML["files"]["output"]["directory"].IsScalar()) {
                 isValid = false;
@@ -61,11 +55,6 @@ bool validateConfig(const YAML::Node& configYML) {
         if (!configYML["files"]["romDir"].IsDefined() || !configYML["files"]["romDir"].IsScalar()) {
             isValid = false;
             cerr << "Error: romDir for project is missing from files config.\n";
-        } else {
-            if (!fs::exists(configYML["files"]["romDir"].Scalar())) {
-                isValid = false;
-                cerr << "Error: directory \"" << configYML["files"]["romDir"].Scalar() << "\" does not exist.\n";
-            }
         }
     }
     if (!configYML["config"].IsDefined() || !configYML["config"].IsMap()) {
