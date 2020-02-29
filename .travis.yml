@@ -1,0 +1,10 @@
+dist: bionic
+sudo: false
+language: cpp
+
+script:
+    - mkdir build
+    - cd build
+    - cmake .. -DSABLE_BUILD_TESTS=ON
+    - make
+    - ctest
