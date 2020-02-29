@@ -1,17 +1,17 @@
 [submodule "external/yaml-cpp"]
 	path = external/yaml-cpp
-	url = git@github.com:jbeder/yaml-cpp.git
+	url = https://github.com/jbeder/yaml-cpp.git
 	ignore = dirty
 [submodule "external/asar"]
 	path = external/asar
-	url = git@github.com:RPGHacker/asar.git
+	url = https://github.com/RPGHacker/asar.git
 	ignore = dirty
 [submodule "external/utf8"]
 	path = external/utf8
-	url = git@github.com:nemtrif/utfcpp.git
+	url = https://github.com/nemtrif/utfcpp.git
 [submodule "external/cxxopts"]
 	path = external/cxxopts
-	url = git@github.com:jarro2783/cxxopts.git
+	url = https://github.com/jarro2783/cxxopts.git
 [submodule "external/Catch2"]
 	path = external/Catch2
-	url = git@github.com:catchorg/Catch2.git
+	url = https://github.com/catchorg/Catch2.git

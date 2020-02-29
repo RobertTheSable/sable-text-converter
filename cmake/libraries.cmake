@@ -36,6 +36,8 @@ endif()
 
 execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/utf8 
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/cxxopts
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
                 
 if (SABLE_BUILD_TESTS)
     execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/Catch2
