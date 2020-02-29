@@ -5,9 +5,12 @@ language: cpp
 git:
     submodules: false
 addons:
+    sources:
+    - ubuntu-toolchain-r-test
     apt:
         packages:
             - gcc-8
+            - gcc+8
             - libyaml-cpp-dev
 
 script:
