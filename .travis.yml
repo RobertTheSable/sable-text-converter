@@ -7,11 +7,12 @@ git:
 addons:
     apt:
         packages:
+            - gcc-8
             - libyaml-cpp-dev
 
 script:
     - mkdir build
     - cd build
-    - cmake .. -DSABLE_BUILD_TESTS=ON
-    - make
+    - CXX=/usr/bin/g++-8 CC=/usr/bin/gcc-8 cmake .. -DSABLE_BUILD_TESTS=ON
+    - cmake --build .
     - ctest
