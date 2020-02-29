@@ -2,6 +2,13 @@ dist: bionic
 sudo: false
 language: cpp
 
+git:
+    submodules: false
+addons:
+    apt:
+        packages:
+            - libyaml-cpp-dev
+
 script:
     - mkdir build
     - cd build
