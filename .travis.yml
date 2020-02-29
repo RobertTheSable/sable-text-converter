@@ -4,18 +4,10 @@ language: cpp
 
 git:
     submodules: false
-addons:
-    sources:
-    - ubuntu-toolchain-r-test
-    apt:
-        packages:
-            - gcc-8
-            - gcc+8
-            - libyaml-cpp-dev
 
 script:
     - mkdir build
     - cd build
-    - CXX=/usr/bin/g++-8 CC=/usr/bin/gcc-8 cmake .. -DSABLE_BUILD_TESTS=ON
+    - cmake .. -DSABLE_BUILD_TESTS=ON
     - cmake --build .
     - ctest

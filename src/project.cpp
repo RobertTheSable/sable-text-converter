@@ -1,9 +1,10 @@
 #include "project.h"
 #include <yaml-cpp/yaml.h>
-#include "wrapper/filesystem.h"
 #include <fstream>
 #include <algorithm>
+#include <iostream>
 #include <iomanip>
+#include "wrapper/filesystem.h"
 #include "options.h"
 
 namespace sable {

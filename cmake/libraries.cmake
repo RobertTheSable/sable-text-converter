@@ -16,6 +16,7 @@ if(NOT YAML)
         RUNTIME_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}/yaml-cpp"
         LIBRARY_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}"
     )
+    include_directories(external/yaml-cpp/include)
 else()
     message(STATUS "Using system yaml-cpp library.")
 endif()
