@@ -75,10 +75,10 @@ if (NOT (HAS_STD_FILESYSTEM OR HAS_EXPERIMENTAL_FILESYSTEM) )
             boost_filesystem
         )
     endif()
-    add_compile_definitions(USE_BOOST_FILESYSTEM)
+    set(SABLE_ALT_FILESYSTEM "USE_BOOST_FILESYSTEM")
 else()
     if (NOT HAS_STD_FILESYSTEM )
-        add_compile_definitions(USE_EXPERIMENTAL_FILESYSTEM)
+        set(SABLE_ALT_FILESYSTEM "USE_EXPERIMENTAL_FILESYSTEM")
     endif()
     
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND HAS_EXP_FILESYSTEM_WITH_STDCXXFS)
