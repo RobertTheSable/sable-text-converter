@@ -1,5 +1,7 @@
 # Sable Text Converter
 
+[![Build Status](https://travis-ci.org/RobertTheSable/sable-text-converter.svg?branch=master)](https://travis-ci.org/RobertTheSable/sable-text-converter)
+
 Extensible text converter for Fire Emblem: Monshou no Nazo.
 
 Originally developed for the updated FE3 English patch: https://www.romhacking.net/translations/4969/
@@ -16,4 +18,8 @@ Compiling:
 * Requires c++17 Filesystem or Boost filesystem libraries.
 * Tested compilers: g++, clang++ (Linux), mingw-w64.
 
-Simply clone the repo or download the source and run `cmake .`
+Simply clone the repo or download the source and run 
+* `mkdir build`
+* `cd build`
+* `cmake ..`
+* `make` or `cmake --build .`

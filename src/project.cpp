@@ -5,12 +5,16 @@
 #include <iostream>
 #include <iomanip>
 #include "wrapper/filesystem.h"
-#include "options.h"
+#include "util.h"
+#include "rompatcher.h"
 
 namespace sable {
 
 Project::Project(const std::string &projectDir) : nextAddress(0)
 {
+    if (!fs::exists(fs::path(projectDir) / "config.yml")) {
+        throw std::runtime_error((fs::path(projectDir) / "config.yml").string() + " not found.");
+    }
     YAML::Node config = YAML::LoadFile((fs::path(projectDir) / "config.yml").string());
     if (validateConfig(config)) {
         m_MainDir = config["files"]["mainDir"].as<std::string>();
@@ -19,9 +23,13 @@ Project::Project(const std::string &projectDir) : nextAddress(0)
         m_BinsDir = config["files"]["output"]["binaries"]["mainDir"].as<std::string>();
         m_TextOutDir = config["files"]["output"]["binaries"]["textDir"].as<std::string>();
         m_FontConfig = config["files"]["output"]["binaries"]["fonts"]["dir"].as<std::string>();
+        m_RomsDir = config["files"]["romDir"].as<std::string>();
         fs::path mainDir(projectDir);
         if (fs::path(m_MainDir).is_relative()) {
             m_MainDir = (mainDir / m_MainDir).string();
+        }
+        if (fs::path(m_RomsDir).is_relative()) {
+            m_RomsDir = (mainDir / m_RomsDir).string();
         }
         fs::path fontLocation = mainDir / config["config"]["directory"].as<std::string>() / config["config"]["inMapping"].as<std::string>();
         m_Parser = TextParser(YAML::LoadFile(fontLocation.string()), config["config"]["defaultMode"].as<std::string>());
@@ -145,7 +153,7 @@ bool Project::parseText()
                                 dataLength = data.size() - bankLength;
                                 fs::path bankFileName = binFileName.parent_path() / (settings.label + "bank.bin");
                                 outputFile(bankFileName.string(), data, bankLength, dataLength);
-                                settings.currentAddress = PCToLoROM(LoROMToPC(settings.currentAddress | 0xFFFF) +1);
+                                settings.currentAddress = util::PCToLoROM(util::LoROMToPC(settings.currentAddress | 0xFFFF) +1);
                                 m_Addresses.push_back({settings.currentAddress, "$" + settings.label, false});
                                 settings.currentAddress += bankLength;
                                 m_TextNodeList["$" + settings.label] = {
@@ -237,7 +245,8 @@ void Project::writeOutput()
 {
     fs::path mainDir(m_MainDir);
     for (Rom& romData: m_Roms) {
-        std::ofstream mainFile((mainDir / (romData.name + ".asm")).string());
+        std::string patchFile = (mainDir / (romData.name + ".asm")).string();
+        std::ofstream mainFile(patchFile);
         mainFile << "lorom\n\n";
         if (!romData.includes.empty()) {
             for (std::string& include: romData.includes) {
@@ -266,14 +275,70 @@ void Project::writeOutput()
         mainFile <<  "incsrc " + m_OutputDir + "/textDefines.exp\n"
                     +  "incsrc " + m_OutputDir + "/text.asm\n";
         mainFile.close();
+
+        fs::path romFilePath = fs::path(m_RomsDir) / romData.file;
+        std::string extension = romFilePath.extension().string();
+        RomPatcher r(
+                     romFilePath.string(),
+                    romData.name,
+                    "lorom",
+                    romData.hasHeader
+                    );
+        r.expand(util::LoROMToPC(getMaxAddress()));
+        auto result = r.applyPatchFile(patchFile);
+        std::vector<std::string> messages;
+        r.getMessages(std::back_inserter(messages));
+        if (result) {
+            for (auto& msg: messages) {
+                std::cout << msg << std::endl;
+            }
+            std::ofstream output(
+                        (fs::path(m_RomsDir) / (romData.name + extension)).string(),
+                        std::ios::out|std::ios::binary
+                        );
+            output.write((char*)&r.at(0), r.getRealSize());
+            output.close();
+        } else {
+            for (auto& msg: messages) {
+                std::cerr << msg << std::endl;
+            }
+        }
+
     }
 }
 
 void Project::writeFontData()
 {
-    for (auto include: m_FontIncludes) {
-
+    fs::path fontFilePath = fs::path(m_MainDir) / m_OutputDir / m_BinsDir / m_FontConfig / (m_FontConfig + ".asm");
+    std::ofstream output(fontFilePath.string());
+    for (auto& fontIt: m_Parser.getFonts()) {
+        if (!fontIt.second.getFontWidthLocation().empty()) {
+            output << "ORG " + fontIt.second.getFontWidthLocation() + ":\n"
+                      + "db" ;
+            std::vector<int> widths;
+            widths.reserve(fontIt.second.getMaxEncodedValue());
+            fontIt.second.getFontWidths(std::back_insert_iterator(widths));
+            int column = 0;
+            for (auto it = widths.begin(); (it != widths.end() && *it != 0); ++it) {
+                int width = *it;
+                output << " $" << std::hex << std::setw(2) << std::setfill('0') << width;
+                column++;
+                if (column == 16) {
+                    column = 0;
+                    output << '\n'
+                           << "db";
+                } else {
+                    if (it+1 != widths.end() && *(it+1) != 0) {
+                        output << ',';
+                    } else {
+                        output << '\n';
+                    }
+                }
+            }
+            output << '\n';
+        }
     }
+    output.close();
 }
 
 std::string Project::MainDir() const
@@ -283,7 +348,7 @@ std::string Project::MainDir() const
 
 std::string Project::RomsDir() const
 {
-    return fs::absolute(fs::path(m_MainDir) / ".." / m_RomsDir).string();
+    return fs::absolute(m_RomsDir).string();
 }
 
 std::string Project::FontConfig() const
@@ -304,6 +369,11 @@ int Project::getMaxAddress() const
     return m_Addresses.back().address;
 }
 
+sable::Project::operator bool() const
+{
+    return !m_MainDir.empty();
+}
+
 void Project::outputFile(const std::string &file, const std::vector<unsigned char>& data, size_t length, int start)
 {
     std::ofstream output(
@@ -315,6 +385,114 @@ void Project::outputFile(const std::string &file, const std::vector<unsigned cha
     }
     output.write((char*)&(data[start]), length);
     output.close();
+}
+
+bool Project::validateConfig(const YAML::Node &configYML)
+{
+    using std::cerr;
+    bool isValid = true;
+    if (!configYML["files"].IsDefined() || !configYML["files"].IsMap()) {
+        isValid = false;
+        cerr << "Error: files section is missing or not a map.\n";
+    } else {
+        std::string mainDir = "";
+        if (configYML["files"]["mainDir"].IsDefined() && configYML["files"]["mainDir"].IsScalar()) {
+            mainDir = configYML["files"]["mainDir"].Scalar();
+        }
+        if (!configYML["files"]["input"].IsDefined() || !configYML["files"]["input"].IsMap()) {
+            isValid = false;
+            cerr << "Error: input section is missing or not a map.\n";
+        } else {
+            if (!configYML["files"]["input"]["directory"].IsDefined() || !configYML["files"]["input"]["directory"].IsScalar()) {
+                isValid = false;
+                cerr << "Error: input directory for project is missing from files config.\n";
+            }
+        }
+        if (!configYML["files"]["output"].IsDefined() || !configYML["files"]["output"].IsMap()) {
+            isValid = false;
+            cerr << "Error: output section is missing or not a map.\n";
+        } else {
+            if (!configYML["files"]["output"]["directory"].IsDefined() || !configYML["files"]["output"]["directory"].IsScalar()) {
+                isValid = false;
+                cerr << "Error: output directory for project is missing from files config.\n";
+            }
+            if (!configYML["files"]["output"]["binaries"].IsDefined() || !configYML["files"]["output"]["binaries"].IsMap()) {
+                isValid = false;
+                cerr << "Error: output binaries subdirectory section is missing or not a map.\n";
+            } else {
+                if (!configYML["files"]["output"]["binaries"]["mainDir"].IsDefined() || !configYML["files"]["output"]["binaries"]["mainDir"].IsScalar()) {
+                    isValid = false;
+                    cerr << "Error: output binaries subdirectory mainDir value is missing from files config.\n";
+                }
+                if (!configYML["files"]["output"]["binaries"]["textDir"].IsDefined() || !configYML["files"]["output"]["binaries"]["textDir"].IsScalar()) {
+                    isValid = false;
+                    cerr << "Error: output binaries subdirectory textDir value is missing from files config.\n";
+                }
+                if (configYML["files"]["output"]["binaries"]["extras"].IsDefined() && !configYML["files"]["output"]["binaries"]["extras"].IsSequence()) {
+                    isValid = false;
+                    cerr << "Error: extras section for output binaries must be a sequence.\n";
+                }
+            }
+            if (configYML["files"]["output"]["includes"].IsDefined() && !configYML["files"]["output"]["includes"].IsSequence()) {
+                isValid = false;
+                cerr << "Error: includes section for output must be a sequence.\n";
+            }
+        }
+        if (!configYML["files"]["romDir"].IsDefined() || !configYML["files"]["romDir"].IsScalar()) {
+            isValid = false;
+            cerr << "Error: romDir for project is missing from files config.\n";
+        }
+    }
+    if (!configYML["config"].IsDefined() || !configYML["config"].IsMap()) {
+        isValid = false;
+        cerr << "Error: config section is missing or not a map.\n";
+    } else {
+        if (!configYML["config"]["directory"].IsDefined() || !configYML["config"]["directory"].IsScalar()) {
+            isValid = false;
+            cerr << "Error: directory for config section is missing or is not a scalar.\n";
+        }
+        if (!configYML["config"]["inMapping"].IsDefined() || !configYML["config"]["inMapping"].IsScalar()) {
+            isValid = false;
+            cerr << "Error: inMapping for config section is missing or is not a scalar.\n";
+        }
+        if (configYML["config"]["mapper"].IsDefined() && !configYML["config"]["mapper"].IsScalar()) {;
+            isValid = false;
+            cerr << "Error: config > mapper must be a string.\n";
+        }
+    }
+    if (!configYML["roms"].IsDefined()) {
+        isValid = false;
+        cerr << "Error: roms section is missing.\n";
+    } else {
+        if (!configYML["roms"].IsSequence()) {
+            isValid = false;
+            cerr << "Error: roms section in config must be a sequence.\n";
+        } else {
+            int romindex = 0;
+            for(auto node: configYML["roms"]) {
+                std::string romName;
+                if (!node["name"].IsDefined() || !node["name"].IsScalar()) {
+                    cerr << "Error: rom at index " << romindex << " is missing a name value.\n";
+                    char temp[50];
+                    sprintf(temp, "at index %d", romindex);
+                    romName = temp;
+                    isValid = false;
+                } else {
+                    romName = node["name"].Scalar();
+                }
+                if (!node["file"].IsDefined() || !node["file"].IsScalar()) {
+                    cerr << "Error: rom " << romName << " is missing a file value.\n";
+                    isValid = false;
+                }
+                if (node["header"].IsDefined() && (!node["header"].IsScalar() || (
+                node["header"].Scalar() != "auto" && node["header"].Scalar() != "true" && node["header"].Scalar() != "false"))) {
+                    cerr << "Error: rom " << romName << " does not have a valid header option - must be \"true\", \"false\", \"auto\", or not defined.\n";
+                    isValid = false;
+                }
+            }
+        }
+    }
+    return isValid;
 }
 }
 

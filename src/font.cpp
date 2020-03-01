@@ -46,7 +46,14 @@ namespace sable {
             m_DefaultWidth = m_IsFixedWidth ? validate<int>(config[FIXED_WIDTH], FIXED_WIDTH) : 0;
             m_MaxWidth = config[MAX_WIDTH].IsDefined() ? validate<int>(config[MAX_WIDTH], MAX_WIDTH) : 0;
             m_FontWidthLocation = config[FONT_ADDR].IsDefined() ? validate<std::string>(config[FONT_ADDR], FONT_ADDR) : "";
-            m_MaxEncodedValue = config[MAX_CHAR].IsDefined() ? validate<int>(config[MAX_CHAR], MAX_CHAR) : 0;
+            if (config[MAX_CHAR].IsDefined()) {
+                m_MaxEncodedValue = validate<int>(config[MAX_CHAR], MAX_CHAR);
+            } else {
+                m_MaxEncodedValue = 0;
+                for (int i = 0; i < m_ByteWidth; i++) {
+                    m_MaxEncodedValue |= (0xFF << i);
+                }
+            }
             m_IsValid = true;
             try {
                  endValue = m_CommandConvertMap.at("End").code;
@@ -99,6 +106,39 @@ namespace sable {
             throw std::runtime_error(id + " not found in " + EXTRAS + " of font " + m_Name);
         }
         return m_CommandConvertMap.at(id).isNewLine;
+    }
+
+    void Font::getFontWidths(std::back_insert_iterator<std::vector<int> > inserter) const
+    {
+        typedef std::pair<std::string, TextNode> TextDataPair;
+        std::vector<TextDataPair> v(m_TextConvertMap.begin(), m_TextConvertMap.end());
+        std::sort(v.begin(), v.end(), [](TextDataPair& a, TextDataPair& b) {
+            return a.second.code < b.second.code;
+        });
+        int index = 0;
+        if (this->getCommandValue() == 0) {
+            index = 1;
+        }
+        auto t = v.begin();
+        if (m_IsFixedWidth) {
+            while (index < m_MaxEncodedValue) {
+                *(inserter++) = m_DefaultWidth;
+                index++;
+            }
+        }
+        unsigned int lastCode = m_MaxEncodedValue+1;
+        while (index < m_MaxEncodedValue) {
+            if (lastCode != t->second.code) {
+                if (index == t->second.code) {
+                    *(inserter++) = t->second.width;
+                    index++;
+                    lastCode = (t++)->second.code;
+                } else {
+                    *(inserter++) = m_DefaultWidth;
+                    index++;
+                }
+            }
+        }
     }
 
     unsigned int Font::getEndValue() const

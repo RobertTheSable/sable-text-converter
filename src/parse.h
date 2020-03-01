@@ -31,7 +31,6 @@ namespace sable {
         std::pair<bool, int> parseLine(std::istream &input, ParseSettings &settings, back_inserter insert);
         const std::map<std::string, Font>& getFonts() const;
         static void insertData(unsigned int code, int size, back_inserter bi);
-        static std::pair<unsigned int, int> strToHex(const std::string& val);
         ParseSettings updateSettings(const ParseSettings &settings, const std::string& setting = "", unsigned int currentAddress = 0);
         ParseSettings getDefaultSetting(int address);
     private:

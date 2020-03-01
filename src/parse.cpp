@@ -1,6 +1,6 @@
 #include "parse.h"
 #include "exceptions.h"
-#include "mapping.h"
+#include "util.h"
 #include <sstream>
 #include <utf8.h>
 #include <iostream>
@@ -55,7 +55,7 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, c
                     {
                         unsigned int code;
                         int bytes;
-                        std::tie(code, bytes) = strToHex(temp);
+                        std::tie(code, bytes) = util::strToHex(temp);
                         if (bytes < 0) {
                             bytes = activeFont.getByteWidth();
                             try {
@@ -145,29 +145,6 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, c
         return out;
     }
 
-    std::pair<unsigned int, int> TextParser::strToHex(const std::string &val)
-    {
-        int bytes;
-        std::stringstream t;
-        if (val.front() == '$') {
-            bytes = val.length() / 2;
-            t = std::stringstream(val.substr(1, val.length()-1));
-        } else {
-            bytes = (val.length() + 1) / 2;
-            t = std::stringstream(val);
-        }
-        int tmp;
-        t >> std::hex >> tmp;
-
-        if (tmp > 0xFFFFFF) {
-            throw std::runtime_error(std::string("Hex value \"") + val +"\" too large.");
-        }
-        if (!t.eof()){
-            return std::make_pair(0, -1);
-        }
-        return std::make_pair(tmp, bytes);
-    }
-
     ParseSettings TextParser::updateSettings(const ParseSettings &settings, const std::string &setting, unsigned int currentAddress)
     {
         ParseSettings retVal = settings;
@@ -194,7 +171,7 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, c
                         }
                     } else if (name == "address") {
                         if (option != "auto") {
-                            retVal.currentAddress = strToHex(option).first;
+                            retVal.currentAddress = util::strToHex(option).first;
                         }
                     } else if (name == "width") {
                         if (option == "off") {

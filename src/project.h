@@ -24,6 +24,7 @@ public:
     std::string FontConfig() const;
     std::string TextOutDir() const;
     int getMaxAddress() const;
+    explicit operator bool() const;
 
 private:
     struct AddressNode {
@@ -51,6 +52,7 @@ private:
     std::unordered_map<std::string, Table> m_TableList;
     TextParser m_Parser;
     void outputFile(const std::string &file, const std::vector<unsigned char>& data, size_t length, int start = 0);
+    static bool validateConfig(const YAML::Node& configYML);
 };
 }
 

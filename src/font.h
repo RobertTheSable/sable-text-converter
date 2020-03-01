@@ -17,6 +17,7 @@ namespace sable {
         static constexpr const char* BYTE_WIDTH = "ByteWidth";
         static constexpr const char* CMD_CHAR = "CommandValue";
         static constexpr const char* FIXED_WIDTH = "FixedWidth";
+        static constexpr const char* DEFAULT_WIDTH = "DefaultWidth";
         static constexpr const char* MAX_CHAR = "MaxEncodedValue";
         static constexpr const char* MAX_WIDTH = "MaxWidth";
         static constexpr const char* FONT_ADDR = "FontWidthAddress";
@@ -42,6 +43,7 @@ namespace sable {
         int getExtraValue(const std::string& id) const;
         int getWidth(const std::string& id) const;
         bool isCommandNewline(const std::string& id) const;
+        void getFontWidths(std::back_insert_iterator<std::vector<int>> inserter) const;
 
         explicit operator bool() const;
 

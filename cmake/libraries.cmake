@@ -44,3 +44,13 @@ if (SABLE_BUILD_TESTS)
     execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/Catch2
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
+
+set(SABLE_LIBRARIES "")
+
+list(
+    APPEND SABLE_LIBRARIES
+
+    sable_lib
+    yaml-cpp
+    asar
+)

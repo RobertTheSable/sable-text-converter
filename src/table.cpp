@@ -1,6 +1,5 @@
 #include "table.h"
-#include "mapping.h"
-#include "parse.h"
+#include "util.h"
 #include <iomanip>
 
 namespace sable {
@@ -58,7 +57,7 @@ std::vector<std::string> Table::getDataFromFile(std::istream &tablefile)
             try {
                 std::string::size_type sz;
                 m_Address = std::stoi(option, &sz, 16);
-                if (LoROMToPC(m_Address) == -1 || sz != option.length()) {
+                if (util::LoROMToPC(m_Address) == -1 || sz != option.length()) {
                     throw std::runtime_error(
                                 "Line " + std::to_string(tableLine)
                                 + ": " + option + " is not a valid SNES address."
@@ -82,10 +81,10 @@ std::vector<std::string> Table::getDataFromFile(std::istream &tablefile)
                     if (option.back() == ',') {
                         option.pop_back();
                     }
-                    address = TextParser::strToHex(option).first;
+                    address = util::strToHex(option).first;
                     if (getStoreWidths()) {
                         tablefile >> option;
-                        size = TextParser::strToHex(option).first;
+                        size = util::strToHex(option).first;
                     } else {
                         size = 0;
                     }
@@ -98,7 +97,7 @@ std::vector<std::string> Table::getDataFromFile(std::istream &tablefile)
             if (tablefile >> option) {
                 std::string::size_type sz;
                 m_DataAddress = std::stoi(option, &sz, 16);
-                if (LoROMToPC(m_DataAddress) == -1|| sz != option.length()) {
+                if (util::LoROMToPC(m_DataAddress) == -1|| sz != option.length()) {
                     throw std::runtime_error(
                                 "Line " + std::to_string(tableLine)
                                 + ": " + option + " is not a valid SNES address."

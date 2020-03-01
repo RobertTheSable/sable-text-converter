@@ -1,10 +1,5 @@
 #include <iostream>
-#include <fstream>
-#include <streambuf>
 #include <cxxopts.hpp>
-#include <iomanip>
-#include "options.h"
-#include "asar/asardll.h"
 #include "cache.h"
 #include "project.h"
 
@@ -42,7 +37,10 @@ int main(int argc, char * argv[])
          cout << programOptions.help({"", "Group"}) << '\n';
     } else {
         sable::Project p(starting_path.string());
-        p.parseText();
+        if (p) {
+            p.parseText();
+            p.writeFontData();
+        }
         cout << "Press enter to continue." << std::flush;
         cin.get();
         cout << std::endl;
