@@ -43,7 +43,13 @@ namespace sable {
             }) == "true") : false;
             m_CommandValue = config[CMD_CHAR].IsDefined() ? validate<int>(config[CMD_CHAR], CMD_CHAR) : -1;
             m_IsFixedWidth = config[FIXED_WIDTH].IsDefined();
-            m_DefaultWidth = m_IsFixedWidth ? validate<int>(config[FIXED_WIDTH], FIXED_WIDTH) : 0;
+            if (config[DEFAULT_WIDTH].IsDefined()) {
+                m_DefaultWidth = validate<int>(config[DEFAULT_WIDTH], DEFAULT_WIDTH);
+            } else if (m_IsFixedWidth) {
+                m_DefaultWidth = validate<int>(config[FIXED_WIDTH], FIXED_WIDTH);
+            } else {
+                m_DefaultWidth = 0;
+            }
             m_MaxWidth = config[MAX_WIDTH].IsDefined() ? validate<int>(config[MAX_WIDTH], MAX_WIDTH) : 0;
             m_FontWidthLocation = config[FONT_ADDR].IsDefined() ? validate<std::string>(config[FONT_ADDR], FONT_ADDR) : "";
             if (config[MAX_CHAR].IsDefined()) {
@@ -121,13 +127,14 @@ namespace sable {
         }
         auto t = v.begin();
         if (m_IsFixedWidth) {
-            while (index < m_MaxEncodedValue) {
+            while (index <= m_MaxEncodedValue) {
                 *(inserter++) = m_DefaultWidth;
                 index++;
+                ++t;
             }
         }
         unsigned int lastCode = m_MaxEncodedValue+1;
-        while (index < m_MaxEncodedValue) {
+        while (index <= m_MaxEncodedValue) {
             if (lastCode != t->second.code) {
                 if (index == t->second.code) {
                     *(inserter++) = t->second.width;

@@ -36,10 +36,14 @@ int main(int argc, char * argv[])
     if (showHelp) {
          cout << programOptions.help({"", "Group"}) << '\n';
     } else {
-        sable::Project p(starting_path.string());
-        if (p) {
-            p.parseText();
-            p.writeFontData();
+        sable::Project parser(starting_path.string());
+        if (parser) {
+            if (!options.count("a")) {
+                parser.parseText();
+            }
+            if (!options.count("s")) {
+                parser.writePatchData();
+            }
         }
         cout << "Press enter to continue." << std::flush;
         cin.get();

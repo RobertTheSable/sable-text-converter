@@ -17,7 +17,7 @@ public:
     Project()=default;
     Project(const std::string& projectDir);
     bool parseText();
-    void writeOutput();
+    void writePatchData();
     void writeFontData();
     std::string MainDir() const;
     std::string RomsDir() const;
@@ -35,6 +35,7 @@ private:
     struct TextNode {
         std::string files;
         size_t size;
+        bool printpc;
     };
     struct Rom {
         std::string file, name;

@@ -146,13 +146,19 @@ Each text type entry may have the following additional tags:
 * FontWidthAddress:
     * Location to write font widths to. Can be either a hexaecimal SNES address,
     or an ASAR define.
-* FixedWidth
+* DefaultWidth
     * Must be a numeric value. If defined, it will be used as the width for all
-    characters in the current font.
+    characters in the current font that do not have a specified.
+* FixedWidth
+    * Must be a scalar value. If defined, all characters in the current font will 
+    have the same width.
+        * If DefaultWidth is specified, that value is used.
+        * Otherwise FixedWidth must be a numeric value, which 
+        will be used as the width for all characters.
 * MaxEncodedValue:
     * Used when writing font widths. This will be defined as the upper limit to write
-    widths for. If this value is not defined, the maximum value given for a code 
-    in "Encoding" will be used instead.
+    widths for. If this value is not defined, the maximum value will be calulated 
+    based on the given byte width.
 
 ## Text file format
 

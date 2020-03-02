@@ -148,6 +148,7 @@ bool Project::parseText()
                             int tmpAddress = settings.currentAddress + data.size();
                             size_t dataLength;
                             fs::path binFileName = mainDir / m_OutputDir / m_BinsDir / m_TextOutDir / (settings.label + ".bin");
+                            bool printpc = settings.printpc;
                             if ((tmpAddress & 0xFF0000) != (settings.currentAddress & 0xFF0000)) {
                                 size_t bankLength = ((settings.currentAddress + data.size()) & 0xFFFF);
                                 dataLength = data.size() - bankLength;
@@ -158,15 +159,17 @@ bool Project::parseText()
                                 settings.currentAddress += bankLength;
                                 m_TextNodeList["$" + settings.label] = {
                                     bankFileName.filename().string(),
-                                    bankLength
+                                    bankLength,
+                                    printpc
                                 };
+                                printpc = false;
                             } else {
                                 dataLength = data.size();
                                 settings.currentAddress += data.size();
                             }
                             outputFile(binFileName.string(), data, dataLength);
                             m_TextNodeList[settings.label] = {
-                                binFileName.filename().string(), dataLength
+                                binFileName.filename().string(), dataLength, printpc
                             };
                         }
                         settings.label = "";
@@ -230,6 +233,9 @@ bool Project::parseText()
                 }
                 std::string token = m_TextNodeList.at(it.label).files;
                 mainText << "incbin " + (fs::path(m_BinsDir) / m_TextOutDir / token).string() + '\n';
+                if (m_TextNodeList.at(it.label).printpc) {
+                    mainText << "print pc\n";
+                }
             }
             mainText << '\n';
         }
@@ -237,44 +243,47 @@ bool Project::parseText()
         textDefines.close();
         mainText.flush();
         mainText.close();
+        fs::path mainDir(m_MainDir);
+        for (Rom& romData: m_Roms) {
+            std::string patchFile = (mainDir / (romData.name + ".asm")).string();
+            std::ofstream mainFile(patchFile);
+            mainFile << "lorom\n\n";
+            if (!romData.includes.empty()) {
+                for (std::string& include: romData.includes) {
+                    mainFile << "incsrc " + m_OutputDir + '/' + include << '\n';
+                }
+            }
+            if (!m_Includes.empty()) {
+                for (std::string& include: m_Includes) {
+                    mainFile << "incsrc " + m_OutputDir + '/' + include << '\n';
+                }
+            }
+            if (!m_Extras.empty()) {
+                for (std::string& include: m_Extras) {
+                    mainFile << "incsrc " + m_OutputDir + '/'
+                                + m_BinsDir + '/' + include + '/' + include + ".asm"
+                             << '\n';
+                }
+            }
+            if (!m_FontConfig.empty()) {
+                mainFile << "incsrc " + m_OutputDir + '/'
+                            + m_BinsDir + '/' + m_FontConfig + '/' + m_FontConfig + ".asm"
+                         << '\n';
+            }
+            mainFile <<  "incsrc " + m_OutputDir + "/textDefines.exp\n"
+                        +  "incsrc " + m_OutputDir + "/text.asm\n";
+            mainFile.close();
+        }
+        writeFontData();
     }
     return true;
 }
 
-void Project::writeOutput()
+void Project::writePatchData()
 {
     fs::path mainDir(m_MainDir);
     for (Rom& romData: m_Roms) {
         std::string patchFile = (mainDir / (romData.name + ".asm")).string();
-        std::ofstream mainFile(patchFile);
-        mainFile << "lorom\n\n";
-        if (!romData.includes.empty()) {
-            for (std::string& include: romData.includes) {
-                mainFile << "incsrc " + m_OutputDir + '/' + include << '\n';
-            }
-        }
-        if (!m_Includes.empty()) {
-            for (std::string& include: m_Includes) {
-                mainFile << "incsrc " + m_OutputDir + '/' + include << '\n';
-            }
-        }
-        if (!m_Extras.empty()) {
-            for (std::string& include: m_Extras) {
-                mainFile << "incsrc " + m_OutputDir + '/'
-                            + m_BinsDir + '/' + include + '/' + include + ".asm"
-                         << '\n';
-            }
-        }
-        if (!m_FontIncludes.empty()) {
-            for (std::string& include: m_FontIncludes) {
-                mainFile << "incsrc " + m_OutputDir + '/'
-                            + m_BinsDir + '/' + m_FontConfig + '/' + include + ".asm"
-                         << '\n';
-            }
-        }
-        mainFile <<  "incsrc " + m_OutputDir + "/textDefines.exp\n"
-                    +  "incsrc " + m_OutputDir + "/text.asm\n";
-        mainFile.close();
 
         fs::path romFilePath = fs::path(m_RomsDir) / romData.file;
         std::string extension = romFilePath.extension().string();
@@ -286,6 +295,9 @@ void Project::writeOutput()
                     );
         r.expand(util::LoROMToPC(getMaxAddress()));
         auto result = r.applyPatchFile(patchFile);
+        if (result) {
+            std::cout << "Assembly for " << romData.name << " completed successfully." << std::endl;
+        }
         std::vector<std::string> messages;
         r.getMessages(std::back_inserter(messages));
         if (result) {
@@ -311,31 +323,42 @@ void Project::writeFontData()
 {
     fs::path fontFilePath = fs::path(m_MainDir) / m_OutputDir / m_BinsDir / m_FontConfig / (m_FontConfig + ".asm");
     std::ofstream output(fontFilePath.string());
+    for (std::string& include: m_FontIncludes) {
+        output << "incsrc " + include + ".asm\n";
+    }
     for (auto& fontIt: m_Parser.getFonts()) {
         if (!fontIt.second.getFontWidthLocation().empty()) {
-            output << "ORG " + fontIt.second.getFontWidthLocation() + ":\n"
-                      + "db" ;
+            output << "\n"
+                      "ORG " + fontIt.second.getFontWidthLocation();
             std::vector<int> widths;
             widths.reserve(fontIt.second.getMaxEncodedValue());
             fontIt.second.getFontWidths(std::back_insert_iterator(widths));
             int column = 0;
-            for (auto it = widths.begin(); (it != widths.end() && *it != 0); ++it) {
+            int skipCount = 0;
+            for (auto it = widths.begin(); it != widths.end(); ++it) {
                 int width = *it;
-                output << " $" << std::hex << std::setw(2) << std::setfill('0') << width;
-                column++;
-                if (column == 16) {
+                if (width == 0) {
+                    skipCount++;
                     column = 0;
-                    output << '\n'
-                           << "db";
                 } else {
-                    if (it+1 != widths.end() && *(it+1) != 0) {
-                        output << ',';
+                    if (skipCount > 0) {
+                        output << "\n"
+                                  "skip " << std::dec << skipCount;
+                        skipCount = 0;
+                    }
+                    if (column == 0) {
+                        output << '\n' << "db ";
                     } else {
-                        output << '\n';
+                        output << ", ";
+                    }
+                    output << "$" << std::hex << std::setw(2) << std::setfill('0') << width;
+                    column++;
+                    if (column ==16) {
+                        column = 0;
                     }
                 }
             }
-            output << '\n';
+            output << '\n' ;
         }
     }
     output.close();
