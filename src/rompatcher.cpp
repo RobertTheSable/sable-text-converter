@@ -84,7 +84,6 @@ bool sable::RomPatcher::expand(int address)
     } else if (address <= m_RomSize) {
         return false;
     } else if (address >= NORMAL_ROM_MAX_SIZE) {
-        std::cout << std::hex << address << '\n';
         if (address >= 6291456) {
             m_RomSize = ROM_MAX_SIZE;
         } else {
