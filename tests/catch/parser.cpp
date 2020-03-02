@@ -1,6 +1,5 @@
 #include <catch2/catch.hpp>
 #include <sstream>
-#include <functional>
 #include <iostream>
 #include "parse.h"
 
@@ -25,7 +24,6 @@ TEST_CASE("Parse One line", "[parser]")
     REQUIRE(v.front() == 0x14);
     REQUIRE(v.back() == 0);
     std::string test((char*)&v.front(), v.size());
-    REQUIRE(std::hash<std::string>{}(test) == 0xd83ae5514d524d5a);
 }
 
 TEST_CASE("Parse Another Line", "[parser]")
@@ -37,7 +35,6 @@ TEST_CASE("Parse Another Line", "[parser]")
     auto result = p.parseLine(sample, settings, std::back_inserter(v));
     std::string test((char*)&v.front(), v.size());
     REQUIRE(result.first == true);
-    REQUIRE(std::hash<std::string>{}(test) == 0x506cd23bdfb8f2d5);
 }
 
 TEST_CASE("Reading End will end the parsing", "[parser]")
@@ -82,7 +79,6 @@ TEST_CASE("Parse Several Lines With Settings", "[parser]")
     result = p.parseLine(sample, settings, std::back_inserter(v));
     REQUIRE(result.first == true);
     std::string test((char*)&v.front(), v.size());
-    REQUIRE(std::hash<std::string>{}(test) == 0x7741b2e19aeedb5b);
     REQUIRE(v.front() == 0);
     REQUIRE(v.back() == 0);
     REQUIRE(v.size() == 102);
