@@ -1,9 +1,14 @@
 #include "cache.h"
 #include <fstream>
 
-SableCache::SableCache() : m_MaxAddress(0), m_IsReadable(false)
+sable::Cache::Cache(const std::string& path) : m_MaxAddress(0), m_IsReadable(false)
 {
-    m_CacheFile = fs::path("cache") / "cache.bin";
+    if (path.empty()) {
+        m_CacheFile = fs::path("cache") / "cache.bin";
+    } else {
+        m_CacheFile = fs::path(path) / "cache" / "cache.bin";
+    }
+
     if (fs::exists(m_CacheFile)) {
         std::ifstream input(m_CacheFile.string(), std::ios::binary);
         input.read(reinterpret_cast<char*>(&m_MaxAddress), sizeof (int));
@@ -12,7 +17,7 @@ SableCache::SableCache() : m_MaxAddress(0), m_IsReadable(false)
     }
 }
 
-int SableCache::getMaxAddress() const
+int sable::Cache::getMaxAddress() const
 {
     if (m_IsReadable) {
         return m_MaxAddress;
@@ -21,18 +26,18 @@ int SableCache::getMaxAddress() const
     }
 }
 
-void SableCache::setMaxAddress(int value)
+void sable::Cache::setMaxAddress(int value)
 {
     m_MaxAddress = value;
     m_IsReadable = true;
 }
 
-bool SableCache::isReadable() const
+bool sable::Cache::isReadable() const
 {
     return m_IsReadable;
 }
 
-bool SableCache::write() const
+bool sable::Cache::write() const
 {
     if (m_IsReadable) {
         if (!fs::exists(m_CacheFile.parent_path())) {

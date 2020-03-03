@@ -6,16 +6,31 @@
 #include <string>
 
 namespace sable {
+    class ParseError: public std::runtime_error {
+    public:
+        ParseError(std::string message);
+    };
+    class ASMError: public std::runtime_error {
+    public:
+        ASMError(std::string message);
+    };
+    class ConfigError: public std::runtime_error {
+    public:
+        ConfigError(std::string message);
+    };
+
     class FontError : public std::runtime_error {
     public:
-        FontError(const YAML::Mark& mark, const std::string& field, const std::string& msg = "");
+        FontError(const YAML::Mark& mark, const std::string &name, const std::string& field, const std::string& msg = "");
         YAML::Mark getMark() const;
         std::string getField() const;
         std::string getMessage() const;
+        std::string getName() const;
+
     private:
-        static const std::string buildWhat(const YAML::Mark &mark, const std::string &field, const std::string &msg);
+        static const std::string buildWhat(const YAML::Mark &mark, const std::string &name, const std::string &field, const std::string &msg);
         YAML::Mark m_Mark;
-        std::string m_Field, m_Message;
+        std::string m_Name, m_Field, m_Message;
     };
 }
 #endif // EXCEPTIONS_H

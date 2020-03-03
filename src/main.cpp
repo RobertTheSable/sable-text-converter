@@ -2,18 +2,18 @@
 #include <cxxopts.hpp>
 #include "cache.h"
 #include "project.h"
-
-using namespace std;
+#include "exceptions.h"
 
 int main(int argc, char * argv[])
 {
+    using std::cout, std::cerr;
     cxxopts::Options programOptions(
                 argv[0],
             "Program to convert scripts into Asar-compatible files for assembly and assemble files into a ROM.");
     programOptions.add_options()
             ("s,no-assembly", "Run without running Asar assembly.")
             ("a,no-script", "Run without updating the script.")
-            ("p,project", "Project directory - defaults to working directory.", cxxopts::value<string>(), "DIR")
+            ("p,project", "Project directory - defaults to working directory.", cxxopts::value<std::string>(), "DIR")
             ("v,verbose", "Run with increased verbosity.")
             ("q,quiet", "Run with reduced verbosity.")
             ("h,help", "Show this message.");
@@ -30,23 +30,46 @@ int main(int argc, char * argv[])
         verbosity--;
     }
     bool isCurrentDirNotProject = options.count("project") > 0;
-    fs::path starting_path = isCurrentDirNotProject ? options["project"].as<string>() : fs::current_path().string();
-    SableCache cache;
-    unsigned int maxAddress = cache.getMaxAddress();
+    fs::path starting_path = isCurrentDirNotProject ? options["project"].as<std::string>() : fs::current_path().string();
     if (showHelp) {
          cout << programOptions.help({"", "Group"}) << '\n';
     } else {
-        sable::Project parser(starting_path.string());
-        if (parser) {
-            if (!options.count("a")) {
-                parser.parseText();
+        try {
+            sable::Cache cache(starting_path.string());
+            unsigned int maxAddress = cache.getMaxAddress();
+            sable::Project parser(starting_path.string());
+            if (parser) {
+                if (!options.count("a")) {
+                    parser.parseText();
+                    if (parser.getWarningCount() > 0) {
+                        cerr << "Issues found during parsing:\n";
+                        for(int i = 0; i < parser.getWarningCount(); i++){
+                            cerr << parser.getWarnings()[i] << '\n';
+                        }
+                        cerr << std::flush;
+                    }
+                    cache.setMaxAddress(parser.getMaxAddress());
+                    cache.write();
+                }
+                if (!options.count("s")) {
+                    parser.writePatchData();
+                }
             }
-            if (!options.count("s")) {
-                parser.writePatchData();
-            }
+        } catch (sable::FontError &e){
+            cerr << "Error in input mapping file:\n"
+                 << e.what() << std::endl;
+        } catch (sable::ParseError &e) {
+            cerr << "Fatal error during parsing:\n"
+                      << e.what() << std::endl;
+        } catch(sable::ASMError &e) {
+            cerr << std::string("Output error:\n" )
+                    + e.what() << std::endl;
+        } catch (sable::ConfigError &e) {
+            cerr << "Error(s) in project config: \n"
+                 << e.what() << std::endl;
         }
         cout << "Press enter to continue." << std::flush;
-        cin.get();
+        std::cin.get();
         cout << std::endl;
     }
     return 0;

@@ -9,6 +9,7 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/mapping.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/rompatcher.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/fonts.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/catch/project.cpp"
 )
 
 add_executable(tests ${SABLE_TEST_FILES})
@@ -18,7 +19,7 @@ add_custom_command(TARGET tests
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:asar> "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Copy asar file to ${CMAKE_CURRENT_BINARY_DIR} directory" VERBATIM
 )
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample_text_map.yml" "sample_text_map.yml" COPYONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample_text_map.yml" "sample/text_map.yml" COPYONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.sfc" "sample.sfc" COPYONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.asm" "sample.asm" COPYONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/bad_test.asm" "bad_test.asm" COPYONLY)

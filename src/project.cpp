@@ -7,23 +7,37 @@
 #include "wrapper/filesystem.h"
 #include "util.h"
 #include "rompatcher.h"
+#include "exceptions.h"
 
 namespace sable {
+
+Project::Project(const YAML::Node &config, const std::string &projectDir) : nextAddress(0)
+{
+    init(config, projectDir);
+}
 
 Project::Project(const std::string &projectDir) : nextAddress(0)
 {
     if (!fs::exists(fs::path(projectDir) / "config.yml")) {
-        throw std::runtime_error((fs::path(projectDir) / "config.yml").string() + " not found.");
+        throw ConfigError((fs::path(projectDir) / "config.yml").string() + " not found.");
     }
     YAML::Node config = YAML::LoadFile((fs::path(projectDir) / "config.yml").string());
+    init(config, projectDir);
+}
+
+void Project::init(const YAML::Node &config, const std::string &projectDir)
+{
+    using std::string;
+    using std::vector;
     if (validateConfig(config)) {
-        m_MainDir = config["files"]["mainDir"].as<std::string>();
-        m_InputDir = config["files"]["input"]["directory"].as<std::string>();
-        m_OutputDir = config["files"]["output"]["directory"].as<std::string>();
-        m_BinsDir = config["files"]["output"]["binaries"]["mainDir"].as<std::string>();
-        m_TextOutDir = config["files"]["output"]["binaries"]["textDir"].as<std::string>();
-        m_FontConfig = config["files"]["output"]["binaries"]["fonts"]["dir"].as<std::string>();
-        m_RomsDir = config["files"]["romDir"].as<std::string>();
+        YAML::Node outputConfig = config[FILES_SECTION][OUTPUT_SECTION];
+        m_MainDir = config[FILES_SECTION][DIR_MAIN].as<std::string>();
+        m_InputDir = config[FILES_SECTION][INPUT_SECTION][DIR_VAL].as<string>();
+        m_OutputDir = outputConfig[DIR_VAL].as<string>();
+        m_BinsDir = outputConfig[OUTPUT_BIN][DIR_MAIN].as<string>();
+        m_TextOutDir = outputConfig[OUTPUT_BIN][DIR_TEXT].as<string>();
+        m_FontDir = outputConfig[OUTPUT_BIN][FONT_SECTION][DIR_FONT].as<string>();
+        m_RomsDir = config[FILES_SECTION][DIR_ROM].as<string>();
         fs::path mainDir(projectDir);
         if (fs::path(m_MainDir).is_relative()) {
             m_MainDir = (mainDir / m_MainDir).string();
@@ -31,18 +45,25 @@ Project::Project(const std::string &projectDir) : nextAddress(0)
         if (fs::path(m_RomsDir).is_relative()) {
             m_RomsDir = (mainDir / m_RomsDir).string();
         }
-        fs::path fontLocation = mainDir / config["config"]["directory"].as<std::string>() / config["config"]["inMapping"].as<std::string>();
-        m_Parser = TextParser(YAML::LoadFile(fontLocation.string()), config["config"]["defaultMode"].as<std::string>());
-        if (config["files"]["output"]["binaries"]["fonts"]["includes"].IsSequence()) {
-            m_FontIncludes = config["files"]["output"]["binaries"]["fonts"]["includes"].as<std::vector<std::string>>();
+        if (outputConfig[OUTPUT_BIN][FONT_SECTION][INCLUDE_VAL].IsSequence()) {
+            m_FontIncludes = outputConfig[OUTPUT_BIN][FONT_SECTION][INCLUDE_VAL].as<vector<string>>();
         }
-        if (config["files"]["output"]["binaries"]["extras"].IsSequence()) {
-            m_Extras = config["files"]["output"]["binaries"]["extras"].as<std::vector<std::string>>();
+        if (outputConfig[OUTPUT_BIN][EXTRAS].IsSequence()) {
+            m_Extras = outputConfig[OUTPUT_BIN][EXTRAS].as<vector<string>>();
         }
-        if (config["files"]["output"]["includes"].IsSequence()){
-            m_Includes = config["files"]["output"]["includes"].as<std::vector<std::string>>();
+        if (outputConfig[INCLUDE_VAL].IsSequence()){
+            m_Includes = outputConfig[INCLUDE_VAL].as<vector<string>>();
         }
-        m_Roms = config["roms"].as<std::vector<Rom>>();
+        m_Roms = config[ROMS].as<vector<Rom>>();
+        fs::path fontLocation = mainDir
+                / config[CONFIG_SECTION][DIR_VAL].as<string>()
+                / config[CONFIG_SECTION][IN_MAP].as<string>();
+        std::string defaultMode = config[CONFIG_SECTION][DEFAULT_MODE].IsDefined()
+                ? config[CONFIG_SECTION][DEFAULT_MODE].as<string>() : "normal";
+        if (!fs::exists(fontLocation)) {
+            throw ConfigError(fontLocation.string() + " not found.");
+        }
+        m_Parser = TextParser(YAML::LoadFile(fontLocation.string()), defaultMode);
     }
 }
 
@@ -83,15 +104,16 @@ bool Project::parseText()
                         files = table.getDataFromFile(tablefile);
                         for (std::string& file: files) {
                             if (!fs::exists(dir / file)) {
-                                std::cerr << "In " + path
+                                std::ostringstream error;
+                                error << "In " + path
                                              + ": file " + fs::absolute(dir / file).string()
-                                             + " does not exist."
-                                          << std::endl;
+                                             + " does not exist.";
+                                m_Warnings.push_back(error.str());
                             }
                             file = (dir / file).string();
                         }
                     } catch (std::runtime_error &e) {
-                        throw std::runtime_error("In " + path + ", " + e.what());
+                        throw ParseError("Error in table " + path + ", " + e.what());
                     }
 
                     tablefile.close();
@@ -127,14 +149,14 @@ bool Project::parseText()
                     std::tie(done, length) = m_Parser.parseLine(input, settings, std::back_inserter(data));
                     line++;
                 } catch (std::runtime_error &e) {
-                    std::cerr << "In file " << file << ": " << e.what() << std::endl;
-                    return false;
+                    throw ParseError("Error in text file " + file + ": " + e.what());
                 }
                 if (settings.maxWidth > 0 && length > settings.maxWidth) {
-                    std::cerr << "In " + file + ": line " + std::to_string(line)
+                    std::ostringstream error;
+                    error << "In " + file + ": line " + std::to_string(line)
                                  + " is longer than the specified max width of "
-                                 + std::to_string(settings.maxWidth) + " pixels."
-                              << std::endl;
+                                 + std::to_string(settings.maxWidth) + " pixels.";
+                    m_Warnings.push_back(error.str());
                 }
                 if (done && !data.empty()) {
                     if (m_Parser.getFonts().at(settings.mode)) {
@@ -188,6 +210,9 @@ bool Project::parseText()
     {
         std::ofstream mainText((mainDir / m_OutputDir / "text.asm").string());
         std::ofstream textDefines((mainDir / m_OutputDir / "textDefines.exp").string());
+        if (!mainText || !textDefines) {
+            throw ASMError("Could not open files in " + (mainDir / m_OutputDir).string() + " for writing.\n");
+        }
 
         std::sort(m_Addresses.begin(), m_Addresses.end(), [](AddressNode a, AddressNode b) {
             return b.address > a.address;
@@ -265,9 +290,9 @@ bool Project::parseText()
                              << '\n';
                 }
             }
-            if (!m_FontConfig.empty()) {
+            if (!m_FontDir.empty()) {
                 mainFile << "incsrc " + m_OutputDir + '/'
-                            + m_BinsDir + '/' + m_FontConfig + '/' + m_FontConfig + ".asm"
+                            + m_BinsDir + '/' + m_FontDir + '/' + m_FontDir + ".asm"
                          << '\n';
             }
             mainFile <<  "incsrc " + m_OutputDir + "/textDefines.exp\n"
@@ -312,7 +337,9 @@ void Project::writePatchData()
             output.close();
         } else {
             for (auto& msg: messages) {
-                std::cerr << msg << std::endl;
+                std::ostringstream error;
+                error << msg << '\n';
+                throw ASMError(error.str());
             }
         }
 
@@ -321,8 +348,11 @@ void Project::writePatchData()
 
 void Project::writeFontData()
 {
-    fs::path fontFilePath = fs::path(m_MainDir) / m_OutputDir / m_BinsDir / m_FontConfig / (m_FontConfig + ".asm");
+    fs::path fontFilePath = fs::path(m_MainDir) / m_OutputDir / m_BinsDir / m_FontDir / (m_FontDir + ".asm");
     std::ofstream output(fontFilePath.string());
+    if (!output) {
+        throw ASMError("Could not open " + fontFilePath.string() + "for writing.\n");
+    }
     for (std::string& include: m_FontIncludes) {
         output << "incsrc " + include + ".asm\n";
     }
@@ -376,7 +406,7 @@ std::string Project::RomsDir() const
 
 std::string Project::FontConfig() const
 {
-    return fs::absolute(fs::path(m_MainDir) / m_OutputDir / m_BinsDir / m_FontConfig).string();
+    return fs::absolute(fs::path(m_MainDir) / m_OutputDir / m_BinsDir / m_FontDir).string();
 }
 
 std::string Project::TextOutDir() const
@@ -392,6 +422,16 @@ int Project::getMaxAddress() const
     return m_Addresses.back().address;
 }
 
+int Project::getWarningCount() const
+{
+    return m_Warnings.size();
+}
+
+StringVector::const_iterator Project::getWarnings() const
+{
+    return m_Warnings.begin();
+}
+
 sable::Project::operator bool() const
 {
     return !m_MainDir.empty();
@@ -404,7 +444,7 @@ void Project::outputFile(const std::string &file, const std::vector<unsigned cha
                 std::ios::binary | std::ios::out
                 );
     if (!output) {
-        throw std::runtime_error("Could not open " + file + " for writing");
+        throw ASMError("Could not open " + file + " for writing");
     }
     output.write((char*)&(data[start]), length);
     output.close();
@@ -412,90 +452,109 @@ void Project::outputFile(const std::string &file, const std::vector<unsigned cha
 
 bool Project::validateConfig(const YAML::Node &configYML)
 {
-    using std::cerr;
+    std::ostringstream errorString;
     bool isValid = true;
-    if (!configYML["files"].IsDefined() || !configYML["files"].IsMap()) {
+    if (!configYML[FILES_SECTION].IsDefined() || !configYML[FILES_SECTION].IsMap()) {
         isValid = false;
-        cerr << "Error: files section is missing or not a map.\n";
+        errorString << "files section is missing or not a map.\n";
     } else {
-        std::string mainDir = "";
-        if (configYML["files"]["mainDir"].IsDefined() && configYML["files"]["mainDir"].IsScalar()) {
-            mainDir = configYML["files"]["mainDir"].Scalar();
-        }
-        if (!configYML["files"]["input"].IsDefined() || !configYML["files"]["input"].IsMap()) {
+        if (!configYML[FILES_SECTION][DIR_MAIN].IsDefined()
+                || !configYML[FILES_SECTION][DIR_MAIN].IsScalar()) {
             isValid = false;
-            cerr << "Error: input section is missing or not a map.\n";
+            errorString << "main directory for project is missing from files config.\n";
+        }
+        if (!configYML[FILES_SECTION][INPUT_SECTION].IsDefined()
+                || !configYML[FILES_SECTION][INPUT_SECTION].IsMap()) {
+            isValid = false;
+            errorString << "input section is missing or not a map.\n";
         } else {
-            if (!configYML["files"]["input"]["directory"].IsDefined() || !configYML["files"]["input"]["directory"].IsScalar()) {
+            if (!configYML[FILES_SECTION][INPUT_SECTION][DIR_VAL].IsDefined()
+                    || !configYML[FILES_SECTION][INPUT_SECTION][DIR_VAL].IsScalar()) {
                 isValid = false;
-                cerr << "Error: input directory for project is missing from files config.\n";
+                errorString << "input directory for project is missing from files config.\n";
             }
         }
-        if (!configYML["files"]["output"].IsDefined() || !configYML["files"]["output"].IsMap()) {
+        if (!configYML[FILES_SECTION][OUTPUT_SECTION].IsDefined() || !configYML[FILES_SECTION][OUTPUT_SECTION].IsMap()) {
             isValid = false;
-            cerr << "Error: output section is missing or not a map.\n";
+            errorString << "output section is missing or not a map.\n";
         } else {
-            if (!configYML["files"]["output"]["directory"].IsDefined() || !configYML["files"]["output"]["directory"].IsScalar()) {
+            YAML::Node outputConfig = configYML[FILES_SECTION][OUTPUT_SECTION];
+            if (!outputConfig[DIR_VAL].IsDefined() || !outputConfig[DIR_VAL].IsScalar()) {
                 isValid = false;
-                cerr << "Error: output directory for project is missing from files config.\n";
+                errorString << "output directory for project is missing from files config.\n";
             }
-            if (!configYML["files"]["output"]["binaries"].IsDefined() || !configYML["files"]["output"]["binaries"].IsMap()) {
+            if (!outputConfig[OUTPUT_BIN].IsDefined() || !outputConfig[OUTPUT_BIN].IsMap()) {
                 isValid = false;
-                cerr << "Error: output binaries subdirectory section is missing or not a map.\n";
+                errorString << "output binaries subdirectory section is missing or not a map.\n";
             } else {
-                if (!configYML["files"]["output"]["binaries"]["mainDir"].IsDefined() || !configYML["files"]["output"]["binaries"]["mainDir"].IsScalar()) {
+                if (!outputConfig[OUTPUT_BIN][DIR_MAIN].IsDefined() || !outputConfig[OUTPUT_BIN][DIR_MAIN].IsScalar()) {
                     isValid = false;
-                    cerr << "Error: output binaries subdirectory mainDir value is missing from files config.\n";
+                    errorString << "output binaries subdirectory mainDir value is missing from files config.\n";
                 }
-                if (!configYML["files"]["output"]["binaries"]["textDir"].IsDefined() || !configYML["files"]["output"]["binaries"]["textDir"].IsScalar()) {
+                if (!outputConfig[OUTPUT_BIN][DIR_TEXT].IsDefined() || !outputConfig[OUTPUT_BIN][DIR_TEXT].IsScalar()) {
                     isValid = false;
-                    cerr << "Error: output binaries subdirectory textDir value is missing from files config.\n";
+                    errorString << "output binaries subdirectory textDir value is missing from files config.\n";
                 }
-                if (configYML["files"]["output"]["binaries"]["extras"].IsDefined() && !configYML["files"]["output"]["binaries"]["extras"].IsSequence()) {
+                if (outputConfig[OUTPUT_BIN][EXTRAS].IsDefined() && !outputConfig[OUTPUT_BIN][EXTRAS].IsSequence()) {
                     isValid = false;
-                    cerr << "Error: extras section for output binaries must be a sequence.\n";
+                    errorString << "extras section for output binaries must be a sequence.\n";
+                }
+                if (!outputConfig[OUTPUT_BIN][FONT_SECTION].IsDefined()
+                        || !outputConfig[OUTPUT_BIN][FONT_SECTION].IsMap())
+                {
+                    isValid = false;
+                    errorString << "fonts section for output binaries is missing or not a map.\n";
+                } else {
+                    if (!outputConfig[OUTPUT_BIN][FONT_SECTION][DIR_FONT].IsScalar()) {
+                        isValid = false;
+                        errorString << "fonts directory must be a scalar.\n";
+                    }
+                    if (!outputConfig[OUTPUT_BIN][FONT_SECTION][INCLUDE_VAL].IsSequence()) {
+                        isValid = false;
+                        errorString << "fonts includes must be a sequence.\n";
+                    }
                 }
             }
-            if (configYML["files"]["output"]["includes"].IsDefined() && !configYML["files"]["output"]["includes"].IsSequence()) {
+            if (outputConfig[INCLUDE_VAL].IsDefined() && !outputConfig[INCLUDE_VAL].IsSequence()) {
                 isValid = false;
-                cerr << "Error: includes section for output must be a sequence.\n";
+                errorString << "includes section for output must be a sequence.\n";
             }
         }
-        if (!configYML["files"]["romDir"].IsDefined() || !configYML["files"]["romDir"].IsScalar()) {
+        if (!configYML[FILES_SECTION][DIR_ROM].IsDefined() || !configYML[FILES_SECTION][DIR_ROM].IsScalar()) {
             isValid = false;
-            cerr << "Error: romDir for project is missing from files config.\n";
+            errorString << "romDir for project is missing from files config.\n";
         }
     }
-    if (!configYML["config"].IsDefined() || !configYML["config"].IsMap()) {
+    if (!configYML[CONFIG_SECTION].IsDefined() || !configYML[CONFIG_SECTION].IsMap()) {
         isValid = false;
-        cerr << "Error: config section is missing or not a map.\n";
+        errorString << "config section is missing or not a map.\n";
     } else {
-        if (!configYML["config"]["directory"].IsDefined() || !configYML["config"]["directory"].IsScalar()) {
+        if (!configYML[CONFIG_SECTION][DIR_VAL].IsDefined() || !configYML[CONFIG_SECTION][DIR_VAL].IsScalar()) {
             isValid = false;
-            cerr << "Error: directory for config section is missing or is not a scalar.\n";
+            errorString << "directory for config section is missing or is not a scalar.\n";
         }
-        if (!configYML["config"]["inMapping"].IsDefined() || !configYML["config"]["inMapping"].IsScalar()) {
+        if (!configYML[CONFIG_SECTION][IN_MAP].IsDefined() || !configYML[CONFIG_SECTION][IN_MAP].IsScalar()) {
             isValid = false;
-            cerr << "Error: inMapping for config section is missing or is not a scalar.\n";
+            errorString << "inMapping for config section is missing or is not a scalar.\n";
         }
-        if (configYML["config"]["mapper"].IsDefined() && !configYML["config"]["mapper"].IsScalar()) {;
+        if (configYML[CONFIG_SECTION][MAP_TYPE].IsDefined() && !configYML[CONFIG_SECTION][MAP_TYPE].IsScalar()) {;
             isValid = false;
-            cerr << "Error: config > mapper must be a string.\n";
+            errorString << "config > mapper must be a string.\n";
         }
     }
-    if (!configYML["roms"].IsDefined()) {
+    if (!configYML[ROMS].IsDefined()) {
         isValid = false;
-        cerr << "Error: roms section is missing.\n";
+        errorString << "roms section is missing.\n";
     } else {
-        if (!configYML["roms"].IsSequence()) {
+        if (!configYML[ROMS].IsSequence()) {
             isValid = false;
-            cerr << "Error: roms section in config must be a sequence.\n";
+            errorString << "roms section in config must be a sequence.\n";
         } else {
             int romindex = 0;
-            for(auto node: configYML["roms"]) {
+            for(auto node: configYML[ROMS]) {
                 std::string romName;
                 if (!node["name"].IsDefined() || !node["name"].IsScalar()) {
-                    cerr << "Error: rom at index " << romindex << " is missing a name value.\n";
+                    errorString << "rom at index " << romindex << " is missing a name value.\n";
                     char temp[50];
                     sprintf(temp, "at index %d", romindex);
                     romName = temp;
@@ -504,19 +563,26 @@ bool Project::validateConfig(const YAML::Node &configYML)
                     romName = node["name"].Scalar();
                 }
                 if (!node["file"].IsDefined() || !node["file"].IsScalar()) {
-                    cerr << "Error: rom " << romName << " is missing a file value.\n";
+                    errorString << "rom " << romName << " is missing a file value.\n";
                     isValid = false;
                 }
                 if (node["header"].IsDefined() && (!node["header"].IsScalar() || (
                 node["header"].Scalar() != "auto" && node["header"].Scalar() != "true" && node["header"].Scalar() != "false"))) {
-                    cerr << "Error: rom " << romName << " does not have a valid header option - must be \"true\", \"false\", \"auto\", or not defined.\n";
+                    errorString << "rom " << romName << " does not have a valid header option - must be \"true\", \"false\", \"auto\", or not defined.\n";
                     isValid = false;
                 }
             }
         }
     }
+    if (!isValid) {
+        throw ConfigError(errorString.str());
+    }
     return isValid;
 }
+
+ConfigError::ConfigError(std::string message) : std::runtime_error(message) {}
+ASMError::ASMError(std::string message) : std::runtime_error(message) {}
+ParseError::ParseError(std::string message) : std::runtime_error(message) {}
 }
 
 bool YAML::convert<sable::Project::Rom>::decode(const Node &node, sable::Project::Rom &rhs)
@@ -536,7 +602,7 @@ bool YAML::convert<sable::Project::Rom>::decode(const Node &node, sable::Project
             return false;
         }
     }
-    if (node["includes"].IsSequence()) {
+    if (node["includes"].IsDefined() && node["includes"].IsSequence()) {
         rhs.includes = node["includes"].as<std::vector<std::string>>();
     }
     return true;

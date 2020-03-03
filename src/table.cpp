@@ -59,13 +59,13 @@ std::vector<std::string> Table::getDataFromFile(std::istream &tablefile)
                 m_Address = std::stoi(option, &sz, 16);
                 if (util::LoROMToPC(m_Address) == -1 || sz != option.length()) {
                     throw std::runtime_error(
-                                "Line " + std::to_string(tableLine)
+                                "line " + std::to_string(tableLine)
                                 + ": " + option + " is not a valid SNES address."
                                 );
                 }
             } catch (const std::invalid_argument& e) {
                 throw std::runtime_error(
-                            "Line " + std::to_string(tableLine)
+                            "line " + std::to_string(tableLine)
                             + ": " + option + " is not a valid SNES address."
                             );
             }
@@ -99,7 +99,7 @@ std::vector<std::string> Table::getDataFromFile(std::istream &tablefile)
                 m_DataAddress = std::stoi(option, &sz, 16);
                 if (util::LoROMToPC(m_DataAddress) == -1|| sz != option.length()) {
                     throw std::runtime_error(
-                                "Line " + std::to_string(tableLine)
+                                "line " + std::to_string(tableLine)
                                 + ": " + option + " is not a valid SNES address."
                                 );
                 }
@@ -117,7 +117,7 @@ std::vector<std::string> Table::getDataFromFile(std::istream &tablefile)
                     setAddressSize(tableAddresssDataWidth);
                 } catch (const std::invalid_argument& e) {
                     throw std::runtime_error(
-                                "Line " + std::to_string(tableLine)
+                                "line " + std::to_string(tableLine)
                                 + ": width value should be 2 or 3."
                                 );
                 }

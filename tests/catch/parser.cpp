@@ -7,7 +7,7 @@ typedef std::vector<unsigned char> ByteVector;
 
 YAML::Node getSampleNode()
 {
-    static YAML::Node sampleNode = YAML::LoadFile("sample_text_map.yml");
+    static YAML::Node sampleNode = YAML::LoadFile("sample/text_map.yml");
     return sampleNode;
 }
 

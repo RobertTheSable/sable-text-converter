@@ -17,22 +17,22 @@ namespace sable {
                         }
                     });
             } catch(YAML::TypedBadConversion<int> &e) {
-                throw FontError(e.mark, TEXT_LENGTH_VAL, "an integer.");
+                throw FontError(e.mark, m_Name, TEXT_LENGTH_VAL, "an integer.");
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw FontError(e.mark, CODE_VAL, "an integer.");
+                throw FontError(e.mark, m_Name, CODE_VAL, "an integer.");
             }
             try {
                 m_CommandConvertMap = generateMap<CommandNode>(config[COMMANDS], COMMANDS);
             } catch(YAML::TypedBadConversion<CommandNode> &e) {
-                throw FontError(e.mark, CMD_NEWLINE_VAL, "a scalar.");
+                throw FontError(e.mark, m_Name, CMD_NEWLINE_VAL, "a scalar.");
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw FontError(e.mark, CODE_VAL, "an integer.");
+                throw FontError(e.mark, m_Name, CODE_VAL, "an integer.");
             }
             if (config[EXTRAS].IsDefined()) {
                 try {
                     m_Extras = generateMap<int>(config[EXTRAS], EXTRAS);
                 } catch(YAML::TypedBadConversion<int> &e) {
-                    throw FontError(e.mark, EXTRAS, "scalar integers.");
+                    throw FontError(e.mark, m_Name, EXTRAS, "scalar integers.");
                 }
             }
             m_HasDigraphs = config[USE_DIGRAPHS].IsDefined() ? (validate<std::string>(config[USE_DIGRAPHS], USE_DIGRAPHS, [] (const std::string& val) {
@@ -193,11 +193,11 @@ namespace sable {
         try {
             return validator(node.as<T>());
         } catch (YAML::InvalidNode &e) {
-            throw FontError(e.mark, field);
+            throw FontError(e.mark, m_Name, field);
         } catch (YAML::TypedBadConversion<std::string> &e) {
-            throw FontError(e.mark, field, "a string.");
+            throw FontError(e.mark, m_Name, field, "a string.");
         } catch (YAML::TypedBadConversion<int> &e) {
-            throw FontError(e.mark, field, "a scalar integer.");
+            throw FontError(e.mark, m_Name, field, "a scalar integer.");
         } catch (std::runtime_error& e) {
             throw FontError(node.Mark(), field, e.what());
         }
@@ -208,18 +208,18 @@ namespace sable {
         try {
             return validator(node.as<T>());
         } catch (YAML::InvalidNode &e) {
-            throw FontError(e.mark, field);
+            throw FontError(e.mark, m_Name, field);
         } catch (YAML::TypedBadConversion<std::string> &e) {
-            throw FontError(e.mark, field, "a string.");
+            throw FontError(e.mark, m_Name, field, "a string.");
         } catch (YAML::TypedBadConversion<int> &e) {
-            throw FontError(e.mark, field, "a scalar integer.");
+            throw FontError(e.mark, m_Name, field, "a scalar integer.");
         } catch (const char*& e) {
             throw FontError(node.Mark(), field, e);
         }
     }
 
-    FontError::FontError(const YAML::Mark &mark, const std::string &field, const std::string &msg) :
-        std::runtime_error(buildWhat(mark, field, msg)), m_Mark(mark), m_Field(field), m_Message(msg) {}
+    FontError::FontError(const YAML::Mark &mark, const std::string &name, const std::string &field, const std::string &msg) :
+        std::runtime_error(buildWhat(mark, name, field, msg)), m_Mark(mark), m_Field(field), m_Message(msg), m_Name(name) {}
 
     YAML::Mark FontError::getMark() const
     {
@@ -236,13 +236,19 @@ namespace sable {
         return m_Message;
     }
 
-    const std::string FontError::buildWhat(const YAML::Mark &mark, const std::string &field, const std::string &msg)
+    std::string FontError::getName() const
+    {
+        return m_Name;
+    }
+
+    const std::string FontError::buildWhat(const YAML::Mark &mark, const std::string &name, const std::string &field, const std::string &msg)
     {
         std::stringstream message;
+        message << "In font \"" + name + '"';
         if (!msg.empty()) {
-            message << "Line " << mark.line << ": " << "Field \"" << field << "\" must be " << msg;
+            message << ", line " << mark.line << ": " << "Field \"" << field << "\" must be " << msg;
         } else {
-            message << "Required field \"" << field << "\" is missing.";
+            message << ": Required field \"" << field << "\" is missing.";
         }
         return message.str();
     }
@@ -263,7 +269,7 @@ namespace sable {
             }
             return map;
         } catch (YAML::InvalidNode &e) {
-            throw FontError(e.mark, field);
+            throw FontError(e.mark, m_Name, field);
         }
     }
 }

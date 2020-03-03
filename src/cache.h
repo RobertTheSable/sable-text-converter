@@ -3,11 +3,12 @@
 
 #include "wrapper/filesystem.h"
 
-class SableCache
+namespace sable {
+class Cache
 {
 static constexpr const int MAX_ADDR = 0;
 public:
-    SableCache();
+    Cache(const std::string& path = "");
     int getMaxAddress() const;
     void setMaxAddress(int value);
 
@@ -19,5 +20,7 @@ private:
     bool m_IsReadable;
     fs::path m_CacheFile;
 };
+}
+
 
 #endif // CACHE_H

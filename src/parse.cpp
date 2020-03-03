@@ -1,5 +1,4 @@
 #include "parse.h"
-#include "exceptions.h"
 #include "util.h"
 #include <sstream>
 #include <utf8.h>
@@ -11,12 +10,7 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, c
     defaultFont(defaultMode), newLineName(nlName)
     {
         for (auto it = node.begin(); it != node.end(); ++it) {
-            try {
-                m_Fonts[it->first.as<std::string>()] = Font(it->second, it->first.as<std::string>());
-            } catch (sable::FontError &e) {
-                std::cerr << "In font " << it->first.as<std::string>() << ", " << e.what() << std::endl;
-            }
-
+            m_Fonts[it->first.as<std::string>()] = Font(it->second, it->first.as<std::string>());
         }
     }
 
