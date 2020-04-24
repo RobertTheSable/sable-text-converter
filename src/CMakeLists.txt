@@ -3,7 +3,7 @@ set(SABLE_SOURCE_FILES "")
 
 list(
     APPEND SABLE_SOURCE_FILES
-    
+
     "${PROJECT_SOURCE_DIR}/include/asar/asardll.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/font.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/font.h"
@@ -24,6 +24,8 @@ list(
 )
 
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})
+
+target_link_libraries(sable_lib PUBLIC coverage_config)
 
 if (SABLE_BUILD_MAIN)
     add_executable(

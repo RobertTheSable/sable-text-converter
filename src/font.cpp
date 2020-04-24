@@ -109,7 +109,7 @@ namespace sable {
     bool Font::isCommandNewline(const std::string &id) const
     {
         if (m_CommandConvertMap.find(id) == m_CommandConvertMap.end()) {
-            throw std::runtime_error(id + " not found in " + EXTRAS + " of font " + m_Name);
+            throw std::runtime_error(id + " not found in " + COMMANDS + " of font " + m_Name);
         }
         return m_CommandConvertMap.at(id).isNewLine;
     }

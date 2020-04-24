@@ -2,61 +2,178 @@
 #include <vector>
 #include "font.h"
 
-YAML::Node getSampleFontsNode()
-{
-    static YAML::Node sampleNode = YAML::LoadFile("sample/text_map.yml");
-    return sampleNode;
-}
-
-TEST_CASE("Test font with widths")
-{
+YAML::Node createSampleNode(
+        bool digraphs,
+        unsigned int byteWidth,
+        unsigned int maxWidth,
+        unsigned int defaultWidth,
+        const std::vector<std::tuple<std::string, int, bool>>& commands,
+        const std::vector<std::string>& extras = {},
+        unsigned int skip = 0,
+        int command = 0,
+        unsigned int offset = 1,
+        bool fixedWidth = false
+) {
     using sable::Font;
-    auto node = getSampleFontsNode()["normal"];
-    Font f(node, "normal");
-    std::vector<int> v;
-    v.reserve(f.getMaxEncodedValue());
-    f.getFontWidths(std::back_inserter(v));
-    REQUIRE(v.size() == f.getMaxEncodedValue());
-    REQUIRE(v[0] == 6);
-    REQUIRE(v[0x4c] == 0);
-}
-
-TEST_CASE("Test font with fixed widths")
-{
-    using sable::Font;
-    auto node = getSampleFontsNode()["opening"];
-    Font f(node, "opening");
-    std::vector<int> v;
-    v.reserve(f.getMaxEncodedValue());
-    f.getFontWidths(std::back_inserter(v));
-    REQUIRE(v.size() == f.getMaxEncodedValue());
-    bool allWidthsMatch = true;
-    int firstWidth = f.getWidth("A");
-    for (auto &currentWidth: v) {
-        allWidthsMatch &= currentWidth == firstWidth;
-        if (!allWidthsMatch) {
-            REQUIRE(currentWidth == firstWidth);
+    YAML::Node sample;
+    sample[Font::USE_DIGRAPHS] = digraphs ? "true" : "false";
+    sample[Font::BYTE_WIDTH] = byteWidth;
+    if (command >= 0) {
+        sample[Font::CMD_CHAR] = command;
+    }
+    sample[Font::MAX_WIDTH] = maxWidth;
+    if (fixedWidth) {
+        sample[Font::FIXED_WIDTH] = defaultWidth;
+    } else if (defaultWidth != 0) {
+        sample[Font::DEFAULT_WIDTH] = defaultWidth;
+    }
+    static const char* parsedChars = " (),.!?\"01234567890';";
+    int index = offset;
+    for (char i = 'A'; i < 'Z'; i++) {
+        char lowerCase = i+0x20;
+        index = offset + (i - 'A');
+        sample[Font::ENCODING][i][Font::CODE_VAL] = index;
+        sample[Font::ENCODING][lowerCase][Font::CODE_VAL] = index + 26;
+        if (!fixedWidth) {
+            sample[Font::ENCODING][i][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
+            sample[Font::ENCODING][lowerCase][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
         }
     }
-    REQUIRE(allWidthsMatch);
-}
-
-TEST_CASE("Test font with fixed widths using alias")
-{
-    using sable::Font;
-    auto node = getSampleFontsNode()["fixedWidth"];
-    Font f(node, "fixedWidth");
-    std::vector<int> v;
-    v.reserve(f.getMaxEncodedValue());
-    f.getFontWidths(std::back_inserter(v));
-    REQUIRE(v.size() == f.getMaxEncodedValue());
-    bool allWidthsMatch = true;
-    int firstWidth = f.getWidth("A");
-    for (auto &currentWidth: v) {
-        allWidthsMatch &= currentWidth == firstWidth;
-        if (!allWidthsMatch) {
-            REQUIRE(currentWidth == firstWidth);
+    index = offset + 52;
+    for (int var = 0; var < 21; ++var) {
+        sample[Font::ENCODING][parsedChars[var]][Font::CODE_VAL] = index++;
+        if (!fixedWidth) {
+            sample[Font::ENCODING][parsedChars[var]][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
         }
     }
-    REQUIRE(allWidthsMatch);
+    if (!extras.empty()) {
+        index += skip;
+        for (auto& extra: extras) {
+            sample[Font::ENCODING][extra][Font::CODE_VAL] = index++;
+            if (!fixedWidth) {
+                if (extra.length() == 2 &&
+                        sample[Font::ENCODING][extra[0]].IsDefined() &&
+                        sample[Font::ENCODING][extra[1]].IsDefined()
+                        ) {
+                    sample[Font::ENCODING][extra][Font::TEXT_LENGTH_VAL] =
+                            sample[Font::ENCODING][extra[0]][Font::TEXT_LENGTH_VAL].as<int>() +
+                            sample[Font::ENCODING][extra[1]][Font::TEXT_LENGTH_VAL].as<int>() - 1;
+                } else {
+                    sample[Font::ENCODING][extra][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
+                }
+            }
+        }
+    }
+    for (auto& cmd: commands) {
+        sample[Font::COMMANDS][std::get<0>(cmd)][Font::CODE_VAL] = std::get<1>(cmd);
+        if (std::get<2>(cmd)) {
+            sample[Font::COMMANDS][std::get<0>(cmd)][Font::CMD_NEWLINE_VAL] = "true";
+        }
+    }
+    return sample;
+}
+
+TEST_CASE("Test 1-byte fonts.")
+{
+    using sable::Font;
+    std::vector<std::tuple<std::string, int, bool>> commands = {
+        {"End", 0, false},
+        {"NewLine", 01, true},
+        {"Test", 07, false}
+    };
+    auto normalNode = createSampleNode(true, 1, 160, 0, commands, {"ll", "la", "e?", "ia", "❤"}, 4);
+    SECTION("Test font with widths")
+    {
+        normalNode[Font::FONT_ADDR] = "!somewhere";
+        Font f(normalNode, "normal");
+        std::vector<int> v;
+        int expectedResult = normalNode[Font::ENCODING]["A"][Font::CODE_VAL].as<int>();
+        REQUIRE(std::get<0>(f.getTextCode("A")) == expectedResult);
+        expectedResult = normalNode[Font::ENCODING]["ll"][Font::CODE_VAL].as<int>();
+        REQUIRE(std::get<0>( f.getTextCode("l", "l")) == expectedResult);
+        REQUIRE(f.getWidth("l") == normalNode[Font::ENCODING]["l"][Font::TEXT_LENGTH_VAL].as<int>());
+        REQUIRE(f.getWidth("la") == normalNode[Font::ENCODING]["la"][Font::TEXT_LENGTH_VAL].as<int>());
+        REQUIRE(f.getWidth("❤") == normalNode[Font::ENCODING]["❤"][Font::TEXT_LENGTH_VAL].as<int>());
+        REQUIRE(!std::get<1>(f.getTextCode("l", "d")));
+        REQUIRE(f.getMaxEncodedValue() == 255);
+        v.reserve(f.getMaxEncodedValue());
+        f.getFontWidths(std::back_inserter(v));
+        REQUIRE(v.size() == f.getMaxEncodedValue());
+        REQUIRE(v[0] == normalNode[Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL].as<int>());
+        REQUIRE(v[74] == 0);
+        REQUIRE(f.getCommandValue() == 0);
+        REQUIRE(f.getMaxWidth() == 160);
+        REQUIRE(f.getByteWidth() == 1);
+        REQUIRE_THROWS(f.getTextCode("@"));
+        REQUIRE_THROWS(f.getWidth("@"));
+        REQUIRE(f.getHasDigraphs());
+        REQUIRE(f.getFontWidthLocation() == "!somewhere");
+        REQUIRE_THROWS(f.getExtraValue("SomeExtra"));
+    }
+    SECTION("Test commands")
+    {
+        Font f(normalNode, "normal");
+        REQUIRE(f.getEndValue() == normalNode[Font::COMMANDS]["End"]["code"].as<int>());
+        REQUIRE(f.getCommandCode("Test") == normalNode[Font::COMMANDS]["Test"]["code"].as<int>());
+        REQUIRE(!f.isCommandNewline("Test"));
+        REQUIRE(f.isCommandNewline("NewLine"));
+        REQUIRE_THROWS(f.getCommandCode("Something"));
+        REQUIRE_THROWS(f.isCommandNewline("Something"));
+    }
+    SECTION("Check that End command is required.")
+    {
+        normalNode[Font::COMMANDS].remove("End");
+        REQUIRE_THROWS(Font(normalNode, "fixedWidth"));
+        normalNode.remove(Font::COMMANDS);
+        REQUIRE_THROWS(Font(normalNode, "fixedWidth"));
+    }
+    SECTION("Test font with fixed widths")
+    {
+        normalNode[Font::FIXED_WIDTH] = 8;
+        Font f(normalNode, "fixedWidth");
+        REQUIRE(f.getWidth("A") == 8);
+        REQUIRE(f.getWidth("A") == f.getWidth("ll"));
+        std::vector<int> v;
+        v.reserve(f.getMaxEncodedValue());
+        f.getFontWidths(std::back_inserter(v));
+        REQUIRE(v.front() == v.back());
+    }
+    SECTION("Test font without digraphs")
+    {
+        normalNode[Font::USE_DIGRAPHS] = "false";
+        Font f(normalNode, "noDigraphs");
+        REQUIRE(!f.getHasDigraphs());
+//        auto result = f.getTextCode("l", "l");
+//        REQUIRE(std::get<0>(result) == normalNode[Font::ENCODING]["l"][Font::CODE_VAL].as<int>());
+//        REQUIRE(!std::get<1>(result));
+    }
+    SECTION("Test font with extras.")
+    {
+        normalNode[Font::EXTRAS]["SomeExtra"] = 1;
+        Font f(normalNode, "normal");
+        REQUIRE(f.getExtraValue("SomeExtra") == 1);
+        REQUIRE_THROWS(f.getExtraValue("SomeMissingExtra"));
+    }
+}
+
+TEST_CASE("Test 2-byte fonts.")
+{
+    using sable::Font;
+    std::vector<std::tuple<std::string, int, bool>> commands = {
+        {"End", 0xFFFF, false},
+        {"NewLine", 0xFFFD, true},
+        {"Test", 0xFFFE, true}
+    };
+    auto menuNode = createSampleNode(true, 2, 0, 8, commands, {}, 0, -1, 0, true);
+    SECTION("Test 2-byte font with")
+    {
+        Font f(menuNode, "menu");
+        REQUIRE(f.getByteWidth() == 2);
+        REQUIRE(f.getMaxWidth() == 0);
+        REQUIRE(f.getFontWidthLocation().empty());
+        REQUIRE(f.getCommandValue() == -1);
+        REQUIRE(f.isCommandNewline("Test"));
+        REQUIRE(f.getEndValue() == 0xFFFF);
+    }
+
 }

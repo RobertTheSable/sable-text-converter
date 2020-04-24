@@ -1,6 +1,6 @@
 # Sable Text Converter
 
-[![Build Status](https://travis-ci.org/RobertTheSable/sable-text-converter.svg?branch=master)](https://travis-ci.org/RobertTheSable/sable-text-converter)
+[![Build Status](https://travis-ci.org/RobertTheSable/sable-text-converter.svg?branch=master)](https://travis-ci.org/RobertTheSable/sable-text-converter) [![codecov](https://codecov.io/gh/RobertTheSable/sable-text-converter/branch/master/graph/badge.svg)](https://codecov.io/gh/RobertTheSable/sable-text-converter)
 
 Extensible text converter for Fire Emblem: Monshou no Nazo.
 

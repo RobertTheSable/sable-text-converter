@@ -56,6 +56,6 @@ TEST_CASE("Test project config validation", "[project]")
     }
     SECTION("Valid config file throws no exceptions.")
     {
-        REQUIRE_NOTHROW(Project(testNode, fs::current_path().string()));
+        REQUIRE_NOTHROW(Project(testNode, "."));
     }
 }
