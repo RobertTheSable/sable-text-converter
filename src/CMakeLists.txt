@@ -25,7 +25,7 @@ list(
 
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})
 
-target_link_libraries(sable_lib PUBLIC coverage_config)
+target_link_libraries(sable_lib PUBLIC coverage_config ${SABLE_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
 
 if (SABLE_BUILD_MAIN)
     add_executable(
@@ -39,10 +39,11 @@ if (SABLE_BUILD_MAIN)
     )
 
     target_link_libraries(
-        sable ${SABLE_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES}
+        sable sable_lib
     )
-    if(SABLE_ALT_FILESYSTEM)
-        message(STATUS "Defining ${SABLE_ALT_FILESYSTEM}")
-        target_compile_definitions(sable_lib PUBLIC ${SABLE_ALT_FILESYSTEM})
-    endif()
+endif()
+
+if(SABLE_ALT_FILESYSTEM)
+    message(STATUS "Defining ${SABLE_ALT_FILESYSTEM}")
+    target_compile_definitions(sable_lib PUBLIC ${SABLE_ALT_FILESYSTEM})
 endif()

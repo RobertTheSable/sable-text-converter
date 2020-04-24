@@ -13,7 +13,7 @@ list(
 )
 
 add_executable(tests ${SABLE_TEST_FILES})
-target_link_libraries(tests ${SABLE_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES} Catch2::Catch2)
+target_link_libraries(tests sable_lib Catch2::Catch2)
 add_custom_command(TARGET tests
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:asar> "${CMAKE_CURRENT_BINARY_DIR}"

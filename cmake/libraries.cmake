@@ -49,7 +49,6 @@ set(SABLE_LIBRARIES "")
 list(
     APPEND SABLE_LIBRARIES
 
-    sable_lib
     yaml-cpp
     asar
 )
