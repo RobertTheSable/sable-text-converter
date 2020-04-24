@@ -6,7 +6,12 @@ namespace sable {
 
     Font::Font(const YAML::Node &config, const std::string& name) : m_IsValid(false), m_Name(name), m_YamlNodeMark(config.Mark())
         {
-            m_ByteWidth = validate<int>(config[BYTE_WIDTH], BYTE_WIDTH);
+            m_ByteWidth = validate<int>(config[BYTE_WIDTH], BYTE_WIDTH, [] (const int& val) {
+                if (val != 1 && val != 2) {
+                    throw std::runtime_error("1 or 2.");
+                }
+                return val;
+            });
             try {
                 m_TextConvertMap = generateMap<TextNode>(config[ENCODING], ENCODING, [](std::string& str) {
                         if (str.front() == '[') {
@@ -37,7 +42,7 @@ namespace sable {
             }
             m_HasDigraphs = config[USE_DIGRAPHS].IsDefined() ? (validate<std::string>(config[USE_DIGRAPHS], USE_DIGRAPHS, [] (const std::string& val) {
                 if (val != "true" && val != "false") {
-                    throw std::runtime_error("true or false");
+                    throw std::runtime_error("true or false.");
                 }
                 return val;
             }) == "true") : false;
@@ -199,7 +204,7 @@ namespace sable {
         } catch (YAML::TypedBadConversion<int> &e) {
             throw FontError(e.mark, m_Name, field, "a scalar integer.");
         } catch (std::runtime_error& e) {
-            throw FontError(node.Mark(), field, e.what());
+            throw FontError(node.Mark(), m_Name, field, e.what());
         }
     }
     template<class T>
@@ -213,8 +218,8 @@ namespace sable {
             throw FontError(e.mark, m_Name, field, "a string.");
         } catch (YAML::TypedBadConversion<int> &e) {
             throw FontError(e.mark, m_Name, field, "a scalar integer.");
-        } catch (const char*& e) {
-            throw FontError(node.Mark(), field, e);
+        } catch (std::runtime_error& e) {
+            throw FontError(node.Mark(), m_Name, field, e.what());
         }
     }
 
@@ -259,7 +264,7 @@ namespace sable {
         std::unordered_map<std::string, T> map;
         try {
             if(!node.IsMap()) {
-                throw FontError(node.Mark(), field, "a map");
+                throw FontError(node.Mark(), m_Name, field, "a map.");
             } else {
                 for (auto it = node.begin(); it != node.end(); ++it) {
                     std::string str = it->first.as<std::string>();
