@@ -8,9 +8,10 @@ git:
 script:
     - mkdir -p build
     - cd build
-    - cmake .. -DSABLE_BUILD_TESTS=ON -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
+    - cmake .. -DSABLE_BUILD_TESTS=ON -DSABLE_BUILD_MAIN=OFF -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
     - cmake --build . -- -j2
     - ctest -j2 -V
     
 after_success:
+    - cd build
     - bash <(curl -s https://codecov.io/bash) -x /usr/bin/gcov-${GCC_VER}
