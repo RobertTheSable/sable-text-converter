@@ -58,7 +58,11 @@ TEST_CASE("Second constructor", "[table]")
         REQUIRE(t.getAddressSize() == 2);
         REQUIRE(t.getSize() == 0);
         REQUIRE(t.getAddress() == 0);
+        t.setAddress(0xA08000);
+        REQUIRE(t.getAddress() == 0xA08000);
         REQUIRE(t.getDataAddress() == 0);
+        t.setDataAddress(0xB08000);
+        REQUIRE(t.getDataAddress() == 0xB08000);
         t.addEntry("Test 1");
         REQUIRE(t.getSize() == 4);
         t.addEntry("Test 2");
@@ -152,12 +156,12 @@ TEST_CASE("Loading data from multiline stream", "[table]")
     std::istringstream input;
     SECTION("Stream with default settings")
     {
-        input.str("address $808000\n"
-                  "entry test_1\n"
-                  "entry test_2\n"
-                  "entry const $808000\n\n"
-                  "file file1.txt\n"
-                  "file file2.txt\n");
+        input.str("address $808000\r\n"
+                  "entry test_1\r\n"
+                  "entry test_2\r\n"
+                  "entry const $808000\r\n\r\n"
+                  "file file1.txt\r\n"
+                  "file file2.txt\r\n");
         auto v = t.getDataFromFile(input);
         REQUIRE(v.size() == 2);
         REQUIRE(t.getEntryCount() == 3);

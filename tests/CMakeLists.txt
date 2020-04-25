@@ -10,7 +10,11 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/rompatcher.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/fonts.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/project.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/helpers/helpers.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/helpers/helpers.cpp"
 )
+
+include_directories(helpers)
 
 add_executable(tests ${SABLE_TEST_FILES})
 target_link_libraries(tests sable_lib Catch2::Catch2)

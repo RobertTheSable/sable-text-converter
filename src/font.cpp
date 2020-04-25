@@ -95,7 +95,7 @@ namespace sable {
     int Font::getExtraValue(const std::string &id) const
     {
         if (m_Extras.find(id) == m_Extras.end()) {
-            throw std::runtime_error("");
+            throw std::runtime_error(id + " not found in " + EXTRAS + " of font " + m_Name);
         }
         return m_Extras.at(id);
     }

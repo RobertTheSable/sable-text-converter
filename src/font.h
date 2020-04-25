@@ -30,6 +30,7 @@ namespace sable {
         Font()=default;
         Font(const YAML::Node &config, const std::string& name);
         Font& operator=(Font&&) =default;
+        Font& operator=(Font&) =default;
 
         int getByteWidth() const;
         int getCommandValue() const;

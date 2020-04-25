@@ -1,85 +1,404 @@
 #include <catch2/catch.hpp>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 #include "parse.h"
+#include "helpers.h"
+#include "utf8.h"
+#include <iostream>
 
 typedef std::vector<unsigned char> ByteVector;
 
 YAML::Node getSampleNode()
 {
-    static YAML::Node sampleNode = YAML::LoadFile("sample/text_map.yml");
+    YAML::Node sampleNode;
+    sampleNode["normal"] = sable_tests::createSampleNode(
+                true,
+                1,
+                160,
+                8,
+                {
+                    {"End", 0, false},
+                    {"NewLine", 01, true},
+                    {"Test", 07, false}
+                },
+                {"ll", "la", "e?", "[special]", "❤"}
+                );
+    sampleNode["nodigraph"] = sable_tests::createSampleNode(
+                false,
+                1,
+                160,
+                8,
+                {},
+                {},
+                0,
+                0,
+                1,
+                true
+                );
+    sampleNode["normal"][sable::Font::EXTRAS]["Extra1"] = 1;
+    sampleNode["nodigraph"][sable::Font::ENCODING] =  sampleNode["normal"][sable::Font::ENCODING];
+    sampleNode["nodigraph"][sable::Font::COMMANDS] =  sampleNode["normal"][sable::Font::COMMANDS];
+    sampleNode["menu"] = sable_tests::createSampleNode(
+                true,
+                2,
+                0,
+                8,
+                {
+                    {"End", 0xFFFF, false},
+                    {"NewLine", 0xFFFD, true},
+                    {"Test", 0xFFFE, true}
+                },
+                {},
+                0,
+                -1,
+                0,
+                true
+                );
     return sampleNode;
 }
 
-TEST_CASE("Parse One line", "[parser]")
+
+TEST_CASE("Class properties", "[parser]")
 {
-    sable::TextParser p(getSampleNode(), "normal");
-    auto settings = p.getDefaultSetting(0x808000);
-    std::istringstream sample("This is a test.");
-    ByteVector v = {};
-    auto result = p.parseLine(sample, settings, std::back_inserter(v));
-    REQUIRE(result.second == 71);
-    REQUIRE(result.first == true);
-    REQUIRE(v.size() == 17);
-    REQUIRE(v.front() == 0x14);
-    REQUIRE(v.back() == 0);
-    std::string test((char*)&v.front(), v.size());
+    using sable::Font, sable::TextParser;
+    auto node = getSampleNode();
+    TextParser p(node, "normal");
+    SECTION("Iterate over fonts.")
+    {
+        auto& fonts = p.getFonts();
+        REQUIRE(fonts.size() == 3);
+        REQUIRE(fonts.find("normal") != fonts.end());
+        REQUIRE(fonts.find("menu") != fonts.end());
+        REQUIRE(fonts.find("nodigraph") != fonts.end());
+        REQUIRE(fonts.find("test") == fonts.end());
+    }
 }
 
-TEST_CASE("Parse Another Line", "[parser]")
+TEST_CASE("Single lines", "[parser]")
 {
-    sable::TextParser p(getSampleNode(), "normal");
+    using sable::Font, sable::TextParser;
+    auto node = getSampleNode();
+    TextParser p(node, "normal");
     auto settings = p.getDefaultSetting(0x808000);
-    std::istringstream sample("This is a different test.");
+    std::istringstream sample;
     ByteVector v = {};
-    auto result = p.parseLine(sample, settings, std::back_inserter(v));
-    std::string test((char*)&v.front(), v.size());
-    REQUIRE(result.first == true);
+    SECTION("Parse basic string")
+    {
+        sample.str("ABC");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 6));
+        REQUIRE(v.size() == 5);
+        REQUIRE(settings.currentAddress == 0x808000);
+        REQUIRE(settings.mode == "normal");
+        REQUIRE(settings.label.empty());
+        REQUIRE((int)v.back() == 0);
+    }
+    SECTION("Automatic newline insertion")
+    {
+        sample.str("ABC\n ");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(false, 6));
+        REQUIRE(v.size() == 5);
+        REQUIRE((int)v.back() == 1);
+    }
+    SECTION("No newline insertion at end of file")
+    {
+        sample.str("ABC\n");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 6));
+        REQUIRE(v.size() == 5);
+        REQUIRE((int)v.back() == 0);
+    }
+    SECTION("Parse strings with UTF8")
+    {
+        sample.str("test ❤");
+        auto encNode = node["normal"][Font::ENCODING];
+        int expected = (encNode["t"][Font::TEXT_LENGTH_VAL].as<int>() * 2) +
+                encNode["e"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["s"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode[" "][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["❤"][Font::TEXT_LENGTH_VAL].as<int>();
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)).second == expected);
+        REQUIRE(v.size() == 8);
+    }
+    SECTION("Parse line with supported digraphs")
+    {
+        sample.str("ll la ld e?");
+        auto encNode = node["normal"][Font::ENCODING];
+        int expected = (encNode[" "][Font::TEXT_LENGTH_VAL].as<int>() * 3) +
+                encNode["e?"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["ll"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["la"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["l"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["d"][Font::TEXT_LENGTH_VAL].as<int>();
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)).second == expected);
+        REQUIRE(v.size() == 10);
+        REQUIRE(v == ByteVector({0x4A, 53, 0x4B, 53, 0x26, 30, 53, 0x4C, 0, 0}));
+    }
+    SECTION("Parse line with digraphs with font without digraphs")
+    {
+        settings.mode = "nodigraph";
+        sample.str("ll la ld e?");
+        auto encNode = node["normal"][Font::ENCODING];
+        int expected = sample.str().length() * 8;
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)).second == expected);
+        REQUIRE(v.size() == 13);
+        REQUIRE(v == ByteVector({0x26, 0x26, 53, 0x26, 0x1b, 53, 0x26, 0x1e, 53, 0x1f, 59, 0, 0}));
+    }
+    SECTION("Check extras are read correctly.")
+    {
+        sample.str("[Extra1]");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 0));
+        REQUIRE(v.front() == 1);
+        REQUIRE(v.size() == 3);
+    }
+    SECTION("Check commands are read correctly.")
+    {
+        sample.str("[Test]");
+        REQUIRE(node["normal"][Font::COMMANDS]["Test"]["code"].as<int>() == 7);
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 0));
+        REQUIRE(v == ByteVector({0, 7, 0, 0}));
+    }
+    SECTION("Check commands with newline settings are read correctly.")
+    {
+        sample.str("A[NewLine]\n ");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(false, 1));
+        REQUIRE(v.front() == 1);
+        REQUIRE(v.back() == 1);
+        REQUIRE(v.size() == 3);
+    }
+    SECTION("Check bracketed text")
+    {
+        sample.str("[special]");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 6));
+        REQUIRE(v.front() == 0x4D);
+        REQUIRE(v.size() == 3);
+    }
+    SECTION("Check binary insertion.")
+    {
+        sample.str("[010A03]");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 0));
+        REQUIRE(v == ByteVector({3, 10, 1, 0, 0}));
+    }
+    SECTION("Manual end with autoend")
+    {
+        sample.str("ABC[End]XYZ");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 6));
+        REQUIRE(v.size() == 5);
+        REQUIRE(v.back() == 0);
+    }
+    SECTION("Manual end without autoend")
+    {
+        settings.autoend = false;
+        sample.str("ABC[End]XYZ");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)).second == 17);
+        REQUIRE(v.size() == 8);
+        REQUIRE(v.back() == 26);
+    }
 }
 
-TEST_CASE("Reading End will end the parsing", "[parser]")
+TEST_CASE("Test ending behavior", "[parser]")
 {
-    sable::TextParser p(getSampleNode(), "normal");
+    using sable::Font, sable::TextParser;
+    auto node = getSampleNode();
+    TextParser p(node, "normal");
     auto settings = p.getDefaultSetting(0x808000);
-    std::istringstream sample("This string end early.[End]\n"
-                              "This is fluff.\n");
+    std::istringstream sample;
     ByteVector v = {};
-    auto result = p.parseLine(sample, settings, std::back_inserter(v));
-    std::string test((char*)&v.front(), v.size());
-    REQUIRE(result.first == true);
+    SECTION("Parser indicated there are more lines in stream.")
+    {
+        sample.str("ABC\n"
+                   "test");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(false, 6));
+        REQUIRE(v.size() == 5);
+        REQUIRE(settings.currentAddress == 0x808000);
+        REQUIRE(settings.mode == "normal");
+        REQUIRE(settings.label.empty());
+        REQUIRE((int)v.back() == 01);
+    }
 }
 
-TEST_CASE("Parse Several Lines With Settings", "[parser]")
+TEST_CASE("Default settings", "[parser]")
 {
-    sable::TextParser p(getSampleNode(), "nodigraph");
-    std::istringstream sample("@address $e0e9b0\n"
-                       "@width 160\n"
-                       "@label dialogue_07\n"
-                       "[_88][04][ShowPortait][6a][04]If you're wounded, you can \n"
-                       "rest in the forts, where you'll \n"
-                       "slowly recover vitality. [WaitForA][CloseFrame][02]\n"
-                       "# length: 102\n"
-                       );
-    auto settings = p.getDefaultSetting(0);
+    using sable::Font, sable::TextParser;
+    auto node = getSampleNode();
+    SECTION("Normal Settings")
+    {
+        TextParser p(node, "normal");
+        auto settings = p.getDefaultSetting(0x808000);
+        REQUIRE(settings.mode == "normal");
+        REQUIRE(settings.label.empty());
+        REQUIRE(settings.maxWidth == 160);
+        REQUIRE(settings.currentAddress == 0x808000);
+        REQUIRE(!settings.printpc);
+        REQUIRE(settings.autoend);
+    }
+    SECTION("Menu Settings")
+    {
+        TextParser p(node, "menu");
+        auto settings = p.getDefaultSetting(0x908000);
+        REQUIRE(settings.mode == "menu");
+        REQUIRE(settings.label.empty());
+        REQUIRE(settings.maxWidth == 0);
+        REQUIRE(settings.currentAddress == 0x908000);
+        REQUIRE(!settings.printpc);
+        REQUIRE(settings.autoend);
+    }
+}
+
+TEST_CASE("Change parser settings", "[parser]")
+{
+    using sable::Font, sable::TextParser;
+    auto node = getSampleNode();
+    TextParser p(node, "normal");
+    auto settings = p.getDefaultSetting(0x808000);
+    std::istringstream sample;
     ByteVector v = {};
-    p.parseLine(sample, settings, std::back_inserter(v));
-    p.parseLine(sample, settings, std::back_inserter(v));
-    auto result = p.parseLine(sample, settings, std::back_inserter(v));
-    REQUIRE(result.first == false);
-    REQUIRE(result.second == 0);
-    REQUIRE(v.size() == 0);
-    REQUIRE(settings.currentAddress == 0xe0e9b0);
-    REQUIRE(settings.label == "dialogue_07");
-    REQUIRE(settings.maxWidth == 160);
-    result = p.parseLine(sample, settings, std::back_inserter(v));
-    REQUIRE(result.first == false);
-    REQUIRE(result.second == 139);
-    p.parseLine(sample, settings, std::back_inserter(v));
-    p.parseLine(sample, settings, std::back_inserter(v));
-    result = p.parseLine(sample, settings, std::back_inserter(v));
-    REQUIRE(result.first == true);
-    std::string test((char*)&v.front(), v.size());
-    REQUIRE(v.front() == 0);
-    REQUIRE(v.back() == 0);
-    REQUIRE(v.size() == 102);
+    SECTION("Set address")
+    {
+        settings.currentAddress = 0;
+        sample.str("@address $808000 \n ");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(false, 0));
+        REQUIRE(settings.currentAddress == 0x808000);
+        REQUIRE(settings.autoend);
+        REQUIRE(settings.label.empty());
+        REQUIRE(v.empty());
+    }
+    SECTION("Automatic address setting")
+    {
+        sample.str("@address auto \n ");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(false, 0));
+        REQUIRE(settings.currentAddress == 0x808000);
+    }
+    SECTION("Set label")
+    {
+        sample.str("@label test01 ");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 0));
+        REQUIRE(settings.currentAddress == 0x808000);
+        REQUIRE(settings.label == "test01");
+        REQUIRE((!v.empty() && v.front() == 0));
+    }
+    SECTION("Set text mode")
+    {
+        sample.str("@type menu \n ");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(false, 0));
+        REQUIRE(settings.currentAddress == 0x808000);
+        REQUIRE(settings.label.empty());
+        REQUIRE(settings.mode == "menu");
+        REQUIRE(v.size() == 0);
+        sample.clear();
+        sample.str("ABD");
+        auto result = p.parseLine(sample, settings, std::back_inserter(v));
+        REQUIRE(result.second == 24);
+        REQUIRE(v.size() == 8);
+        REQUIRE(v == ByteVector({0,0,1,0,3,0,0xff,0xff}));
+    }
+    SECTION("Set text mode to default")
+    {
+        settings.mode = "menu";
+        sample.str("@type default");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 0));
+        REQUIRE(settings.mode == "normal");
+    }
+
+    SECTION("Disable autoend")
+    {
+        sample.str("@autoend off");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 0));
+        REQUIRE(v.empty());
+        REQUIRE(!settings.autoend);
+        REQUIRE(settings.currentAddress == 0x808000);
+    }
+    SECTION("Enable autoend")
+    {
+        settings.autoend = false;
+        sample.str("@autoend on");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 0));
+        REQUIRE(!v.empty());
+        REQUIRE(settings.autoend);
+        REQUIRE(settings.currentAddress == 0x808000);
+    }
+    SECTION("Turn on print pc")
+    {
+        sample.str("@printpc ");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 0));
+        REQUIRE(settings.printpc);
+        REQUIRE(settings.currentAddress == 0x808000);
+    }
+}
+
+TEST_CASE("Multiline scenarios", "[parser]")
+{
+    using sable::Font, sable::TextParser;
+    auto node = getSampleNode();
+    TextParser p(node, "normal");
+    auto settings = p.getDefaultSetting(0x808000);
+    std::istringstream sample;
+    ByteVector v = {};
+    SECTION("Switching between modes")
+    {
+        sample.str("ABC\n"
+                   "@type menu\n"
+                   "ABC\n");
+        while (!p.parseLine(sample, settings, std::back_inserter(v)).first) {}
+        REQUIRE(v.size() == 11);
+        REQUIRE(v == ByteVector({1, 2, 3, 0, 0, 1, 0, 2, 0, 0xFF, 0xFF}));
+    }
+}
+
+TEST_CASE("Parser error checking", "[parser]")
+{
+    using sable::Font, sable::TextParser, Catch::Matchers::Contains;
+    auto node = getSampleNode();
+    TextParser p(node, "normal");
+    auto settings = p.getDefaultSetting(0x80800);
+    std::istringstream sample;
+    ByteVector v = {};
+    SECTION("Don't parse if address isn't set.")
+    {
+        sample.str("Test");
+        settings.currentAddress = 0;
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), "Attempted to parse text before address was set.");
+    }
+    SECTION("Undefined text.")
+    {
+        sample.str("%");
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), Contains("not found in Encoding of font normal"));
+    }
+    SECTION("Undefined bracketed value")
+    {
+        sample.str("[Missing]");
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), Contains("not found in Extras of font normal"));
+    }
+    SECTION("Unenclosed bracket.")
+    {
+        sample.str("[Missing");
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), "Closing bracket not found.");
+    }
+    SECTION("Unsupported setting")
+    {
+        sample.str("@missing");
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), "Unrecognized option \"missing\"");
+    }
+    SECTION("Setting with missing required option")
+    {
+        sample.str("@label ");
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), "Option \"label\" is missing a required value");
+    }
+    SECTION("Width validation")
+    {
+        sample.str("@width b");
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), "Invalid option \"b\" for width: must be off or a decimal number.");
+    }
+    SECTION("Autoend validation")
+    {
+        sample.str("@autoend b");
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), "Invalid option \"b\" for autoend: must be on or off.");
+    }
+    SECTION("Address validation")
+    {
+        sample.str("@address t");
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), "Invalid option \"t\" for address: must be auto or a SNES address.");
+        sample.clear();
+        sample.str("@address 000000");
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), "Invalid option \"000000\" for address: must be auto or a SNES address.");
+    }
 }

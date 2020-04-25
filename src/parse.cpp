@@ -40,7 +40,7 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, c
                     {
                         size_t endPt = line.find_first_of(']', it - line.begin());
                         if (endPt == std::string::npos) {
-                            throw std::runtime_error("");
+                            throw std::runtime_error("Closing bracket not found.");
                         }
                         size_t distance = (line.begin() +endPt) - it;
                         temp = std::string(it, it+distance);
@@ -78,6 +78,8 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, c
                     if (it - line.begin() == 1 && (state.peek() != std::char_traits<char>::eof())) {
                         return std::make_pair(finished, length);
                     }
+                    // Change this to change
+                    // activeFont = m_Fonts.at(settings.mode);
                     it = line.end();
                 } else {
                     if (settings.currentAddress == 0) {
@@ -141,55 +143,75 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, c
 
     ParseSettings TextParser::updateSettings(const ParseSettings &settings, const std::string &setting, unsigned int currentAddress)
     {
+        static const std::map<std::string, int> SUPPORTED_SETTINGS = {
+            {"printpc", 1},
+            {"type", 2},
+            {"address", 2},
+            {"width", 2},
+            {"label", 2},
+            {"autoend", 2},
+        };
         ParseSettings retVal = settings;
         if (!setting.empty()) {
             std::string name;
             std::istringstream str(setting);
             str >> name;
-            if (name == "printpc") {
-                retVal.printpc = true;
+            if (SUPPORTED_SETTINGS.find(name) == SUPPORTED_SETTINGS.end()) {
+                throw std::runtime_error(name.insert(0, "Unrecognized option \"") + '\"');
             } else {
-                std::string option;
-                str >> option;
-                if (!str.fail()) {
-                    if (name == "type") {
-                        if (option == "default") {
-                            retVal.mode = defaultFont;
-                        } else if (m_Fonts.find(option) == m_Fonts.end()) {
-                            throw std::runtime_error(option.insert(0, "Font \"") + "\" was not defined");
+                if (name == "printpc") {
+                    retVal.printpc = true;
+                } else {
+                    std::string option;
+                    if (!((str >> option).fail())) {
+                        if (name == "type") {
+                            if (option == "default") {
+                                retVal.mode = defaultFont;
+                            } else if (m_Fonts.find(option) == m_Fonts.end()) {
+                                throw std::runtime_error(option.insert(0, "Font \"") + "\" was not defined");
+                            } else {
+                                retVal.mode = option;
+                            }
+                            if (retVal.maxWidth >= 0) {
+                                retVal.maxWidth = m_Fonts[retVal.mode].getMaxWidth();
+                            }
+                        } else if (name == "address") {
+                            if (option != "auto") {
+                                auto result = util::strToHex(option);
+                                if (result.second >= 0 && util::LoROMToPC(result.first) >= 0) {
+                                    retVal.currentAddress = util::strToHex(option).first;
+                                } else {
+                                    throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for address: must be auto or a SNES address.");
+                                }
+                            }
+                        } else if (name == "width") {
+                            if (option == "off") {
+                                retVal.maxWidth = -1;
+                            } else {
+                                if (!(std::istringstream(option) >> std::dec >> retVal.maxWidth)) {
+                                    throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for width: must be off or a decimal number.");
+                                }
+                            }
+                        } else if (name == "label") {
+                            retVal.label = option;
+                        } else if (name == "autoend") {
+                            if (option == "on") {
+                                retVal.autoend = true;
+                            } else if (option == "off") {
+                                retVal.autoend = false;
+                            } else {
+                                throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for autoend: must be on or off.");
+                            }
                         } else {
-                            retVal.mode = option;
-                        }
-                        if (retVal.maxWidth >= 0) {
-                            retVal.maxWidth = m_Fonts[retVal.mode].getMaxWidth();
-                        }
-                    } else if (name == "address") {
-                        if (option != "auto") {
-                            retVal.currentAddress = util::strToHex(option).first;
-                        }
-                    } else if (name == "width") {
-                        if (option == "off") {
-                            retVal.maxWidth = -1;
-                        } else {
-                            std::istringstream(option) >> std::dec >> retVal.maxWidth;
-                        }
-                    } else if (name == "label") {
-                        retVal.label = option;
-                    } else if (name == "autoend") {
-                        if (option == "on") {
-                            retVal.autoend = true;
-                        } else if (option == "off") {
-                            retVal.autoend = false;
-                        } else {
-                            throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for autoend: must be on or off");
+                            throw std::runtime_error(name.insert(0, "Unrecognized option \"") + '\"');
                         }
                     } else {
-                        throw std::runtime_error(name.insert(0, "Unrecognized option \"") + '\"');
+                        throw std::runtime_error(name.insert(0, "Option \"") + "\" is missing a required value");
                     }
-                } else {
-                    throw std::runtime_error(name.insert(0, "Option \"") + "\" is missing a required value");
                 }
             }
+        } else {
+            throw std::runtime_error("@ symbol found, but no setting specified.");
         }
         return retVal;
     }

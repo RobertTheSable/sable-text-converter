@@ -27,11 +27,8 @@ namespace sable {
             int length;
             std::vector<unsigned char> data;
         };
-
         std::pair<bool, int> parseLine(std::istream &input, ParseSettings &settings, back_inserter insert);
         const std::map<std::string, Font>& getFonts() const;
-        static void insertData(unsigned int code, int size, back_inserter bi);
-        ParseSettings updateSettings(const ParseSettings &settings, const std::string& setting = "", unsigned int currentAddress = 0);
         ParseSettings getDefaultSetting(int address);
     private:
         bool useDigraphs;
@@ -39,6 +36,8 @@ namespace sable {
         std::map<std::string, Font> m_Fonts;
         std::string defaultFont, newLineName;
         static std::string readUtf8Char(std::string::iterator& start, std::string::iterator end, bool advance = true);
+        ParseSettings updateSettings(const ParseSettings &settings, const std::string& setting = "", unsigned int currentAddress = 0);
+        static void insertData(unsigned int code, int size, back_inserter bi);
     };
 }
 
