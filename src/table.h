@@ -18,6 +18,7 @@ public:
     int getDataAddress() const;
     void setDataAddress(int DataAddress);
     int getSize() const;
+    size_t getEntryCount() const;
     std::vector<std::string> getDataFromFile(std::istream& in);
     struct Entry
     {

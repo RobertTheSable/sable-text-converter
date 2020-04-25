@@ -73,6 +73,14 @@ YAML::Node createSampleNode(
     return sample;
 }
 
+TEST_CASE("Test uninititalized font.")
+{
+    using sable::Font;
+    Font f;
+    REQUIRE(!f);
+    REQUIRE_THROWS(f.getTextCode("A"));
+}
+
 TEST_CASE("Test 1-byte fonts.")
 {
     using sable::Font;

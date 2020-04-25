@@ -2,111 +2,280 @@
 #include <sstream>
 #include "table.h"
 
-TEST_CASE("Test that Table size is computed correctly.", "[table]")
+using Catch::Matchers::Contains;
+
+TEST_CASE("Table properties.", "[table]")
 {
     sable::Table t;
-    t.addEntry(0x8000, 3);
-    t.addEntry("Test 1");
-    t.addEntry(0x8000, 20);
-    t.addEntry(0x8000, 90);
-    SECTION("With no widths stored")
+    SECTION("Default values.")
     {
-        t.setAddressSize(2);
-        REQUIRE(t.getSize() == 8);
+        REQUIRE(t.getAddressSize() == 3);
+        REQUIRE(t.getSize() == 0);
+        REQUIRE(t.getAddress() == 0);
+        REQUIRE(t.getEntryCount() == 0);
+        REQUIRE(t.getDataAddress() == 0);
+        REQUIRE(!t.getStoreWidths());
     }
-    SECTION("With widths stored")
+    SECTION("Adding entries")
+    {
+        t.addEntry(0x8000, 3);
+        REQUIRE(t.getSize() == 3);
+        t.addEntry("Test");
+        REQUIRE(t.getSize() == 6);
+        REQUIRE(t.getEntryCount() == 2);
+    }
+    SECTION("Change properties")
     {
         t.setAddressSize(2);
+        t.addEntry(0x8000, 3);
+        REQUIRE(t.getSize() == 2);
+        t.addEntry("Test");
+        REQUIRE(t.getSize() == 4);
         t.setStoreWidths(true);
-        REQUIRE(t.getSize() == 16);
+        REQUIRE(t.getStoreWidths());
+        REQUIRE(t.getSize() == 8);
+
+        auto it = t.begin();
+        REQUIRE(it->size == 3);
+        REQUIRE(it->address == 0x8000);
+        REQUIRE(it->label.empty());
+        REQUIRE(it != t.end());
+        auto entry = *(++it);
+        REQUIRE(entry.label == "Test");
+        REQUIRE(entry.size == -1);
+        REQUIRE(entry.address == -1);
+        REQUIRE(!(++it != t.end()));
     }
-    SECTION("With long addresses")
+
+}
+
+TEST_CASE("Second constructor", "[table]")
+{
+    sable::Table t(2, true);
+    SECTION("No further changes.")
+    {
+        REQUIRE(t.getStoreWidths());
+        REQUIRE(t.getAddressSize() == 2);
+        REQUIRE(t.getSize() == 0);
+        REQUIRE(t.getAddress() == 0);
+        REQUIRE(t.getDataAddress() == 0);
+        t.addEntry("Test 1");
+        REQUIRE(t.getSize() == 4);
+        t.addEntry("Test 2");
+        REQUIRE(t.getSize() == 8);
+        REQUIRE(t.getEntryCount() == 2);
+    }
+    SECTION("Change address size")
     {
         t.setAddressSize(3);
+        t.addEntry("Test 1");
+        REQUIRE(t.getSize() == 6);
+        t.addEntry("Test 2");
         REQUIRE(t.getSize() == 12);
     }
-    SECTION("With long addresses and stored widths")
+}
+
+TEST_CASE("Loading data from stream", "[table]")
+{
+    sable::Table t;
+    std::istringstream input;
+    SECTION("File loading")
     {
-        t.setAddressSize(3);
-        t.setStoreWidths(true);
-        REQUIRE(t.getSize() == 24);
+        input.str("file a.txt");
+        auto v = t.getDataFromFile(input);
+        REQUIRE(v.front() == "a.txt");
+        REQUIRE(v.size() == 1);
+        REQUIRE(!(t.begin() != t.end()));
     }
-    SECTION("Test that the correct number of entries are stored")
+    SECTION("Add entry.")
     {
-        int test = 0;
-        for(auto it = t.begin(); it != t.end(); ++it){
-            test++;
-        }
-        REQUIRE(test == 4);
+        input.str("entry test_1");
+        auto v = t.getDataFromFile(input);
+        REQUIRE(t.getSize() == 3);
+        REQUIRE(v.empty());
+        REQUIRE(t.getEntryCount() == 1);
+        auto it = t.begin();
+        REQUIRE(it->size == -1);
+        REQUIRE(it->address == -1);
+        REQUIRE(it->label == "test_1");
+    }
+    SECTION("Add constant entry.")
+    {
+        input.str("entry const $D745, 0");
+        REQUIRE(t.getDataFromFile(input).empty());
+        auto it = t.begin();
+        REQUIRE(it->size == -1);
+        REQUIRE(it->address == 0xD745);
+        REQUIRE(it->label.empty());
+        REQUIRE(input.eof());
+    }
+    SECTION("Add constant entry with widths.")
+    {
+        t.setStoreWidths(true);
+        input.str("entry const $D745, $0000");
+        REQUIRE(t.getDataFromFile(input).empty());
+        auto it = t.begin();
+        REQUIRE(it->size == 0);
+        REQUIRE(it->address == 0xD745);
+        REQUIRE(it->label.empty());
+        REQUIRE(input.eof());
+    }
+    SECTION("Update Settings")
+    {
+        input.str("address $808000");
+        t.getDataFromFile(input);
+        REQUIRE(t.getAddress() == 0x808000);
+        REQUIRE(t.getDataAddress() == 0x808000);
+        input.clear();
+        input.str("data $908000");
+        t.getDataFromFile(input);
+        REQUIRE(t.getAddress() == 0x808000);
+        REQUIRE(t.getDataAddress() == 0x908000);
+        input.clear();
+        input.str("width 2");
+        t.getDataFromFile(input);
+        REQUIRE(t.getAddressSize() == 2);
+        input.clear();
+        input.str("width 3");
+        t.getDataFromFile(input);
+        REQUIRE(t.getAddressSize() == 3);
+        input.clear();
+        input.str("savewidth ");
+        t.getDataFromFile(input);
+        REQUIRE(t.getStoreWidths());
     }
 }
 
-TEST_CASE("Test that loading a table file produces correct results.", "[table]")
+TEST_CASE("Loading data from multiline stream", "[table]")
 {
     sable::Table t;
-    std::stringstream sampleFile;
-    sampleFile << "address 808000\n";
-    SECTION("Width 2, 2 files, 3 entries, no data address")
+    std::istringstream input;
+    SECTION("Stream with default settings")
     {
-        sampleFile << "width 2\n"
-                      "file a.txt\n"
-                      "file b.txt\n\n"
-                      "entry sample01\n"
-                      "entry sample02\n"
-                      "entry sample03\n";
-        auto v = t.getDataFromFile(sampleFile);
-        REQUIRE(t.getAddress() == 0x808000);
-        REQUIRE(t.getDataAddress() == 0x808006);
+        input.str("address $808000\n"
+                  "entry test_1\n"
+                  "entry test_2\n"
+                  "entry const $808000\n\n"
+                  "file file1.txt\n"
+                  "file file2.txt\n");
+        auto v = t.getDataFromFile(input);
         REQUIRE(v.size() == 2);
-    }
-    SECTION("Width 3, 2 files, 3 entries, no data address")
-    {
-        sampleFile << "width 3\n"
-                      "file a.txt\n"
-                      "file b.txt\n\n"
-                      "entry sample01\n"
-                      "entry sample02\n"
-                      "entry sample03\n";
-        auto v = t.getDataFromFile(sampleFile);
+        REQUIRE(t.getEntryCount() == 3);
+        REQUIRE(t.getAddressSize() == 3);
         REQUIRE(t.getAddress() == 0x808000);
         REQUIRE(t.getDataAddress() == 0x808009);
-        REQUIRE(v.size() == 2);
+        REQUIRE(!t.getStoreWidths());
+        auto it = t.begin();
+        REQUIRE(it->label == "test_1");
+        REQUIRE((++it)->label == "test_2");
+        REQUIRE((++it)->label.empty());
+        REQUIRE(!(++it != t.end()));
     }
-    SECTION("Width 3, 2 files, 3 entries, specified data address")
+    SECTION("Stream with updated settings")
     {
-        sampleFile << "width 3\n"
-                      "data 818000\n"
-                      "file a.txt\n"
-                      "file b.txt\n\n"
-                      "entry sample01\n"
-                      "entry sample02\n"
-                      "entry sample03\n";
-        auto v = t.getDataFromFile(sampleFile);
+        input.str("address $808000 \n"
+                  "data $908000 \n"
+                  "width 2 \n"
+                  "savewidth \n"
+                  "entry test_1 \n"
+                  "entry test_2 \n"
+                  "entry const $8080 2 \n\n"
+                  "file file1.txt \n"
+                  "file file2.txt \n"
+                  "file file3.txt \n");
+        auto v = t.getDataFromFile(input);
         REQUIRE(t.getAddress() == 0x808000);
-        REQUIRE(t.getDataAddress() == 0x818000);
-        REQUIRE(v.size() == 2);
+        REQUIRE(t.getDataAddress() == 0x908000);
+        REQUIRE(t.getStoreWidths());
+        REQUIRE(v.size() == 3);
+        REQUIRE(t.getEntryCount() == 3);
+        REQUIRE(t.getAddressSize() == 2);
+        auto it = t.begin();
+        REQUIRE(it->label == "test_1");
+        REQUIRE(it->size == -1);
+        REQUIRE((++it)->label == "test_2");
+        REQUIRE(it->address == -1);
+        REQUIRE((++it)->label.empty());
+        REQUIRE(it->address == 0x8080);
+        REQUIRE(it->size == 2);
+        REQUIRE(!(++it != t.end()));
     }
 }
 
-TEST_CASE("Test that invalid input produces exceptions")
+TEST_CASE("Error checking", "[table]")
 {
     sable::Table t;
-    std::stringstream sampleFile;
-    SECTION("Invalid address throws an error.")
+    std::istringstream wrongAddress;
+    SECTION("Address errors")
     {
-        sampleFile << "address 818r00\n"
-                      "width 3\n"
-                      "file b.txt\n\n"
-                      "entry sample01\n";
-        REQUIRE_THROWS_AS(t.getDataFromFile(sampleFile), std::runtime_error);
+        wrongAddress.str("address \n");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" missing value for table address."));
+        wrongAddress.clear();
+        wrongAddress.str("address bad");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" is not a valid SNES address."));
+        wrongAddress.clear();
+        wrongAddress.str("address $000000");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" is not a valid SNES address."));
     }
-    SECTION("Invalid data address throws an error.")
+    SECTION("Data address errors")
     {
-        sampleFile << "address 81800\n"
-                      "width 3\n"
-                      "data 818r00\n"
-                      "file b.txt\n\n"
-                      "entry sample01\n";
-        REQUIRE_THROWS_AS(t.getDataFromFile(sampleFile), std::runtime_error);
+        wrongAddress.str("data \n");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" missing address for table data address setting."));
+        wrongAddress.clear();
+        wrongAddress.str("data bad");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" is not a valid SNES address."));
+        wrongAddress.clear();
+        wrongAddress.str("data $000000");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" is not a valid SNES address."));
+    }
+    SECTION("Width errors")
+    {
+        wrongAddress.str("width \n");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains("missing value for table width setting."));
+        wrongAddress.clear();
+        wrongAddress.str("width bad");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains("width value should be 2 or 3."));
+        wrongAddress.clear();
+        wrongAddress.str("width 4");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains("width value should be 2 or 3."));
+    }
+    SECTION("Unsupported settings.")
+    {
+        wrongAddress.str("notSupported");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains("unrecognized setting \"notSupported\""));
+    }
+    SECTION("Data errors")
+    {
+        wrongAddress.str("entry \n"
+                         "entry test");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" missing data for table entry."));
+        wrongAddress.str("file \n");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" missing filename."));
+
+    }
+    SECTION("Constant entry errors")
+    {
+        t.setAddressSize(2);
+        wrongAddress.str("entry const \n");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" missing data for constant entry."));
+        wrongAddress.clear();
+        wrongAddress.str("entry const test");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" is not a valid SNES address."));
+        wrongAddress.clear();
+        wrongAddress.str("entry const $808000");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains("is larger than the max width for the table."));
+        wrongAddress.clear();
+        wrongAddress.str("entry const t");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" is not a valid SNES address."));
+        t.setStoreWidths(true);
+        wrongAddress.clear();
+        wrongAddress.str("entry const $8080");
+        REQUIRE_THROWS_WITH(t.getDataFromFile(wrongAddress), Contains(" missing width for constant entry."));
+        wrongAddress.clear();
+        wrongAddress.str("entry const $8080, t");
+        REQUIRE_THROWS(t.getDataFromFile(wrongAddress), Contains("is not a decimal or hex number."));
+        wrongAddress.clear();
+        wrongAddress.str("entry const $8080, $t");
+        REQUIRE_THROWS(t.getDataFromFile(wrongAddress), Contains("is not a valid hexadecimal number."));
     }
 }
