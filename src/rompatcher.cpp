@@ -3,6 +3,7 @@
 #include <fstream>
 #include <algorithm>
 #include <sstream>
+#include <iomanip>
 #include "wrapper/filesystem.h"
 
 bool istringcompare(const std::string& a, const std::string& b) {
@@ -18,24 +19,23 @@ bool istringcompare(const std::string& a, const std::string& b) {
     return true;
 }
 
-sable::RomPatcher::RomPatcher(
-        const std::string& file,
-        const std::string& name,
-        const std::string& mode,
-        int header
-        ) : m_AState(AsarState::NotRun)
+sable::RomPatcher::RomPatcher(const std::string &mode) : m_AState(AsarState::NotRun)
 {
-    if (!fs::exists(fs::path(file))) {
-        throw std::runtime_error(fs::absolute(file).string() + " does not exist.");
-    } else if (file.empty()) {
-        throw std::logic_error("Filename is empty.");
-    }
     if (istringcompare(mode, "lorom")) {
         m_MapType = Mapper::LOROM;
     } else if (istringcompare(mode, "exlorom")) {
         m_MapType = Mapper::EXLOROM;
     } else {
         m_MapType = Mapper::INVALID;
+    }
+}
+
+void sable::RomPatcher::loadRom(const std::string &file, const std::string &name, int header)
+{
+    if (!fs::exists(fs::path(file))) {
+        throw std::runtime_error(fs::absolute(file).string() + " does not exist.");
+    } else if (file.empty()) {
+        throw std::logic_error("Filename is empty.");
     }
     if (name.empty()) {
         m_Name = fs::path(file).stem().string();
@@ -136,33 +136,9 @@ bool sable::RomPatcher::applyPatchFile(const std::string &path, const std::strin
     return m_AState == AsarState::Success;
 }
 
-int sable::RomPatcher::getRomSize() const
-{
-    return m_RomSize;
-}
-
-int sable::RomPatcher::getRealSize() const
-{
-    return m_data.size();
-}
-
 unsigned char &sable::RomPatcher::at(int n)
 {
     return m_data.at(n);
-}
-
-unsigned char &sable::RomPatcher::atROMAddr(int n)
-{
-    int addr = util::ROMToPC(m_MapType, n);
-    if (addr == -1) {
-        throw std::logic_error("Invalid SNES Address");
-    }
-    return m_data.at(addr + m_HeaderSize);
-}
-
-std::string sable::RomPatcher::getName() const
-{
-    return m_Name;
 }
 
 bool sable::RomPatcher::getMessages(std::back_insert_iterator<std::vector<std::string> > v)
@@ -182,5 +158,80 @@ bool sable::RomPatcher::getMessages(std::back_insert_iterator<std::vector<std::s
         return false;
     }
     return true;
+}
+
+int sable::RomPatcher::getRealSize() const
+{
+    return m_data.size();
+}
+
+std::string sable::RomPatcher::generateInclude(const fs::path &file, const fs::path &basePath, bool isBin) const
+{
+    std::string includePath;
+    if (isBin) {
+        includePath = "incbin ";
+    } else {
+        includePath = "incsrc ";
+    }
+    if (basePath.empty() || file.string().find_first_of(basePath.string()) != 0) {
+        includePath += file.generic_string();
+    } else {
+        // can't use fs::relative because g++ 7 doesn't support it.
+        includePath +=  file.generic_string().substr(basePath.generic_string().length() + 1);
+    }
+    return includePath;
+}
+
+std::string sable::RomPatcher::generateDefine(const std::string& label) const
+{
+    return std::string("!") + label;
+}
+
+std::string sable::RomPatcher::generateNumber(int number, int width, int base) const
+{
+    std::ostringstream output;
+    if (base == 16) {
+        if (width > 3 || width <= 0) {
+
+        }
+        output << '$' << std::setfill('0') << std::setw(width *2) << std::hex << number;
+    } else if (base == 10) {
+        output << std::dec << number;
+    } else {
+        throw std::runtime_error(std::string("Unsupported base ") +  std::to_string(base));
+    }
+    return output.str();
 
 }
+
+std::string sable::RomPatcher::generateAssignment(const std::string& label, int value, int width, const std::string& baseLabel, int base) const
+{
+    std::ostringstream output;
+    output << generateDefine(label) <<  " = ";
+    if (!baseLabel.empty()) {
+        output << generateDefine(baseLabel) << '+';
+    }
+    output << generateNumber(value, width, base);
+
+    return output.str();
+}
+
+//int sable::RomPatcher::getRomSize() const
+//{
+//    return m_RomSize;
+//}
+
+//unsigned char &sable::RomPatcher::atROMAddr(int n)
+//{
+//    int addr = util::ROMToPC(m_MapType, n);
+//    if (addr == -1) {
+//        throw std::logic_error("Invalid SNES Address");
+//    }
+//    return m_data.at(addr + m_HeaderSize);
+//}
+
+//std::string sable::RomPatcher::getName() const
+//{
+//    return m_Name;
+//}
+

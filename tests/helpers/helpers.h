@@ -17,5 +17,6 @@ YAML::Node createSampleNode(
         unsigned int offset = 1,
         bool fixedWidth = false
 );
+YAML::Node getSampleNode();
 };
 #endif

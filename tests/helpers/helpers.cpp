@@ -61,3 +61,52 @@ YAML::Node sable_tests::createSampleNode(bool digraphs, unsigned int byteWidth, 
     }
     return sample;
 }
+
+YAML::Node sable_tests::getSampleNode()
+{
+    YAML::Node sampleNode;
+    sampleNode["normal"] = sable_tests::createSampleNode(
+                true,
+                1,
+                160,
+                8,
+                {
+                    {"End", 0, false},
+                    {"NewLine", 01, true},
+                    {"Test", 07, false}
+                },
+                {"ll", "la", "e?", "[special]", "❤"}
+                );
+    sampleNode["nodigraph"] = sable_tests::createSampleNode(
+                false,
+                1,
+                160,
+                8,
+                {},
+                {},
+                0,
+                0,
+                1,
+                true
+                );
+    sampleNode["normal"][sable::Font::EXTRAS]["Extra1"] = 1;
+    sampleNode["nodigraph"][sable::Font::ENCODING] =  sampleNode["normal"][sable::Font::ENCODING];
+    sampleNode["nodigraph"][sable::Font::COMMANDS] =  sampleNode["normal"][sable::Font::COMMANDS];
+    sampleNode["menu"] = sable_tests::createSampleNode(
+                true,
+                2,
+                0,
+                8,
+                {
+                    {"End", 0xFFFF, false},
+                    {"NewLine", 0xFFFD, true},
+                    {"Test", 0xFFFE, true}
+                },
+                {},
+                0,
+                -1,
+                0,
+                true
+                );
+    return sampleNode;
+}

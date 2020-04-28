@@ -15,12 +15,14 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/mapping.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/util.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/util.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/project.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/project.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/table.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/table.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/rompatcher.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/rompatcher.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/project.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/project.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/datastore.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/datastore.h"
 )
 
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})

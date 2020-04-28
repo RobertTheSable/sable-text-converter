@@ -7,12 +7,30 @@
 #include <yaml-cpp/yaml.h>
 #include "parse.h"
 #include "font.h"
+#include "datastore.h"
 #include "mapping.h"
 #include "table.h"
 
 namespace sable {
 
 typedef std::vector<std::string> StringVector;
+
+//class DataInterface {
+//public:
+//    virtual ~DataInterface() {};
+//    virtual std::string toString();
+//};
+
+//class Text : public DataInterface {
+//private:
+//    std::string m_Files;
+//    size_t m_Size;
+//    bool m_PrintPc;
+//public:
+//    Text (const std::string& files, const size_t& size, bool printPC);
+//    virtual std::string toString();
+//};
+
 
 class Project
 {
@@ -53,16 +71,6 @@ public:
 
 
 private:
-    struct AddressNode {
-        int address;
-        std::string label;
-        bool isTable;
-    };
-    struct TextNode {
-        std::string files;
-        size_t size;
-        bool printpc;
-    };
     struct Rom {
         std::string file, name;
         int hasHeader;
@@ -73,14 +81,13 @@ private:
     int nextAddress;
     std::string m_MainDir, m_InputDir, m_OutputDir, m_BinsDir, m_TextOutDir, m_RomsDir, m_FontDir;
     StringVector m_Includes, m_Extras, m_FontIncludes;
-    std::vector<AddressNode> m_Addresses;
     std::vector<Rom> m_Roms;
     StringVector m_Warnings;
-    std::unordered_map<std::string, TextNode> m_TextNodeList;
-    std::unordered_map<std::string, Table> m_TableList;
-    TextParser m_Parser;
+    //TextParser m_Parser;
+    DataStore m_DataStore;
     void outputFile(const std::string &file, const std::vector<unsigned char>& data, size_t length, int start = 0);
     static bool validateConfig(const YAML::Node& configYML);
+    int maxAddress;
 };
 }
 

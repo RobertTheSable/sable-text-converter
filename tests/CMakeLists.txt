@@ -4,14 +4,15 @@ list(
     APPEND SABLE_TEST_FILES
     
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/main.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/helpers/helpers.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/helpers/helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/parser.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/table.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/mapping.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/rompatcher.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/fonts.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/project.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/helpers/helpers.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/helpers/helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/catch/datastore.cpp"
 )
 
 include_directories(helpers)

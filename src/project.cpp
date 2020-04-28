@@ -8,15 +8,16 @@
 #include "util.h"
 #include "rompatcher.h"
 #include "exceptions.h"
+#include "datastore.h"
 
 namespace sable {
 
-Project::Project(const YAML::Node &config, const std::string &projectDir) : nextAddress(0)
+Project::Project(const YAML::Node &config, const std::string &projectDir) : nextAddress(0), maxAddress(0)
 {
     init(config, projectDir);
 }
 
-Project::Project(const std::string &projectDir) : nextAddress(0)
+Project::Project(const std::string &projectDir) : nextAddress(0), maxAddress(0)
 {
     if (!fs::exists(fs::path(projectDir) / "config.yml")) {
         throw ConfigError((fs::path(projectDir) / "config.yml").string() + " not found.");
@@ -63,7 +64,7 @@ void Project::init(const YAML::Node &config, const std::string &projectDir)
         if (!fs::exists(fontLocation)) {
             throw ConfigError(fontLocation.string() + " not found.");
         }
-        m_Parser = TextParser(YAML::LoadFile(fontLocation.string()), defaultMode);
+        m_DataStore = DataStore(YAML::LoadFile(fontLocation.string()), defaultMode);
     }
 }
 
@@ -96,32 +97,23 @@ bool Project::parseText()
                 if (fs::exists(dir / "table.txt")) {
                     std::string path = (dir / "table.txt").string();
                     std::ifstream tablefile(path);
-                    fs::path dir(fs::path(path).parent_path());
-                    std::string label = dir.filename().string();
-                    Table table;
-                    table.setAddress(nextAddress);
-                    try {
-                        files = table.getDataFromFile(tablefile);
-                        for (std::string& file: files) {
-                            if (!fs::exists(dir / file)) {
-                                std::ostringstream error;
-                                error << "In " + path
-                                             + ": file " + fs::absolute(dir / file).string()
-                                             + " does not exist.";
-                                m_Warnings.push_back(error.str());
-                            }
-                            file = (dir / file).string();
-                        }
-                    } catch (std::runtime_error &e) {
-                        throw ParseError("Error in table " + path + ", " + e.what());
+                    if (tablefile) {
+                        files = m_DataStore.addTable(tablefile, (dir / "table.txt"));
+                    } else {
+                        throw ParseError(fs::absolute(path).string() + " could not be opened.");
                     }
-
                     tablefile.close();
-                    m_TableList[label] = table;
-                    m_Addresses.push_back({table.getAddress(), label, true});
+                    for (std::string& file: files) {
+                        if (!fs::exists(dir / file)) {
+                            m_Warnings.push_back("In " + path
+                                         + ": file " + fs::absolute(dir / file).string()
+                                         + " does not exist.");
+                        }
+                        file = (dir / file).string();
+                    }
                 } else {
                     for (auto& fileIt: fs::directory_iterator(dir)) {
-                        if(fs::is_regular_file(fileIt.path())) {
+                        if (fs::is_regular_file(fileIt.path())) {
                             files.push_back(fileIt.path().string());
                         }
                     }
@@ -130,82 +122,28 @@ bool Project::parseText()
                 allFiles.insert(allFiles.end(), files.begin(), files.end());
             }
         }
-        std::string dir = "";
-        int dirIndex;
         for (auto &file: allFiles) {
-            if (dir != fs::path(file).parent_path().filename().string()) {
-                dir = fs::path(file).parent_path().filename().string();
-                nextAddress = m_TableList[dir].getDataAddress();
-                dirIndex = 0;
-            }
             std::ifstream input(file);
-            std::vector<unsigned char> data;
-            ParseSettings settings =  m_Parser.getDefaultSetting(nextAddress);
-            int line = 0;
             while (input) {
-                bool done;
-                int length;
-                try {
-                    std::tie(done, length) = m_Parser.parseLine(input, settings, std::back_inserter(data));
-                    line++;
-                } catch (std::runtime_error &e) {
-                    throw ParseError("Error in text file " + file + ": " + e.what());
-                }
-                if (settings.maxWidth > 0 && length > settings.maxWidth) {
-                    std::ostringstream error;
-                    error << "In " + file + ": line " + std::to_string(line)
-                                 + " is longer than the specified max width of "
-                                 + std::to_string(settings.maxWidth) + " pixels.";
-                    m_Warnings.push_back(error.str());
-                }
-                if (done && !data.empty()) {
-                    if (m_Parser.getFonts().at(settings.mode)) {
-                        if (settings.label.empty()) {
-                            std::ostringstream lstream;
-                            lstream << dir << '_' << dirIndex++;
-                            settings.label = lstream.str();
-                        }
-                        m_Addresses.push_back({settings.currentAddress, settings.label, false});
-                        {
-                            int tmpAddress = settings.currentAddress + data.size();
-                            size_t dataLength;
-                            fs::path binFileName = mainDir / m_OutputDir / m_BinsDir / m_TextOutDir / (settings.label + ".bin");
-                            bool printpc = settings.printpc;
-                            if ((tmpAddress & 0xFF0000) != (settings.currentAddress & 0xFF0000)) {
-                                size_t bankLength = ((settings.currentAddress + data.size()) & 0xFFFF);
-                                dataLength = data.size() - bankLength;
-                                fs::path bankFileName = binFileName.parent_path() / (settings.label + "bank.bin");
-                                outputFile(bankFileName.string(), data, bankLength, dataLength);
-                                settings.currentAddress = util::PCToLoROM(util::LoROMToPC(settings.currentAddress | 0xFFFF) +1);
-                                m_Addresses.push_back({settings.currentAddress, "$" + settings.label, false});
-                                settings.currentAddress += bankLength;
-                                m_TextNodeList["$" + settings.label] = {
-                                    bankFileName.filename().string(),
-                                    bankLength,
-                                    printpc
-                                };
-                                printpc = false;
-                            } else {
-                                dataLength = data.size();
-                                settings.currentAddress += data.size();
-                            }
-                            outputFile(binFileName.string(), data, dataLength);
-                            m_TextNodeList[settings.label] = {
-                                binFileName.filename().string(), dataLength, printpc
-                            };
-                        }
-                        settings.label = "";
-                        settings.printpc = false;
-                        data.clear();
-                    }
+                m_DataStore.addFile(input, fs::path(file), std::cerr);
+                int index = 0;
+                for (auto outData = m_DataStore.getOutputFile(); outData.second != 0; outData = m_DataStore.getOutputFile()) {
+                    outputFile(
+                                (mainDir / m_OutputDir / m_BinsDir / m_TextOutDir / outData.first).string(),
+                                std::vector<unsigned char>(
+                                    m_DataStore.data_begin(),
+                                    m_DataStore.data_end()
+                                    ),
+                                outData.second,
+                                index
+                                );
+                    index += outData.second;
                 }
             }
-            nextAddress = settings.currentAddress;
-            if (settings.maxWidth < 0) {
-                settings.maxWidth = 0;
-            }
+            input.close();
         }
     }
+    m_DataStore.sort();
 
     {
         std::ofstream mainText((mainDir / m_OutputDir / "text.asm").string());
@@ -213,18 +151,21 @@ bool Project::parseText()
         if (!mainText || !textDefines) {
             throw ASMError("Could not open files in " + (mainDir / m_OutputDir).string() + " for writing.\n");
         }
-
-        std::sort(m_Addresses.begin(), m_Addresses.end(), [](AddressNode a, AddressNode b) {
-            return b.address > a.address;
-        });
         //int lastPosition = 0;
-        for (auto& it : m_Addresses) {
+        RomPatcher r("lorom");
+        for (auto& node : m_DataStore) {
             //int dif = it.address - lastPosition;
-            if (it.isTable) {
-                textDefines << "!def_table_" + it.label + " = $" << std::hex << it.address << '\n';
-                mainText  << "ORG !def_table_" + it.label + '\n';
-                Table t = m_TableList.at(it.label);
-                mainText << "table_" + it.label + ":\n";
+            if (node.isTable) {
+                textDefines << r.generateAssignment("def_table_" + node.label, node.address, 3) << '\n';
+                mainText  << "ORG " + r.generateDefine("def_table_" + node.label) + '\n';
+                Table t;
+                try {
+                    t = m_DataStore.getTable(node.label);
+                } catch (std::out_of_range &e) {
+                    std::cerr << 'a' << node.label << ' ';
+                    return false;
+                }
+                mainText << "table_" + node.label + ":\n";
                 for (auto it : t) {
                     int size;
                     std::string dataType;
@@ -236,11 +177,17 @@ bool Project::parseText()
                         throw std::logic_error("Unsupported address size " + std::to_string(t.getAddressSize()));
                     }
                     if (it.address > 0) {
-                        mainText << dataType + " $" << std::setw(4) << std::setfill('0') << std::hex << it.address;
+                        mainText << dataType + ' ' + r.generateNumber(it.address, 2);
                         size = it.size;
                     } else {
                         mainText << dataType + ' ' + it.label;
-                        size = m_TextNodeList.at(it.label).size;
+                        try {
+                            auto test = it.label;
+                            size = m_DataStore.getFile(test).size;
+                        } catch (std::out_of_range &e) {
+                            std::cerr << 'b' << it.label << ' ';
+                            return false;
+                        }
                     }
                     if (t.getStoreWidths()) {
                         mainText << ", " << std::dec << size;
@@ -248,18 +195,25 @@ bool Project::parseText()
                     mainText << '\n';
                 }
             } else {
-                if (it.label.front() == '$') {
-                    mainText  << "ORG $" << std::hex << it.address << '\n';
+                if (node.label.front() == '$') {
+                    mainText  << "ORG " + r.generateNumber(node.address, 3) << '\n';
                 } else {
-                    textDefines << "!def_" + it.label + " = $" << std::hex << it.address << '\n';
-                    mainText  << "ORG !def_" + it.label + '\n'
-                              << it.label + ":\n";
+                    textDefines << r.generateAssignment("def_" + node.label, node.address, 3) << '\n';
+                    mainText  << "ORG " + r.generateDefine("def_" + node.label) + '\n'
+                              << node.label + ":\n";
 
                 }
-                std::string token = m_TextNodeList.at(it.label).files;
-                mainText << "incbin " + (fs::path(m_BinsDir) / m_TextOutDir / token).string() + '\n';
-                if (m_TextNodeList.at(it.label).printpc) {
-                    mainText << "print pc\n";
+
+                try {
+                    std::string token = m_DataStore.getFile(node.label).files;
+                    mainText << r.generateInclude(fs::path(m_BinsDir) / m_TextOutDir / token , fs::path(), true) + '\n';
+                            // << "incbin " + (fs::path(m_BinsDir) / m_TextOutDir / token).string() + '\n';
+                    if (m_DataStore.getFile(node.label).printpc) {
+                        mainText << "print pc\n";
+                    }
+                } catch (std::out_of_range &e) {
+                    std::cerr << 'c' << node.label << ' ';
+                    return false;
                 }
             }
             mainText << '\n';
@@ -301,6 +255,7 @@ bool Project::parseText()
         }
         writeFontData();
     }
+    maxAddress = (m_DataStore.end()-1)->address;
     return true;
 }
 
@@ -312,12 +267,8 @@ void Project::writePatchData()
 
         fs::path romFilePath = fs::path(m_RomsDir) / romData.file;
         std::string extension = romFilePath.extension().string();
-        RomPatcher r(
-                     romFilePath.string(),
-                    romData.name,
-                    "lorom",
-                    romData.hasHeader
-                    );
+        RomPatcher r("lorom");
+        r.loadRom(romFilePath.string(), romData.name, romData.hasHeader);
         r.expand(util::LoROMToPC(getMaxAddress()));
         auto result = r.applyPatchFile(patchFile);
         if (result) {
@@ -356,7 +307,7 @@ void Project::writeFontData()
     for (std::string& include: m_FontIncludes) {
         output << "incsrc " + include + ".asm\n";
     }
-    for (auto& fontIt: m_Parser.getFonts()) {
+    for (auto& fontIt: m_DataStore.getFonts()) {
         if (!fontIt.second.getFontWidthLocation().empty()) {
             output << "\n"
                       "ORG " + fontIt.second.getFontWidthLocation();
@@ -416,10 +367,7 @@ std::string Project::TextOutDir() const
 
 int Project::getMaxAddress() const
 {
-    if (m_Addresses.empty()) {
-        return 0;
-    }
-    return m_Addresses.back().address;
+    return maxAddress;
 }
 
 int Project::getWarningCount() const
@@ -583,6 +531,7 @@ bool Project::validateConfig(const YAML::Node &configYML)
 ConfigError::ConfigError(std::string message) : std::runtime_error(message) {}
 ASMError::ASMError(std::string message) : std::runtime_error(message) {}
 ParseError::ParseError(std::string message) : std::runtime_error(message) {}
+
 }
 
 bool YAML::convert<sable::Project::Rom>::decode(const Node &node, sable::Project::Rom &rhs)
