@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
+#include <bitset>
 #include "wrapper/filesystem.h"
 
 bool istringcompare(const std::string& a, const std::string& b) {
@@ -165,6 +166,102 @@ int sable::RomPatcher::getRealSize() const
     return m_data.size();
 }
 
+void sable::RomPatcher::writeParsedData(const sable::DataStore &m_DataStore, const fs::path& includePath, std::ostream &mainText, std::ostream &textDefines)
+{
+    for (auto& node: m_DataStore) {
+        //int dif = it.address - lastPosition;
+        if (node.isTable) {
+            textDefines << generateAssignment("def_table_" + node.label, node.address, 3) << '\n';
+            mainText  << "ORG " + generateDefine("def_table_" + node.label) + '\n';
+            const Table& t = m_DataStore.getTable(node.label);
+            mainText << "table_" + node.label + ":\n";
+            for (auto it : t) {
+                int size;
+                std::string dataType;
+                if (t.getAddressSize() == 3) {
+                    dataType = "dl";
+                } else if(t.getAddressSize() == 2) {
+                    dataType = "dw";
+                } else {
+                    throw std::logic_error("Unsupported address size " + std::to_string(t.getAddressSize()));
+                }
+                if (it.address > 0) {
+                    mainText << dataType + ' ' + generateNumber(it.address, 2);
+                    size = it.size;
+                } else {
+                    mainText << dataType + ' ' + it.label;
+                    size = m_DataStore.getFile(it.label).size;
+                }
+                if (t.getStoreWidths()) {
+                    mainText << ", " << std::dec << size;
+                }
+                mainText << '\n';
+            }
+        } else {
+            if (node.label.front() == '$') {
+                mainText  << "ORG " + generateNumber(node.address, 3) << '\n';
+            } else {
+                textDefines << generateAssignment("def_" + node.label, node.address, 3) << '\n';
+                mainText  << "ORG " + generateDefine("def_" + node.label) + '\n'
+                          << node.label + ":\n";
+            }
+            std::string token = m_DataStore.getFile(node.label).files;
+            mainText << generateInclude(includePath / token , fs::path(), true) + '\n';
+                    // << "incbin " + (fs::path(m_BinsDir) / m_TextOutDir / token).string() + '\n';
+            if (m_DataStore.getFile(node.label).printpc) {
+                mainText << "print pc\n";
+            }
+        }
+        mainText << '\n';
+    }
+}
+
+void sable::RomPatcher::writeIncludes(sable::ConstStringIterator start, sable::ConstStringIterator end, std::ostream &mainFile, const fs::path& includePath)
+{
+    for (auto it = start; it != end; ++it) {
+        mainFile << generateInclude(includePath / *it, fs::path(), false) << '\n';
+    }
+}
+
+void sable::RomPatcher::writeFontData(const sable::DataStore &data, std::ofstream &output)
+{
+    for (auto& fontIt: data.getFonts()) {
+        if (!fontIt.second.getFontWidthLocation().empty()) {
+            output << "\n"
+                      "ORG " + fontIt.second.getFontWidthLocation();
+            std::vector<int> widths;
+            widths.reserve(fontIt.second.getMaxEncodedValue());
+            fontIt.second.getFontWidths(std::back_insert_iterator(widths));
+            int column = 0;
+            int skipCount = 0;
+            for (auto it = widths.begin(); it != widths.end(); ++it) {
+                int width = *it;
+                if (width == 0) {
+                    skipCount++;
+                    column = 0;
+                } else {
+                    if (skipCount > 0) {
+                        output << "\n"
+                                  "skip " << std::dec << skipCount;
+                        skipCount = 0;
+                    }
+                    if (column == 0) {
+                        output << "\ndb ";
+                    } else {
+                        output << ", ";
+                    }
+                    output << "$" << std::hex << std::setw(2) << std::setfill('0') << width;
+                    column++;
+                    if (column ==16) {
+                        column = 0;
+                    }
+                }
+            }
+            output << '\n' ;
+        }
+    }
+}
+
 std::string sable::RomPatcher::generateInclude(const fs::path &file, const fs::path &basePath, bool isBin) const
 {
     std::string includePath;
@@ -191,12 +288,26 @@ std::string sable::RomPatcher::generateNumber(int number, int width, int base) c
 {
     std::ostringstream output;
     if (base == 16) {
-        if (width > 3 || width <= 0) {
-
+        if (width > 4 || width <= 0) {
+            // Asar does support 4-byte data even though the SNES doesn't really.
+            throw std::runtime_error(std::string("Unsupported width ") +  std::to_string(width));
         }
         output << '$' << std::setfill('0') << std::setw(width *2) << std::hex << number;
     } else if (base == 10) {
         output << std::dec << number;
+    } else if (base == 2) {
+        if (width == 4) {
+            output << '%' + std::bitset<32>(number).to_string();
+        } else if (width == 3) {
+            output << '%' + std::bitset<24>(number).to_string();
+        } else if (width == 2) {
+            output << '%' + std::bitset<16>(number).to_string();
+        } else if (width == 1) {
+            output << '%' + std::bitset<8>(number).to_string();
+        } else {
+            throw std::runtime_error(std::string("Unsupported width ") +  std::to_string(width));
+        }
+
     } else {
         throw std::runtime_error(std::string("Unsupported base ") +  std::to_string(base));
     }
@@ -204,14 +315,19 @@ std::string sable::RomPatcher::generateNumber(int number, int width, int base) c
 
 }
 
-std::string sable::RomPatcher::generateAssignment(const std::string& label, int value, int width, const std::string& baseLabel, int base) const
+std::string sable::RomPatcher::generateAssignment(const std::string& label, int value, int width, int base, const std::string& baseLabel) const
 {
     std::ostringstream output;
     output << generateDefine(label) <<  " = ";
     if (!baseLabel.empty()) {
-        output << generateDefine(baseLabel) << '+';
+        output << generateDefine(baseLabel);
+        if (value != 0) {
+            output << '+' + generateNumber(value, width, base);
+        }
+    } else {
+        output << generateNumber(value, width, base);
     }
-    output << generateNumber(value, width, base);
+
 
     return output.str();
 }

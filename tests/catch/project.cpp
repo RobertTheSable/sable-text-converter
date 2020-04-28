@@ -1,5 +1,4 @@
 #include <catch2/catch.hpp>
-#include "wrapper/filesystem.h"
 #include "yaml-cpp/yaml.h"
 #include "project.h"
 
@@ -54,8 +53,13 @@ TEST_CASE("Test project config validation", "[project]")
                 [Project::OUTPUT_BIN].remove(Project::FONT_SECTION);
         REQUIRE_THROWS(Project(testNode, "."));
     }
-    SECTION("Valid config file throws no exceptions.")
+    SECTION("Valid config file throws only exception for missing file.")
     {
-        REQUIRE_NOTHROW(Project(testNode, "."));
+#ifdef WIN32
+        using Catch::Matchers::Contains;
+        REQUIRE_THROWS_WITH(Project(testNode, "."), Contains("sample\\text_map.yml not found."));
+#else
+        REQUIRE_THROWS_WITH(Project(testNode, "."), "./sample/text_map.yml not found.");
+#endif
     }
 }

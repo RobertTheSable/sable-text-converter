@@ -41,15 +41,12 @@ public:
     void init(const YAML::Node &config, const std::string &projectDir);
     bool parseText();
     void writePatchData();
-    void writeFontData();
     std::string MainDir() const;
     std::string RomsDir() const;
     std::string FontConfig() const;
     std::string TextOutDir() const;
     int getMaxAddress() const;
     explicit operator bool() const;
-    int getWarningCount() const;
-    StringVector::const_iterator getWarnings() const;
 
     static constexpr const char* FILES_SECTION = "files";
     static constexpr const char* INPUT_SECTION = "input";
@@ -79,12 +76,10 @@ private:
     friend YAML::convert<sable::Project::Rom>;
 
     int nextAddress;
-    std::string m_MainDir, m_InputDir, m_OutputDir, m_BinsDir, m_TextOutDir, m_RomsDir, m_FontDir;
+    std::string m_MainDir, m_InputDir, m_OutputDir, m_BinsDir, m_TextOutDir, m_RomsDir, m_FontDir, m_FontConfigPath, m_DefaultMode;
     StringVector m_Includes, m_Extras, m_FontIncludes;
     std::vector<Rom> m_Roms;
-    StringVector m_Warnings;
     //TextParser m_Parser;
-    DataStore m_DataStore;
     void outputFile(const std::string &file, const std::vector<unsigned char>& data, size_t length, int start = 0);
     static bool validateConfig(const YAML::Node& configYML);
     int maxAddress;

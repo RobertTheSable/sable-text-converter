@@ -37,24 +37,29 @@ if (NOT (SABLE_USE_STD_FS OR SABLE_USE_EXPERIMENTAL_FS OR SABLE_USE_BOOST_FS))
                 HAS_STD_FILESYSTEM_WITH_STDCXXFS)
             set(HAS_STD_FILESYSTEM ${HAS_STD_FILESYSTEM_WITH_STDCXXFS})
             set(CMAKE_REQUIRED_LIBRARIES "")
+        else()
+
         endif()
     endif()
-    
-    # Check if we have std::experimental::filesystem at our disposal.
-    check_cxx_source_compiles(
-            "${STD_FILESYSTEM_EXPERIMENTAL_TEST_PROGRAM}"
-            HAS_EXPERIMENTAL_FILESYSTEM)
-            
-    if(NOT HAS_EXPERIMENTAL_FILESYSTEM)
-        if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            set(CMAKE_REQUIRED_LIBRARIES stdc++fs)
-            check_cxx_source_compiles(
+
+    if(NOT HAS_STD_FILESYSTEM)
+        # Check if we have std::experimental::filesystem at our disposal.
+        check_cxx_source_compiles(
                 "${STD_FILESYSTEM_EXPERIMENTAL_TEST_PROGRAM}"
-                HAS_EXP_FILESYSTEM_WITH_STDCXXFS)
-            set(HAS_EXPERIMENTAL_FILESYSTEM ${HAS_EXP_FILESYSTEM_WITH_STDCXXFS})
-            set(CMAKE_REQUIRED_LIBRARIES "")
+                HAS_EXPERIMENTAL_FILESYSTEM)
+
+        if(NOT HAS_EXPERIMENTAL_FILESYSTEM)
+            if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+                set(CMAKE_REQUIRED_LIBRARIES stdc++fs)
+                check_cxx_source_compiles(
+                    "${STD_FILESYSTEM_EXPERIMENTAL_TEST_PROGRAM}"
+                    HAS_EXP_FILESYSTEM_WITH_STDCXXFS)
+                set(HAS_EXPERIMENTAL_FILESYSTEM ${HAS_EXP_FILESYSTEM_WITH_STDCXXFS})
+                set(CMAKE_REQUIRED_LIBRARIES "")
+            endif()
         endif()
     endif()
+
 else()
     message(STATUS "Skipping filesystem check")
     set(HAS_STD_FILESYSTEM ${SABLE_USE_STD_FS})

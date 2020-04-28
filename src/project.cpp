@@ -47,10 +47,14 @@ void Project::init(const YAML::Node &config, const std::string &projectDir)
             m_RomsDir = (mainDir / m_RomsDir).string();
         }
         if (outputConfig[OUTPUT_BIN][FONT_SECTION][INCLUDE_VAL].IsSequence()) {
-            m_FontIncludes = outputConfig[OUTPUT_BIN][FONT_SECTION][INCLUDE_VAL].as<vector<string>>();
+            for (auto& include : outputConfig[OUTPUT_BIN][FONT_SECTION][INCLUDE_VAL].as<vector<string>>()) {
+                m_FontIncludes.push_back(include + ".asm");
+            }
         }
         if (outputConfig[OUTPUT_BIN][EXTRAS].IsSequence()) {
-            m_Extras = outputConfig[OUTPUT_BIN][EXTRAS].as<vector<string>>();
+            for (auto& include : outputConfig[OUTPUT_BIN][EXTRAS].as<vector<string>>()) {
+                m_Extras.push_back((fs::path(include) / (include + ".asm")).string());
+            }
         }
         if (outputConfig[INCLUDE_VAL].IsSequence()){
             m_Includes = outputConfig[INCLUDE_VAL].as<vector<string>>();
@@ -59,12 +63,12 @@ void Project::init(const YAML::Node &config, const std::string &projectDir)
         fs::path fontLocation = mainDir
                 / config[CONFIG_SECTION][DIR_VAL].as<string>()
                 / config[CONFIG_SECTION][IN_MAP].as<string>();
-        std::string defaultMode = config[CONFIG_SECTION][DEFAULT_MODE].IsDefined()
+        m_DefaultMode = config[CONFIG_SECTION][DEFAULT_MODE].IsDefined()
                 ? config[CONFIG_SECTION][DEFAULT_MODE].as<string>() : "normal";
         if (!fs::exists(fontLocation)) {
             throw ConfigError(fontLocation.string() + " not found.");
         }
-        m_DataStore = DataStore(YAML::LoadFile(fontLocation.string()), defaultMode);
+        m_FontConfigPath = fontLocation.string();
     }
 }
 
@@ -85,6 +89,7 @@ bool Project::parseText()
         fs::create_directory(mainDir / m_OutputDir / m_BinsDir / m_TextOutDir);
     }
 
+    DataStore m_DataStore = DataStore(YAML::LoadFile(m_FontConfigPath), m_DefaultMode);
     {
         fs::path input = fs::path(m_MainDir) / m_InputDir;
         std::vector<std::string> allFiles;
@@ -105,9 +110,9 @@ bool Project::parseText()
                     tablefile.close();
                     for (std::string& file: files) {
                         if (!fs::exists(dir / file)) {
-                            m_Warnings.push_back("In " + path
+                            std::cerr << "In " + path
                                          + ": file " + fs::absolute(dir / file).string()
-                                         + " does not exist.");
+                                         + " does not exist." << std::endl;
                         }
                         file = (dir / file).string();
                     }
@@ -151,109 +156,31 @@ bool Project::parseText()
         if (!mainText || !textDefines) {
             throw ASMError("Could not open files in " + (mainDir / m_OutputDir).string() + " for writing.\n");
         }
-        //int lastPosition = 0;
         RomPatcher r("lorom");
-        for (auto& node : m_DataStore) {
-            //int dif = it.address - lastPosition;
-            if (node.isTable) {
-                textDefines << r.generateAssignment("def_table_" + node.label, node.address, 3) << '\n';
-                mainText  << "ORG " + r.generateDefine("def_table_" + node.label) + '\n';
-                Table t;
-                try {
-                    t = m_DataStore.getTable(node.label);
-                } catch (std::out_of_range &e) {
-                    std::cerr << 'a' << node.label << ' ';
-                    return false;
-                }
-                mainText << "table_" + node.label + ":\n";
-                for (auto it : t) {
-                    int size;
-                    std::string dataType;
-                    if (t.getAddressSize() == 3) {
-                        dataType = "dl";
-                    } else if(t.getAddressSize() == 2) {
-                        dataType = "dw";
-                    } else {
-                        throw std::logic_error("Unsupported address size " + std::to_string(t.getAddressSize()));
-                    }
-                    if (it.address > 0) {
-                        mainText << dataType + ' ' + r.generateNumber(it.address, 2);
-                        size = it.size;
-                    } else {
-                        mainText << dataType + ' ' + it.label;
-                        try {
-                            auto test = it.label;
-                            size = m_DataStore.getFile(test).size;
-                        } catch (std::out_of_range &e) {
-                            std::cerr << 'b' << it.label << ' ';
-                            return false;
-                        }
-                    }
-                    if (t.getStoreWidths()) {
-                        mainText << ", " << std::dec << size;
-                    }
-                    mainText << '\n';
-                }
-            } else {
-                if (node.label.front() == '$') {
-                    mainText  << "ORG " + r.generateNumber(node.address, 3) << '\n';
-                } else {
-                    textDefines << r.generateAssignment("def_" + node.label, node.address, 3) << '\n';
-                    mainText  << "ORG " + r.generateDefine("def_" + node.label) + '\n'
-                              << node.label + ":\n";
-
-                }
-
-                try {
-                    std::string token = m_DataStore.getFile(node.label).files;
-                    mainText << r.generateInclude(fs::path(m_BinsDir) / m_TextOutDir / token , fs::path(), true) + '\n';
-                            // << "incbin " + (fs::path(m_BinsDir) / m_TextOutDir / token).string() + '\n';
-                    if (m_DataStore.getFile(node.label).printpc) {
-                        mainText << "print pc\n";
-                    }
-                } catch (std::out_of_range &e) {
-                    std::cerr << 'c' << node.label << ' ';
-                    return false;
-                }
-            }
-            mainText << '\n';
-        }
+        r.writeParsedData(m_DataStore, fs::path(m_BinsDir) / m_TextOutDir, mainText, textDefines);
         textDefines.flush();
         textDefines.close();
         mainText.flush();
         mainText.close();
-        fs::path mainDir(m_MainDir);
         for (Rom& romData: m_Roms) {
-            std::string patchFile = (mainDir / (romData.name + ".asm")).string();
-            std::ofstream mainFile(patchFile);
+            std::ofstream mainFile((fs::path(m_MainDir) / (romData.name + ".asm")).string());
             mainFile << "lorom\n\n";
-            if (!romData.includes.empty()) {
-                for (std::string& include: romData.includes) {
-                    mainFile << "incsrc " + m_OutputDir + '/' + include << '\n';
-                }
-            }
-            if (!m_Includes.empty()) {
-                for (std::string& include: m_Includes) {
-                    mainFile << "incsrc " + m_OutputDir + '/' + include << '\n';
-                }
-            }
-            if (!m_Extras.empty()) {
-                for (std::string& include: m_Extras) {
-                    mainFile << "incsrc " + m_OutputDir + '/'
-                                + m_BinsDir + '/' + include + '/' + include + ".asm"
-                             << '\n';
-                }
-            }
-            if (!m_FontDir.empty()) {
-                mainFile << "incsrc " + m_OutputDir + '/'
-                            + m_BinsDir + '/' + m_FontDir + '/' + m_FontDir + ".asm"
-                         << '\n';
-            }
-            mainFile <<  "incsrc " + m_OutputDir + "/textDefines.exp\n"
-                        +  "incsrc " + m_OutputDir + "/text.asm\n";
+            r.writeIncludes(romData.includes.cbegin(), romData.includes.cend(), mainFile, fs::path(m_OutputDir));
+            r.writeIncludes(m_Includes.cbegin(), m_Includes.cend(), mainFile, fs::path(m_OutputDir));
+            r.writeIncludes(m_Extras.cbegin(), m_Extras.cend(), mainFile, fs::path(m_OutputDir) / m_BinsDir);
+            mainFile << r.generateInclude(fs::path(m_OutputDir) / m_BinsDir / m_FontDir / (m_FontDir + ".asm"), fs::path(), false) + '\n';
+            mainFile << r.generateInclude(fs::path(m_OutputDir) / "textDefines.exp", fs::path(), false) + '\n' +
+                        r.generateInclude(fs::path(m_OutputDir) / "text.asm", fs::path(), false) + '\n';
             mainFile.close();
         }
-        writeFontData();
+        fs::path fontFilePath = fs::path(m_MainDir) / m_OutputDir / m_BinsDir / m_FontDir / (m_FontDir + ".asm");
+        std::ofstream output(fontFilePath.string());
+        if (!output) {
+            throw ASMError("Could not open " + fontFilePath.string() + "for writing.\n");
+        }
+        r.writeIncludes(m_FontIncludes.begin(), m_FontIncludes.end(), output);
+        r.writeFontData(m_DataStore, output);
+        output.close();
     }
     maxAddress = (m_DataStore.end()-1)->address;
     return true;
@@ -284,7 +211,7 @@ void Project::writePatchData()
                         (fs::path(m_RomsDir) / (romData.name + extension)).string(),
                         std::ios::out|std::ios::binary
                         );
-            output.write((char*)&r.at(0), r.getRealSize());
+            output.write(reinterpret_cast<char*>(&r.at(0)), r.getRealSize());
             output.close();
         } else {
             for (auto& msg: messages) {
@@ -295,54 +222,6 @@ void Project::writePatchData()
         }
 
     }
-}
-
-void Project::writeFontData()
-{
-    fs::path fontFilePath = fs::path(m_MainDir) / m_OutputDir / m_BinsDir / m_FontDir / (m_FontDir + ".asm");
-    std::ofstream output(fontFilePath.string());
-    if (!output) {
-        throw ASMError("Could not open " + fontFilePath.string() + "for writing.\n");
-    }
-    for (std::string& include: m_FontIncludes) {
-        output << "incsrc " + include + ".asm\n";
-    }
-    for (auto& fontIt: m_DataStore.getFonts()) {
-        if (!fontIt.second.getFontWidthLocation().empty()) {
-            output << "\n"
-                      "ORG " + fontIt.second.getFontWidthLocation();
-            std::vector<int> widths;
-            widths.reserve(fontIt.second.getMaxEncodedValue());
-            fontIt.second.getFontWidths(std::back_insert_iterator(widths));
-            int column = 0;
-            int skipCount = 0;
-            for (auto it = widths.begin(); it != widths.end(); ++it) {
-                int width = *it;
-                if (width == 0) {
-                    skipCount++;
-                    column = 0;
-                } else {
-                    if (skipCount > 0) {
-                        output << "\n"
-                                  "skip " << std::dec << skipCount;
-                        skipCount = 0;
-                    }
-                    if (column == 0) {
-                        output << '\n' << "db ";
-                    } else {
-                        output << ", ";
-                    }
-                    output << "$" << std::hex << std::setw(2) << std::setfill('0') << width;
-                    column++;
-                    if (column ==16) {
-                        column = 0;
-                    }
-                }
-            }
-            output << '\n' ;
-        }
-    }
-    output.close();
 }
 
 std::string Project::MainDir() const
@@ -370,16 +249,6 @@ int Project::getMaxAddress() const
     return maxAddress;
 }
 
-int Project::getWarningCount() const
-{
-    return m_Warnings.size();
-}
-
-StringVector::const_iterator Project::getWarnings() const
-{
-    return m_Warnings.begin();
-}
-
 sable::Project::operator bool() const
 {
     return !m_MainDir.empty();
@@ -394,7 +263,7 @@ void Project::outputFile(const std::string &file, const std::vector<unsigned cha
     if (!output) {
         throw ASMError("Could not open " + file + " for writing");
     }
-    output.write((char*)&(data[start]), length);
+    output.write(reinterpret_cast<const char*>(&data[start]), length);
     output.close();
 }
 

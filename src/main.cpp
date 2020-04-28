@@ -41,13 +41,6 @@ int main(int argc, char * argv[])
             if (parser) {
                 if (!options.count("a")) {
                     parser.parseText();
-                    if (parser.getWarningCount() > 0) {
-                        cerr << "Issues found during parsing:\n";
-                        for(int i = 0; i < parser.getWarningCount(); i++){
-                            cerr << parser.getWarnings()[i] << '\n';
-                        }
-                        cerr << std::flush;
-                    }
                     cache.setMaxAddress(parser.getMaxAddress());
                     cache.write();
                 }

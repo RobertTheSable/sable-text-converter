@@ -216,14 +216,14 @@ std::vector<std::string> Table::getDataFromFile(std::istream &tableFile)
     return v;
 }
 
-Table::iterator Table::begin()
+Table::iterator Table::begin() const
 {
-    return iterator(entries.begin());
+    return iterator(entries.cbegin());
 }
 
-Table::iterator Table::end()
+Table::iterator Table::end() const
 {
-    return iterator(entries.end());
+    return iterator(entries.cend());
 }
 
 int Table::getAddress() const
@@ -261,7 +261,7 @@ bool operator!=(const Table::iterator &lsh, const Table::iterator &rhs)
     return lsh.m_position != rhs.m_position;
 }
 
-Table::iterator::iterator(const std::vector<Table::Entry>::iterator &position) : m_position(position)
+Table::iterator::iterator(const std::vector<Table::Entry>::const_iterator &position) : m_position(position)
 {
 
 }
@@ -272,12 +272,12 @@ Table::iterator &Table::iterator::operator++()
     return *this;
 }
 
-Table::Entry* Table::iterator::operator->()
+const Table::Entry* Table::iterator::operator->() const
 {
     return &(*m_position);
 }
 
-Table::Entry Table::iterator::operator*()
+const Table::Entry& Table::iterator::operator*() const
 {
     return *m_position;
 }

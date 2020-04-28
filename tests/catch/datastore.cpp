@@ -4,9 +4,9 @@
 
 using Catch::Matchers::Contains;
 
-TEST_CASE("Text file parsing")
+TEST_CASE("Loading script data from files")
 {
-    sable::DataStore tester(sable_tests::getSampleNode(), "normal");
+    sable::DataStore dataTester(sable_tests::getSampleNode(), "normal");
     std::istringstream input;
     std::ostringstream errors;
     std::vector<unsigned char> v;
@@ -15,40 +15,40 @@ TEST_CASE("Text file parsing")
         input.str("@address 808000\n"
                   "@label test1\n"
                   "ABCDEFG\n");
-        REQUIRE_NOTHROW(tester.addFile(input, fs::temp_directory_path() / "test.txt", errors));
-        auto queueItem = tester.getOutputFile();
+        REQUIRE_NOTHROW(dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors));
+        auto queueItem = dataTester.getOutputFile();
         REQUIRE(queueItem.first == "test1.bin");
-        REQUIRE(tester.data_end() - tester.data_begin() == 9);
-        v = std::vector<unsigned char>(tester.data_begin(), tester.data_end());
+        REQUIRE(dataTester.data_end() - dataTester.data_begin() == 9);
+        v = std::vector<unsigned char>(dataTester.data_begin(), dataTester.data_end());
         REQUIRE(queueItem.second == v.size());
         REQUIRE(v.front() == 1);
         REQUIRE(v.back() == 0);
-        REQUIRE(tester.getOutputFile() == std::make_pair(std::string(""), 0));
+        REQUIRE(dataTester.getOutputFile() == std::make_pair(std::string(""), 0));
         REQUIRE(errors.str().empty());
-        REQUIRE(tester.end() - tester.begin() == 1);
-        REQUIRE(tester.begin()->address == 0x808000);
-        REQUIRE_FALSE(tester.begin()->isTable);
-        REQUIRE(tester.begin()->label == "test1");
+        REQUIRE(dataTester.end() - dataTester.begin() == 1);
+        REQUIRE(dataTester.begin()->address == 0x808000);
+        REQUIRE_FALSE(dataTester.begin()->isTable);
+        REQUIRE(dataTester.begin()->label == "test1");
     }
     SECTION("File that crosses banks")
     {
         input.str("@address 80FFFF\n"
                   "@label test1\n"
                   "ABCDEFG\n");
-        tester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
-        v = std::vector<unsigned char>(tester.data_begin(), tester.data_end());
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        v = std::vector<unsigned char>(dataTester.data_begin(), dataTester.data_end());
         REQUIRE(v.size() == 9);
-        auto queueItem = tester.getOutputFile();
-        auto queueItem2 = tester.getOutputFile();
+        auto queueItem = dataTester.getOutputFile();
+        auto queueItem2 = dataTester.getOutputFile();
         REQUIRE(queueItem.second + queueItem2.second == v.size());
         REQUIRE(queueItem == std::make_pair(std::string("test1.bin"), 1));
         REQUIRE(queueItem2 == std::make_pair(std::string("test1bank.bin"), 8));
         REQUIRE(v.front() == 1);
         REQUIRE(v.back() == 0);
-        REQUIRE(tester.end() - tester.begin() == 2);
-        tester.sort();
-        REQUIRE(tester.begin()->address == 0x80FFFF);
-        REQUIRE((++tester.begin())->address == 0x818000);
+        REQUIRE(dataTester.end() - dataTester.begin() == 2);
+        dataTester.sort();
+        REQUIRE(dataTester.begin()->address == 0x80FFFF);
+        REQUIRE((++dataTester.begin())->address == 0x818000);
     }
     SECTION("File with multiple pieces of text")
     {
@@ -57,30 +57,30 @@ TEST_CASE("Text file parsing")
                   "ABCDEFG[End]\n"
                   "@label test2\n"
                   "ABCDEFG\n");
-        tester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
-        REQUIRE(tester.end() - tester.begin() == 2);
-        REQUIRE((++tester.begin())->address == 0x808009);
-        REQUIRE((++tester.begin())->label == "test2");
-        REQUIRE(tester.data_end() - tester.data_begin() == 18);
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        REQUIRE(dataTester.end() - dataTester.begin() == 2);
+        REQUIRE((++dataTester.begin())->address == 0x808009);
+        REQUIRE((++dataTester.begin())->label == "test2");
+        REQUIRE(dataTester.data_end() - dataTester.data_begin() == 18);
         std::pair<std::string, int> result;
-        std::pair<std::string, int> files[2] = {tester.getOutputFile(), tester.getOutputFile()};
+        std::pair<std::string, int> files[2] = {dataTester.getOutputFile(), dataTester.getOutputFile()};
 
-        REQUIRE(*tester.data_begin() == 1);
-        REQUIRE(*(tester.data_begin()+files[0].second) == 1);
-        REQUIRE(*(tester.data_end() -1) == 0);
-        REQUIRE(*(tester.data_end() - (files[0].second+1)) == 0);
-        REQUIRE(tester.data_end() - tester.data_begin() == files[0].second + files[1].second);
-        REQUIRE_NOTHROW(tester.getFile("test1"));
-        REQUIRE_NOTHROW(tester.getFile("test2"));
+        REQUIRE(*dataTester.data_begin() == 1);
+        REQUIRE(*(dataTester.data_begin()+files[0].second) == 1);
+        REQUIRE(*(dataTester.data_end() -1) == 0);
+        REQUIRE(*(dataTester.data_end() - (files[0].second+1)) == 0);
+        REQUIRE(dataTester.data_end() - dataTester.data_begin() == files[0].second + files[1].second);
+        REQUIRE_NOTHROW(dataTester.getFile("test1"));
+        REQUIRE_NOTHROW(dataTester.getFile("test2"));
     }
     SECTION("File with no label")
     {
         input.str("@address 808000\n"
                   "ABCDEFG[End]\n"
                   "ABCDEFG\n");
-        tester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
-        REQUIRE(tester.getOutputFile().first == fs::temp_directory_path().filename().string() + "_0.bin");
-        REQUIRE(tester.getOutputFile().first == fs::temp_directory_path().filename().string() + "_1.bin");
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        REQUIRE(dataTester.getOutputFile().first == fs::temp_directory_path().filename().string() + "_0.bin");
+        REQUIRE(dataTester.getOutputFile().first == fs::temp_directory_path().filename().string() + "_1.bin");
     }
     SECTION("File ending with a comment")
     {
@@ -88,9 +88,9 @@ TEST_CASE("Text file parsing")
                   "@label test1\n"
                   "ABCDEFG\n"
                   "XYZ");
-        tester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
-        REQUIRE(tester.data_end() - tester.data_begin() == 14);
-        REQUIRE(tester.getOutputFile().second == 14);
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        REQUIRE(dataTester.data_end() - dataTester.data_begin() == 14);
+        REQUIRE(dataTester.getOutputFile().second == 14);
     }
 
     SECTION("Parse two files from the same path")
@@ -98,15 +98,15 @@ TEST_CASE("Text file parsing")
         input.str("@address 808000\n"
                   "@label test1\n"
                   "ABCDEFG\n");
-        tester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
-        tester.getOutputFile();
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        dataTester.getOutputFile();
         input.clear();
         input.str("@label test2\n"
                   "TUVWXYZ\n");
-        tester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
-        REQUIRE(tester.getNextAddress() == 0x808000 + 18);
-        REQUIRE((++tester.begin())->address == 0x808009);
-        REQUIRE((++tester.begin())->label == "test2");
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        REQUIRE(dataTester.getNextAddress() == 0x808000 + 18);
+        REQUIRE((++dataTester.begin())->address == 0x808009);
+        REQUIRE((++dataTester.begin())->label == "test2");
 
     }
 }
@@ -127,16 +127,115 @@ TEST_CASE("Parse with an alternate default mode")
 
 }
 
+TEST_CASE("Add files that are part of a table")
+{
+    sable::DataStore tester(sable_tests::getSampleNode(), "menu");
+    std::istringstream input;
+    std::ostringstream error;
+    SECTION("Table with data immediatley after")
+    {
+        input.str("address $808000 \n"
+                  "width 2 \n"
+                  "savewidth \n"
+                  "entry test_1 \n"
+                  "entry test_2 \n"
+                  "entry const $8080 2 \n\n"
+                  "file file1.txt \n"
+                  "file file2.txt \n"
+                  "file file3.txt \n");
+        tester.addTable(input, fs::temp_directory_path() / "table.txt");
+        input.clear();
+        input.str("@address auto\n"
+                  "@label test1\n"
+                  "ABCDEFG\n");
+        tester.addFile(input, fs::temp_directory_path() / "file1.txt", error);
+        REQUIRE(tester.end() - tester.begin() == 2);
+        REQUIRE(tester.begin()->address == 0x808000);
+        REQUIRE(tester.begin()->isTable);
+        REQUIRE((++tester.begin())->address == 0x808000 + 12);
+        REQUIRE_FALSE((++tester.begin())->isTable);
+        REQUIRE(error.str().empty());
+    }
+    SECTION("Table with data address")
+    {
+        input.str("address $808000 \n"
+                  "data $908000 \n"
+                  "width 2 \n"
+                  "savewidth \n"
+                  "entry test_1 \n"
+                  "entry test_2 \n"
+                  "entry const $8080 2 \n\n"
+                  "file file1.txt \n"
+                  "file file2.txt \n"
+                  "file file3.txt \n");
+        tester.addTable(input, fs::temp_directory_path() / "table.txt");
+        input.clear();
+        input.str("@address auto\n"
+                  "@label test1\n"
+                  "ABCDEFG\n");
+        tester.addFile(input, fs::temp_directory_path() / "file1.txt", error);
+        REQUIRE(tester.end() - tester.begin() == 2);
+        REQUIRE(tester.begin()->address == 0x808000);
+        REQUIRE(tester.begin()->isTable);
+        REQUIRE((++tester.begin())->address == 0x908000);
+        REQUIRE_FALSE((++tester.begin())->isTable);
+        REQUIRE(error.str().empty());
+    }
+}
+
 TEST_CASE("Table adding")
 {
     sable::DataStore tester(sable_tests::getSampleNode(), "normal");
     std::istringstream input;
     std::ostringstream errors;
     std::vector<unsigned char> v;
-    input.str("@address 808000\n"
+
+    input.str("address $808000 \n"
+              "data $908000 \n"
+              "width 2 \n"
+              "savewidth \n"
+              "entry test_1 \n"
+              "entry test_2 \n"
+              "entry const $8080 2 \n\n"
+              "file file1.txt \n"
+              "file file2.txt \n"
+              "file file3.txt \n");
+    tester.addTable(input, fs::temp_directory_path() / "table.txt");
+    REQUIRE(tester.end() - tester.begin() == 1);
+    REQUIRE(tester.getTable(fs::temp_directory_path().filename().string()).getSize() == 12);
+}
+
+TEST_CASE("Sorting addresses")
+{
+    sable::DataStore tester(sable_tests::getSampleNode(), "normal");
+    std::istringstream input;
+    std::ostringstream errors;
+    std::vector<unsigned char> v;
+    REQUIRE_FALSE(tester.getIsSorted());
+    input.str("address $908000 \n"
+              "data $808000 \n"
+              "width 2 \n"
+              "savewidth \n"
+              "entry test_1 \n"
+              "entry test_2 \n"
+              "entry const $8080 2 \n\n"
+              "file file1.txt \n"
+              "file file2.txt \n"
+              "file file3.txt \n");
+    tester.addTable(input, fs::temp_directory_path() / "table.txt");
+    input.clear();
+    input.str("@address auto\n"
               "@label test1\n"
               "ABCDEFG\n");
-    tester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+    REQUIRE_FALSE(tester.getIsSorted());
+    tester.sort();
+    REQUIRE(tester.getIsSorted());
+    int last = 0;
+    for (auto& it : tester) {
+        REQUIRE(last <= it.address);
+        last = it.address;
+    }
+
 }
 
 TEST_CASE("Data store error handling")

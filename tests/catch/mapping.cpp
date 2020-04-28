@@ -44,6 +44,19 @@ TEST_CASE("Test PC to ExLoROM Results")
     REQUIRE(PCtoRom(Mapper::EXLOROM, ROM_MAX_SIZE-1) == 0x7DFFFF);
 }
 
+
+TEST_CASE("String to hex conversion")
+{
+    using sable::util::strToHex;
+    REQUIRE(strToHex("0") == std::make_pair<unsigned int, int>(0, 1));
+    REQUIRE(strToHex("0000") == std::make_pair<unsigned int, int>(0, 2));
+    REQUIRE(strToHex("000000") == std::make_pair<unsigned int, int>(0, 3));
+    REQUIRE(strToHex("$000000") == std::make_pair<unsigned int, int>(0, 3));
+    REQUIRE(strToHex("$FF") == std::make_pair<unsigned int, int>(255, 1));
+    REQUIRE(strToHex("XYV") == std::make_pair<unsigned int, int>(0, -1));
+    REQUIRE_THROWS(strToHex("$1000000"));
+}
+
 TEST_CASE("File size calculation.")
 {
     using sable::util::calculateFileSize;

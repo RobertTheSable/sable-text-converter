@@ -5,13 +5,13 @@
 
 namespace sable {
 
-DataStore::DataStore() : nextAddress(0)
+DataStore::DataStore() : nextAddress(0), dirIndex(0), isSorted(false)
 {
 
 }
 
 DataStore::DataStore(const YAML::Node &config, const std::string& defaultMode, const std::string& newlineName)
-    : m_Parser(config, defaultMode, newlineName), nextAddress(0)
+    : m_Parser(config, defaultMode, newlineName), nextAddress(0), dirIndex(0), isSorted(false)
 {
 }
 
@@ -27,8 +27,10 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
     }
     tempFileData.clear();
     std::string dir = path.parent_path().filename().string();
-    if (dir != lastDir.string() && m_TableList.find(dir) != m_TableList.end()) {
-        nextAddress = m_TableList[dir].getDataAddress();
+    if (dir != lastDir.string()) {
+        if (m_TableList.find(dir) != m_TableList.end()) {
+            nextAddress = m_TableList.at(dir).getDataAddress();
+        }
         dirIndex = 0;
     }
     lastDir = path.parent_path();
@@ -129,12 +131,12 @@ std::vector<std::string> DataStore::addTable(std::istream &tablefile, const fs::
     return files;
 }
 
-std::vector<DataStore::AddressNode>::iterator DataStore::begin()
+std::vector<DataStore::AddressNode>::const_iterator DataStore::begin() const
 {
     return m_Addresses.begin();
 }
 
-std::vector<DataStore::AddressNode>::iterator DataStore::end()
+std::vector<DataStore::AddressNode>::const_iterator DataStore::end() const
 {
     return m_Addresses.end();
 }
@@ -167,6 +169,7 @@ void DataStore::sort()
     std::sort(m_Addresses.begin(), m_Addresses.end(), [] (AddressNode& lhs, AddressNode& rhs) {
         return lhs.address < rhs.address;
     });
+    isSorted = true;
 }
 
 int DataStore::getNextAddress() const
@@ -184,8 +187,8 @@ const std::map<std::string, Font> &DataStore::getFonts() const
     return m_Parser.getFonts();
 }
 
-int DataStore::getMaxAddress() const
+bool DataStore::getIsSorted() const
 {
-    return m_Addresses.empty()? 0 : m_Addresses.back().address;
+    return isSorted;
 }
 }

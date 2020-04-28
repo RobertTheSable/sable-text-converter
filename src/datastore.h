@@ -31,8 +31,8 @@ public:
     void addFile(std::istream& file, const fs::path& path, std::ostream& errorStream);
     std::pair<std::string, int> getOutputFile();
     std::vector<std::string> addTable(std::istream& file, const fs::path& path);
-    std::vector<AddressNode>::iterator begin();
-    std::vector<AddressNode>::iterator end();
+    std::vector<AddressNode>::const_iterator begin() const;
+    std::vector<AddressNode>::const_iterator end() const;
     std::vector<unsigned char>::const_iterator data_begin();
     std::vector<unsigned char>::const_iterator data_end();
     const TextNode& getFile(const std::string& label) const;
@@ -41,7 +41,7 @@ public:
     int getNextAddress() const;
     void setNextAddress(int value);
     const std::map<std::string, Font>& getFonts() const;
-    int getMaxAddress() const;
+    bool getIsSorted() const;
 
 private:
     TextParser m_Parser;
@@ -53,6 +53,7 @@ private:
     fs::path lastDir;
     int dirIndex;
     int nextAddress;
+    bool isSorted;
 };
 }
 

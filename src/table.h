@@ -28,16 +28,16 @@ public:
     };
     class iterator {
     public:
-        iterator(const std::vector<Entry>::iterator& position);
+        iterator(const std::vector<Entry>::const_iterator& position);
         iterator &operator++();
-        Entry* operator->();
-        Entry operator*();
+        const Entry* operator->() const;
+        const Entry& operator*() const;
         friend bool operator!=(const iterator& lsh, const iterator& rhs);
     private:
-        std::vector<Entry>::iterator m_position;
+        std::vector<Entry>::const_iterator m_position;
     };
-    Table::iterator begin();
-    Table::iterator end();
+    Table::iterator begin() const;
+    Table::iterator end() const;
 
     int getAddress() const;
     void setAddress(int Address);

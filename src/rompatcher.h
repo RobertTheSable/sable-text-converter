@@ -5,9 +5,13 @@
 #include "table.h"
 #include <vector>
 #include <string>
+#include <functional>
 #include "wrapper/filesystem.h"
+#include "datastore.h"
 
 namespace sable {
+
+typedef std::vector<std::string>::const_iterator ConstStringIterator;
 
 class RomPatcher
 {
@@ -21,11 +25,13 @@ public:
     bool getMessages(std::back_insert_iterator<std::vector<std::string>> v);
     int getRealSize() const;
 
+    void writeParsedData(const DataStore& data, const fs::path& includePath, std::ostream& mainText, std::ostream& textDefines);
+    void writeIncludes(ConstStringIterator start, ConstStringIterator end, std::ostream& mainFile, const fs::path& includePath = fs::path());
+    void writeFontData(const DataStore& data, std::ofstream& output);
 
     std::string generateInclude(const fs::path& file, const fs::path& basePath, bool isBin) const;
     std::string generateDefine(const std::string& label) const;
-    std::string generateNumber(int number, int width, int base = 16) const;
-    std::string generateAssignment(const std::string& label, int value, int width, const std::string& baseLabel = "", int base = 16) const;
+    std::string generateAssignment(const std::string& label, int value, int width, int base = 16, const std::string& baseLabel = "") const;
 
 //    int getRomSize() const;
 
@@ -33,6 +39,7 @@ public:
 //    std::string getName() const;
 
 private:
+    std::string generateNumber(int number, int width, int base = 16) const;
     std::vector<unsigned char> m_data;
     std::string m_Name;
     int m_RomSize;
