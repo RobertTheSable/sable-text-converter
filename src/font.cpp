@@ -28,7 +28,7 @@ namespace sable {
             }
             try {
                 m_CommandConvertMap = generateMap<CommandNode>(config[COMMANDS], COMMANDS);
-            } catch(YAML::TypedBadConversion<CommandNode> &e) {
+            } catch(YAML::TypedBadConversion<std::string> &e) {
                 throw FontError(e.mark, m_Name, CMD_NEWLINE_VAL, "a scalar.");
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
                 throw FontError(e.mark, m_Name, CODE_VAL, "an integer.");
@@ -69,7 +69,10 @@ namespace sable {
             try {
                  endValue = m_CommandConvertMap.at("End").code;
             } catch (std::out_of_range &e) {
-                throw std::runtime_error(m_Name.insert(0, "\"End\" command is missing for font "));
+                throw FontError(config[COMMANDS].Mark(), m_Name, "End", "defined in the Commands section.");
+            }
+            if (m_CommandConvertMap.find("NewLine") == m_CommandConvertMap.end()) {
+                throw FontError(config[COMMANDS].Mark(), m_Name, "NewLine", "defined in the Commands section.");
             }
 
     }
@@ -225,6 +228,8 @@ namespace sable {
 
     FontError::FontError(const YAML::Mark &mark, const std::string &name, const std::string &field, const std::string &msg) :
         std::runtime_error(buildWhat(mark, name, field, msg)), m_Mark(mark), m_Field(field), m_Message(msg), m_Name(name) {}
+    FontError::FontError(const YAML::Mark &mark, const std::string &name, const std::string &field, const std::string& subField, const std::string &msg) :
+        std::runtime_error(buildWhat(mark, name, field, msg, subField)), m_Mark(mark), m_Field(field+'>'+subField), m_Message(msg), m_Name(name) {}
 
     YAML::Mark FontError::getMark() const
     {
@@ -246,12 +251,17 @@ namespace sable {
         return m_Name;
     }
 
-    const std::string FontError::buildWhat(const YAML::Mark &mark, const std::string &name, const std::string &field, const std::string &msg)
+    const std::string FontError::buildWhat(const YAML::Mark &mark, const std::string &name, const std::string &field, const std::string &msg, const std::string& subField)
     {
         std::stringstream message;
         message << "In font \"" + name + '"';
         if (!msg.empty()) {
-            message << ", line " << mark.line << ": " << "Field \"" << field << "\" must be " << msg;
+            if (!subField.empty()) {
+                message << ", line " << mark.line << ": Field \"" + field + "\" has invalid entry \"" << subField +"\"" +
+                           (msg.empty() ? "" : ": " + msg);
+            } else {
+                message << ", line " << mark.line << ": Field \"" + field + "\" must be " + msg;
+            }
         } else {
             message << ": Required field \"" << field << "\" is missing.";
         }
@@ -269,7 +279,11 @@ namespace sable {
                 for (auto it = node.begin(); it != node.end(); ++it) {
                     std::string str = it->first.as<std::string>();
                     formatter(str);
-                    map[str] = it->second.as<T>();
+                    try {
+                        map[str] = it->second.as<T>();
+                    } catch (YAML::TypedBadConversion<T>) {
+                        throw FontError(node.Mark(), m_Name, field, str, "must define a numeric code.");
+                    }
                 }
             }
             return map;
@@ -298,9 +312,7 @@ namespace YAML {
         if (node.IsMap() && node[sable::Font::CODE_VAL].IsDefined()) {
             rhs.code = node[sable::Font::CODE_VAL].as<unsigned int>();
             if (node[sable::Font::CMD_NEWLINE_VAL].IsDefined()) {
-                if (!node[sable::Font::CMD_NEWLINE_VAL].IsScalar()) {
-                    return false;
-                }
+                node[sable::Font::CMD_NEWLINE_VAL].as<std::string>();
                 rhs.isNewLine = true;
             }
             return true;

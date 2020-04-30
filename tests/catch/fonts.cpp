@@ -203,6 +203,9 @@ TEST_CASE("Test config validation")
         REQUIRE_THROWS_WITH(Font(normalNode, "test"), Contains("must be an integer."));
         normalNode[Font::ENCODING]["A"] = "test";
         REQUIRE_THROWS_WITH(Font(normalNode, "test"), Contains("must be an integer."));
+        normalNode[Font::ENCODING].remove("A");
+        normalNode[Font::ENCODING]["A"]["test"] = "test";
+        REQUIRE_THROWS_WITH(Font(normalNode, "test"), Contains("Field \"Encoding\" has invalid entry \"A\": must define a numeric code."));
         normalNode.remove(Font::ENCODING);
         REQUIRE_THROWS_WITH(Font(normalNode, ""), Contains("is missing."));
         normalNode[Font::ENCODING] = "1";
@@ -210,6 +213,9 @@ TEST_CASE("Test config validation")
     }
     SECTION("Check Commands validation.")
     {
+        normalNode[Font::COMMANDS]["TestBad"] = "Test";
+        REQUIRE_THROWS(Font(normalNode, "test"));
+        normalNode[Font::COMMANDS].remove("TestBad");
         normalNode[Font::COMMANDS]["NewLine"]["newline"] = YAML::Load("[1, 2, 3]");
         REQUIRE_THROWS_WITH(Font(normalNode, "test"), Contains("must be a scalar."));
         normalNode[Font::COMMANDS]["NewLine"] = "test";
@@ -218,6 +224,22 @@ TEST_CASE("Test config validation")
         REQUIRE_THROWS_WITH(Font(normalNode, ""), Contains("is missing."));
         normalNode[Font::COMMANDS] = "1";
         REQUIRE_THROWS_WITH(Font(normalNode, ""), Contains("must be a map."));
+    }
+    SECTION("Check End command is required.")
+    {
+        normalNode[Font::COMMANDS].remove("End");
+        REQUIRE_THROWS_WITH(
+                    Font(normalNode, "test"),
+                    Contains("Field \"End\" must be defined in the Commands section.")
+                    );
+    }
+    SECTION("Check Newline command is required.")
+    {
+        normalNode[Font::COMMANDS].remove("NewLine");
+        REQUIRE_THROWS_WITH(
+                    Font(normalNode, "test"),
+                    Contains("Field \"NewLine\" must be defined in the Commands section.")
+                    );
     }
     SECTION("Check Extras validation.")
     {

@@ -113,9 +113,9 @@ bool Project::parseText()
                     tablefile.close();
                     for (std::string& file: files) {
                         if (!fs::exists(dir / file)) {
-                            std::cerr << "In " + path
-                                         + ": file " + fs::absolute(dir / file).string()
-                                         + " does not exist." << std::endl;
+                            throw ParseError( "In " + path
+                                         + ": file " + file
+                                         + " does not exist.");
                         }
                         file = (dir / file).string();
                     }
