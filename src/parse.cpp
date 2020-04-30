@@ -6,8 +6,8 @@
 #include <algorithm>
 namespace sable {
 
-TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, const std::string& nlName) :
-    defaultFont(defaultMode), newLineName(nlName)
+TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode) :
+    defaultFont(defaultMode)
     {
         for (auto it = node.begin(); it != node.end(); ++it) {
             m_Fonts[it->first.as<std::string>()] = Font(it->second, it->first.as<std::string>());
@@ -103,7 +103,7 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, c
                 if (activeFont.getCommandValue() != -1) {
                     insertData(activeFont.getCommandValue(), activeFont.getByteWidth(), insert);
                 }
-                insertData(activeFont.getCommandCode(newLineName), activeFont.getByteWidth(), insert);
+                insertData(activeFont.getCommandCode("NewLine"), activeFont.getByteWidth(), insert);
             }
             if (settings.autoend && finished) {
                 if (activeFont.getCommandValue() != -1) {

@@ -1,23 +1,23 @@
 #include "project.h"
-#include <yaml-cpp/yaml.h>
 #include <fstream>
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
+#include <cmath>
 #include "wrapper/filesystem.h"
-#include "util.h"
 #include "rompatcher.h"
 #include "exceptions.h"
-#include "datastore.h"
 
 namespace sable {
 
-Project::Project(const YAML::Node &config, const std::string &projectDir) : nextAddress(0), maxAddress(0)
+Project::Project(const YAML::Node &config, const std::string &projectDir)
+    : nextAddress(0), maxAddress(0)
 {
     init(config, projectDir);
 }
 
-Project::Project(const std::string &projectDir) : nextAddress(0), maxAddress(0)
+Project::Project(const std::string &projectDir)
+    : nextAddress(0), maxAddress(0), m_ConfigPath((fs::path(projectDir) / "config.yml").string())
 {
     if (!fs::exists(fs::path(projectDir) / "config.yml")) {
         throw ConfigError((fs::path(projectDir) / "config.yml").string() + " not found.");
@@ -39,6 +39,9 @@ void Project::init(const YAML::Node &config, const std::string &projectDir)
         m_TextOutDir = outputConfig[OUTPUT_BIN][DIR_TEXT].as<string>();
         m_FontDir = outputConfig[OUTPUT_BIN][FONT_SECTION][DIR_FONT].as<string>();
         m_RomsDir = config[FILES_SECTION][DIR_ROM].as<string>();
+        m_OutputSize = config[CONFIG_SECTION][OUT_SIZE].IsDefined() ?
+                    util::calculateFileSize(config[CONFIG_SECTION][OUT_SIZE].as<std::string>()) :
+                    0;
         fs::path mainDir(projectDir);
         if (fs::path(m_MainDir).is_relative()) {
             m_MainDir = (mainDir / m_MainDir).string();
@@ -156,7 +159,7 @@ bool Project::parseText()
         if (!mainText || !textDefines) {
             throw ASMError("Could not open files in " + (mainDir / m_OutputDir).string() + " for writing.\n");
         }
-        RomPatcher r("lorom");
+        RomPatcher r(m_OutputSize > util::NORMAL_ROM_MAX_SIZE ? "exlorom" : "lorom");
         r.writeParsedData(m_DataStore, fs::path(m_BinsDir) / m_TextOutDir, mainText, textDefines);
         textDefines.flush();
         textDefines.close();
@@ -164,7 +167,7 @@ bool Project::parseText()
         mainText.close();
         for (Rom& romData: m_Roms) {
             std::ofstream mainFile((fs::path(m_MainDir) / (romData.name + ".asm")).string());
-            mainFile << "lorom\n\n";
+            mainFile << r.getMapperDirective() + "\n\n";
             r.writeIncludes(romData.includes.cbegin(), romData.includes.cend(), mainFile, fs::path(m_OutputDir));
             r.writeIncludes(m_Includes.cbegin(), m_Includes.cend(), mainFile, fs::path(m_OutputDir));
             r.writeIncludes(m_Extras.cbegin(), m_Extras.cend(), mainFile, fs::path(m_OutputDir) / m_BinsDir);
@@ -189,14 +192,23 @@ bool Project::parseText()
 void Project::writePatchData()
 {
     fs::path mainDir(m_MainDir);
+
+    bool changeSettings = false;
+    if (m_OutputSize == 0) {
+        m_OutputSize = util::calculateFileSize(getMaxAddress());
+        changeSettings = true;
+    }
     for (Rom& romData: m_Roms) {
+        RomPatcher r("lorom");
         std::string patchFile = (mainDir / (romData.name + ".asm")).string();
 
         fs::path romFilePath = fs::path(m_RomsDir) / romData.file;
         std::string extension = romFilePath.extension().string();
-        RomPatcher r("lorom");
         r.loadRom(romFilePath.string(), romData.name, romData.hasHeader);
-        r.expand(util::LoROMToPC(getMaxAddress()));
+        if (changeSettings && r.getRealSize() >= m_OutputSize) {
+            changeSettings = false;
+        }
+        r.expand(m_OutputSize);
         auto result = r.applyPatchFile(patchFile);
         if (result) {
             std::cout << "Assembly for " << romData.name << " completed successfully." << std::endl;
@@ -211,8 +223,10 @@ void Project::writePatchData()
                         (fs::path(m_RomsDir) / (romData.name + extension)).string(),
                         std::ios::out|std::ios::binary
                         );
+            size_t test = r.getRealSize();
             output.write(reinterpret_cast<char*>(&r.at(0)), r.getRealSize());
             output.close();
+            r.clear();
         } else {
             for (auto& msg: messages) {
                 std::ostringstream error;
@@ -220,7 +234,9 @@ void Project::writePatchData()
                 throw ASMError(error.str());
             }
         }
-
+    }
+    if (changeSettings) {
+        writeSettings();
     }
 }
 
@@ -247,6 +263,17 @@ std::string Project::TextOutDir() const
 int Project::getMaxAddress() const
 {
     return maxAddress;
+}
+
+void Project::writeSettings()
+{
+    YAML::Node configNode = YAML::LoadFile(m_ConfigPath);
+    configNode[CONFIG_SECTION][OUT_SIZE] = util::getFileSizeString(m_OutputSize);
+    std::ofstream output(m_ConfigPath);
+    if (output) {
+        output << configNode << '\n';
+    }
+    output.close();
 }
 
 sable::Project::operator bool() const
@@ -354,9 +381,20 @@ bool Project::validateConfig(const YAML::Node &configYML)
             isValid = false;
             errorString << "inMapping for config section is missing or is not a scalar.\n";
         }
-        if (configYML[CONFIG_SECTION][MAP_TYPE].IsDefined() && !configYML[CONFIG_SECTION][MAP_TYPE].IsScalar()) {;
-            isValid = false;
-            errorString << "config > mapper must be a string.\n";
+//        if (configYML[CONFIG_SECTION][MAP_TYPE].IsDefined() && !configYML[CONFIG_SECTION][MAP_TYPE].IsScalar()) {;
+//            isValid = false;
+//            errorString << "config > mapper must be a string.\n";
+//        }
+        if (configYML[CONFIG_SECTION][OUT_SIZE].IsDefined()) {
+            if (!configYML[CONFIG_SECTION][OUT_SIZE].IsScalar()) {
+                errorString << CONFIG_SECTION + std::string(" > ") + OUT_SIZE +
+                               " must be a string with a valid file size(3mb, 4m, etc).";
+                isValid = false;
+            } else if (util::calculateFileSize(configYML[CONFIG_SECTION][OUT_SIZE].as<std::string>()) == 0) {
+                errorString << "\"" + configYML[CONFIG_SECTION][OUT_SIZE].as<std::string>() +
+                               "\" is not a supported rom size.";
+                isValid = false;
+            }
         }
     }
     if (!configYML[ROMS].IsDefined()) {

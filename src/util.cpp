@@ -2,6 +2,9 @@
 #include <sstream>
 #include <exception>
 #include <algorithm>
+#include <cmath>
+#include <iostream>
+#include <iomanip>
 
 std::pair<unsigned int, int> sable::util::strToHex(const std::string &val)
 {
@@ -65,7 +68,7 @@ int sable::util::EXLoROMToPC(int addr, bool header)
     return addr;
 }
 
-int sable::util::ROMToPC(Mapper mapType, int addr, bool header)
+int sable::util::ROMToPC(sable::util::Mapper mapType, int addr, bool header)
 {
     if (mapType == Mapper::LOROM) {
         return LoROMToPC(addr, header);
@@ -76,7 +79,7 @@ int sable::util::ROMToPC(Mapper mapType, int addr, bool header)
     }
 }
 
-int sable::util::PCtoRom(Mapper mapType, int addr, bool header)
+int sable::util::PCtoRom(sable::util::Mapper mapType, int addr, bool header)
 {
     if (mapType == Mapper::LOROM) {
         return PCToLoROM(addr, header);
@@ -100,7 +103,7 @@ int sable::util::PCToEXLoROM(int addr, bool header)
     }
 }
 
-Mapper sable::util::getExpandedType(Mapper m)
+sable::util::Mapper sable::util::getExpandedType(sable::util::Mapper m)
 {
     if (m == Mapper::LOROM) {
         return Mapper::EXLOROM;
@@ -143,10 +146,62 @@ size_t sable::util::calculateFileSize(const std::string &value)
             if (calculatedValue != 0 && (calculatedValue % (1024 * 1024)) == 0) {
                 calculatedValue /= 1024;
                 if (calculatedValue <= MAX_ALLOWED_FILESIZE) {
-                    returnVal = calculatedValue;
+                    if (calculatedValue >= ROM_MAX_SIZE){
+                        returnVal = ROM_MAX_SIZE;
+                    } else {
+                        returnVal = calculatedValue;
+                    }
                 }
             }
         }
     }
     return returnVal;
+}
+
+size_t sable::util::calculateFileSize(int maxAddress, Mapper m)
+{
+    int address = ROMToPC(m, maxAddress);
+    if (address < 0) {
+        std::ostringstream errorMsg;
+        errorMsg << "Error: address " << std::hex << address
+                 << " is negative.";
+        throw std::logic_error(errorMsg.str());
+    } else if (address >= ROM_MAX_SIZE) {
+        std::ostringstream errorMsg;
+        errorMsg << "Error: address " << std::hex << address
+                 << " is too large for an SNES rom.";
+        throw std::logic_error(errorMsg.str());
+    } else if (address >= NORMAL_ROM_MAX_SIZE) {
+        if (address >= 6291456) {
+            return ROM_MAX_SIZE;
+        } else {
+            return 6291456;
+        }
+    } else if (address < 131072) {
+        return 131072;
+    } else if (address < 262144) {
+        return 262144;
+    } else {
+        return (1 + (address / 524288)) * 524288;
+    }
+}
+
+std::string sable::util::getFileSizeString(int value)
+{
+    if (value > MAX_ALLOWED_FILESIZE|| value <= 0) {
+        return "";
+    } else if (value >= ROM_MAX_SIZE) {
+        value = MAX_ALLOWED_FILESIZE;
+    }
+    int returnVal = value / 1024;
+    if (returnVal < 1024) {
+        return std::to_string(returnVal)+ "kb";
+    }
+    returnVal /= 1024;
+    if ((value/1024) % 1024 == 512) {
+        return std::to_string(returnVal) + ".5mb";
+    } else {
+        return std::to_string(returnVal)+ "mb";
+    }
+
 }

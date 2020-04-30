@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cxxopts.hpp>
-#include "cache.h"
 #include "project.h"
 #include "exceptions.h"
 
@@ -35,14 +34,10 @@ int main(int argc, char * argv[])
          cout << programOptions.help({"", "Group"}) << '\n';
     } else {
         try {
-            sable::Cache cache(starting_path.string());
-            unsigned int maxAddress = cache.getMaxAddress();
             sable::Project parser(starting_path.string());
             if (parser) {
                 if (!options.count("a")) {
                     parser.parseText();
-                    cache.setMaxAddress(parser.getMaxAddress());
-                    cache.write();
                 }
                 if (!options.count("s")) {
                     parser.writePatchData();

@@ -5,10 +5,10 @@
 #include <map>
 #include <string>
 #include <yaml-cpp/yaml.h>
+#include "util.h"
 #include "parse.h"
 #include "font.h"
 #include "datastore.h"
-#include "mapping.h"
 #include "table.h"
 
 namespace sable {
@@ -47,7 +47,6 @@ public:
     std::string TextOutDir() const;
     int getMaxAddress() const;
     explicit operator bool() const;
-
     static constexpr const char* FILES_SECTION = "files";
     static constexpr const char* INPUT_SECTION = "input";
     static constexpr const char* OUTPUT_SECTION = "output";
@@ -64,7 +63,8 @@ public:
     static constexpr const char* EXTRAS = "extras";
     static constexpr const char* ROMS = "roms";
     static constexpr const char* DEFAULT_MODE = "defaultMode";
-    static constexpr const char* MAP_TYPE = "mapper";
+//    static constexpr const char* MAP_TYPE = "mapper";
+    static constexpr const char* OUT_SIZE = "outputSize";
 
 
 private:
@@ -76,13 +76,18 @@ private:
     friend YAML::convert<sable::Project::Rom>;
 
     int nextAddress;
-    std::string m_MainDir, m_InputDir, m_OutputDir, m_BinsDir, m_TextOutDir, m_RomsDir, m_FontDir, m_FontConfigPath, m_DefaultMode;
+    std::string m_MainDir, m_InputDir, m_OutputDir, m_BinsDir,
+    m_TextOutDir, m_RomsDir, m_FontDir, m_FontConfigPath,
+    m_DefaultMode, m_ConfigPath;
+    size_t m_OutputSize;
     StringVector m_Includes, m_Extras, m_FontIncludes;
     std::vector<Rom> m_Roms;
     //TextParser m_Parser;
     void outputFile(const std::string &file, const std::vector<unsigned char>& data, size_t length, int start = 0);
     static bool validateConfig(const YAML::Node& configYML);
     int maxAddress;
+    void writeSettings();
+
 };
 }
 

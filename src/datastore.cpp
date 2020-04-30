@@ -10,8 +10,8 @@ DataStore::DataStore() : nextAddress(0), dirIndex(0), isSorted(false)
 
 }
 
-DataStore::DataStore(const YAML::Node &config, const std::string& defaultMode, const std::string& newlineName)
-    : m_Parser(config, defaultMode, newlineName), nextAddress(0), dirIndex(0), isSorted(false)
+DataStore::DataStore(const YAML::Node &config, const std::string& defaultMode)
+    : m_Parser(config, defaultMode), nextAddress(0), dirIndex(0), isSorted(false)
 {
 }
 

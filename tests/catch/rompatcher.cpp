@@ -22,12 +22,25 @@ TEST_CASE("Basic generation functions")
 TEST_CASE("Expansion Test", "[rompatcher]")
 {
     using sable::RomPatcher;
-    RomPatcher r;
+    RomPatcher r("lorom");
     r.loadRom("sample.sfc", "patch test", -1);
-    REQUIRE(r.getRealSize() == 131072);
+    SECTION("Resizing to normal ROM size.")
+    {
+        REQUIRE(r.getRealSize() == 131072);
 
-    r.expand(sable::util::LoROMToPC(0xE08001));
-    REQUIRE(r.getRealSize() == 0x380000);
+        r.expand(sable::util::calculateFileSize(0xE08001, sable::util::Mapper::LOROM));
+        REQUIRE(r.getRealSize() == 0x380000);
+        REQUIRE(r.getMapType() == sable::util::Mapper::LOROM);
+    }
+    SECTION("Resizing to EXLOROM ROM size.")
+    {
+        REQUIRE(sable::util::LoROMToPC(sable::util::HEADER_LOCATION) == 0x007FC0);
+        char test = r.at(sable::util::LoROMToPC(sable::util::HEADER_LOCATION));
+        r.expand(sable::util::calculateFileSize(0x208000, sable::util::Mapper::EXLOROM));
+        REQUIRE(r.getRealSize() == 0x600000);
+        REQUIRE(r.at(sable::util::EXLoROMToPC(sable::util::HEADER_LOCATION)) == test);
+        REQUIRE(r.getMapType() == sable::util::Mapper::EXLOROM);
+    }
 }
 
 
@@ -36,7 +49,7 @@ TEST_CASE("Asar patch testing", "[rompatcher]")
     using sable::RomPatcher;
     RomPatcher r;
     r.loadRom("sample.sfc", "patch test", -1);
-    r.expand(sable::util::LoROMToPC(0xE08000));
+    r.expand(sable::util::calculateFileSize(0xE08000, sable::util::Mapper::LOROM));
     SECTION("Test that Asar patch can be applied.")
     {
         REQUIRE(r.applyPatchFile("sample.asm") == true);

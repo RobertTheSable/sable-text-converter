@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iomanip>
 #include <bitset>
+#include <cmath>
 #include "wrapper/filesystem.h"
 
 bool istringcompare(const std::string& a, const std::string& b) {
@@ -23,11 +24,11 @@ bool istringcompare(const std::string& a, const std::string& b) {
 sable::RomPatcher::RomPatcher(const std::string &mode) : m_AState(AsarState::NotRun)
 {
     if (istringcompare(mode, "lorom")) {
-        m_MapType = Mapper::LOROM;
+        m_MapType = util::Mapper::LOROM;
     } else if (istringcompare(mode, "exlorom")) {
-        m_MapType = Mapper::EXLOROM;
+        m_MapType = util::Mapper::EXLOROM;
     } else {
-        m_MapType = Mapper::INVALID;
+        m_MapType = util::Mapper::INVALID;
     }
 }
 
@@ -60,7 +61,7 @@ void sable::RomPatcher::loadRom(const std::string &file, const std::string &name
     if (m_HeaderSize != 512 && m_HeaderSize != 0) {
         throw std::runtime_error(file + " has an invalid header.");
     }
-    if ((size-m_HeaderSize) > ROM_MAX_SIZE) {
+    if ((size-m_HeaderSize) > util::ROM_MAX_SIZE) {
         throw std::runtime_error(file + " is too large.");
     }
     m_RomSize = size - m_HeaderSize;
@@ -70,47 +71,35 @@ void sable::RomPatcher::loadRom(const std::string &file, const std::string &name
     inFile.close();
 }
 
-bool sable::RomPatcher::expand(int address)
+void sable::RomPatcher::clear()
 {
-    if (address < 0) {
-        std::ostringstream errorMsg;
-        errorMsg << "Error: address " << std::hex << address
-                 << " is negative.";
-        throw std::logic_error(errorMsg.str());
-    } else if (address >= ROM_MAX_SIZE) {
-        std::ostringstream errorMsg;
-        errorMsg << "Error: address " << std::hex << address
-                 << " is too large for an SNES rom.";
-        throw std::logic_error(errorMsg.str());
-    } else if (address <= m_RomSize) {
-        return false;
-    } else if (address >= NORMAL_ROM_MAX_SIZE) {
-        if (address >= 6291456) {
-            m_RomSize = ROM_MAX_SIZE;
-        } else {
-            m_RomSize = 6291456;
-        }
-    } else if (address < 131072) {
-        m_RomSize = 131072;
-    } else if (address < 262144) {
-        m_RomSize = 262144;
-    } else {
-        m_RomSize = (1 + (address / 524288)) * 524288;
+    m_data.clear();
+}
+
+bool sable::RomPatcher::expand(int size)
+{
+    if (size <= 0 || size > util::ROM_MAX_SIZE){
+        throw std::runtime_error("Invalid rom size.");
     }
+    auto oldsize = m_RomSize;
+    m_RomSize = size;
     m_data.resize(m_HeaderSize + m_RomSize, 0);
-    if (m_RomSize > NORMAL_ROM_MAX_SIZE) {
-        auto internalHeader = m_data.begin()
-                + util::ROMToPC(m_MapType, HEADER_LOCATION)
+    if (oldsize <= util::NORMAL_ROM_MAX_SIZE && m_RomSize > util::NORMAL_ROM_MAX_SIZE) {
+        auto oldHeader = m_data.begin()
+                + util::ROMToPC(m_MapType, util::HEADER_LOCATION)
                 + m_HeaderSize;
+        auto oldMapType = m_MapType;
         m_MapType = util::getExpandedType(m_MapType);
         auto newHeader = m_data.begin()
-                + util::ROMToPC(m_MapType, HEADER_LOCATION)
+                + util::ROMToPC(m_MapType, util::HEADER_LOCATION)
                 + m_HeaderSize;
         std::copy(
-                    internalHeader,
-                    internalHeader + 0x20,
-                    newHeader
+                    m_data.begin()+(m_HeaderSize + util::ROMToPC(oldMapType, 0x008000)),
+                    m_data.begin()+(m_HeaderSize + util::ROMToPC(oldMapType, 0x018000)),
+                    m_data.begin()+(m_HeaderSize + util::ROMToPC(m_MapType, 0x008000))
                     );
+        *(oldHeader+0x17) = ceil(log((int)(m_RomSize/1024)) / log(2));
+        *(newHeader+0x17) = ceil(log((int)(m_RomSize/1024)) / log(2));
     }
     return true;
 }
@@ -262,6 +251,19 @@ void sable::RomPatcher::writeFontData(const sable::DataStore &data, std::ofstrea
     }
 }
 
+std::string sable::RomPatcher::getMapperDirective()
+{
+    std::string value;
+    if (m_MapType == util::Mapper::LOROM) {
+        value = "lorom";
+    } else if (m_MapType == util::Mapper::EXLOROM) {
+        value = "exlorom";
+    } else {
+        throw std::logic_error("Invalid map type.");
+    }
+    return value;
+}
+
 std::string sable::RomPatcher::generateInclude(const fs::path &file, const fs::path &basePath, bool isBin) const
 {
     std::string includePath;
@@ -313,6 +315,11 @@ std::string sable::RomPatcher::generateNumber(int number, int width, int base) c
     }
     return output.str();
 
+}
+
+sable::util::Mapper sable::RomPatcher::getMapType() const
+{
+    return m_MapType;
 }
 
 std::string sable::RomPatcher::generateAssignment(const std::string& label, int value, int width, int base, const std::string& baseLabel) const

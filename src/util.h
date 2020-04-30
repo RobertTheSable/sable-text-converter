@@ -3,10 +3,19 @@
 
 #include <string>
 #include <vector>
-#include "mapping.h"
 
 namespace sable {
 namespace util {
+
+enum Mapper {
+    INVALID,
+    LOROM,
+    EXLOROM
+};
+
+static constexpr const int HEADER_LOCATION = 0x00FFC0;
+static constexpr const int NORMAL_ROM_MAX_SIZE = 0x400000;
+static constexpr const int ROM_MAX_SIZE = 0x7F0000;
 
 static constexpr size_t MAX_ALLOWED_FILESIZE = 8388608;
 
@@ -19,6 +28,8 @@ int EXLoROMToPC(int addr, bool header = false);
 int ROMToPC(Mapper mapType, int addr, bool header = false);
 int PCtoRom(Mapper mapType, int addr, bool header = false);
 size_t calculateFileSize(const std::string& value);
+size_t calculateFileSize(int maxAddress, Mapper m = Mapper::LOROM);
+std::string getFileSizeString(int value);
 Mapper getExpandedType(Mapper m);
 }
 

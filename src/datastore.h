@@ -17,7 +17,7 @@ class DataStore
 {
 public:
     DataStore();
-    DataStore(const YAML::Node& config, const std::string& defaultMode, const std::string& newlineName = "NewLine");
+    DataStore(const YAML::Node& config, const std::string& defaultMode);
     struct TextNode {
         std::string files;
         size_t size;
