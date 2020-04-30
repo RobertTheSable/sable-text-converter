@@ -48,8 +48,8 @@ configuration. The "main" asm file for each rom
     the default is `normal`.
   * outputSize: the size of the output roms. Can be given as number of bytes, or 
     megabtyes/kilobytes with mb/kb suffixes. Max supported size is 8MB.
-        * If 8MB is set as the output size, the actual output size will be more 
-        like 7.9MB dues to technical limitations of SNES addressing.
+       * If 8MB is set as the output size, the actual output size will be more 
+       like 7.9MB dues to technical limitations of SNES addressing.
 * roms - a sequence of all the input rom files to generate patches. Each should 
 have the following fields:
   * name - the name of the output file, minus the extension(which is chosen 
