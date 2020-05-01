@@ -116,13 +116,13 @@ size_t sable::util::calculateFileSize(const std::string &value)
     size_t returnVal = 0;
     if (!value.empty()) {
         std::istringstream stream(value);
-        size_t calculatedValue = 0;
+        uint64_t calculatedValue = 0;
         if (stream >> calculatedValue) {
             calculatedValue *= 1024;
             if (!stream.eof()) {
                 if (stream.peek() == '.') {
                     stream.get();
-                    size_t tempValue = 0;
+                    uint64_t tempValue = 0;
                     if (stream >> tempValue) {
                         calculatedValue += (tempValue * 1024) / 10;
                     }
@@ -131,9 +131,9 @@ size_t sable::util::calculateFileSize(const std::string &value)
                 if (stream >> sizeIndicator) {
                     std::transform(sizeIndicator.begin(), sizeIndicator.end(), sizeIndicator.begin(), ::tolower);
                     if (sizeIndicator == "kb" || sizeIndicator == "k") {
-                        calculatedValue *= 1024;
-                    } else if (sizeIndicator == "mb" || sizeIndicator == "m") {
-                        calculatedValue *= (1024 * 1024);
+                        calculatedValue = calculatedValue * 1024;
+                    } else if ((sizeIndicator == "mb") || (sizeIndicator == "m")) {
+                        calculatedValue = calculatedValue * (1024 * 1024);
                     } else {
                         // other sizes not supported.
                         calculatedValue = 0;
