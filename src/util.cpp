@@ -46,7 +46,8 @@ int sable::util::LoROMToPC(int addr, bool header)
 {
     if (addr<0 || addr>0xFFFFFF ||//not 24bit
                 (addr&0xFE0000)==0x7E0000 ||//wram
-                (addr&0x408000)==0x000000)//hardware regs
+                (addr&0x408000)==0x000000 ||//hardware regs
+                (addr&0x708000)==0x700000)//sram (low parts of banks 70-7D)
             return -1;
     addr=((addr&0x7F0000)>>1|(addr&0x7FFF));
     if (header) addr+=512;
@@ -57,7 +58,8 @@ int sable::util::EXLoROMToPC(int addr, bool header)
 {
     if (addr<0 || addr>0xFFFFFF ||//not 24bit
                 (addr&0xFE0000)==0x7E0000 ||//wram
-                (addr&0x408000)==0x000000)//hardware regs
+                (addr&0x408000)==0x000000 ||//hardware regs
+                (addr&0x708000)==0x700000) //sram (low parts of banks 70-7D)
             return -1;
     if (addr&0x800000) {
         addr=((addr&0x7F0000)>>1|(addr&0x7FFF));

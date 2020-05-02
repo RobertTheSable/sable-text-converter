@@ -15,6 +15,7 @@ int main(int argc, char * argv[])
             ("p,project", "Project directory - defaults to working directory.", cxxopts::value<std::string>(), "DIR")
             ("v,verbose", "Run with increased verbosity.")
             ("q,quiet", "Run with reduced verbosity.")
+            ("no-pause", "Run without pausing at end of output.")
             ("h,help", "Show this message.");
     auto options = programOptions.parse(argc, argv);
     bool showHelp = options.count("h") > 0;
@@ -56,8 +57,10 @@ int main(int argc, char * argv[])
             cerr << "Error(s) in project config: \n"
                  << e.what() << std::endl;
         }
-        cout << "Press enter to continue." << std::flush;
-        std::cin.get();
+        if (options.count("no-pause") == 0) {
+            cout << "Press enter to continue." << std::flush;
+            std::cin.get();
+        }
         cout << std::endl;
     }
     return 0;
