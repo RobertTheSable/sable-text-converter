@@ -27,7 +27,7 @@ public:
 
     void writeParsedData(const DataStore& data, const fs::path& includePath, std::ostream& mainText, std::ostream& textDefines);
     void writeIncludes(ConstStringIterator start, ConstStringIterator end, std::ostream& mainFile, const fs::path& includePath = fs::path());
-    void writeFontData(const DataStore& data, std::ofstream& output);
+    void writeFontData(const DataStore& data, std::ostream& output);
 
     std::string getMapperDirective();
     std::string generateInclude(const fs::path& file, const fs::path& basePath, bool isBin) const;

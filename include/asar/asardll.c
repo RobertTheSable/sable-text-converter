@@ -30,14 +30,14 @@
 
 	inline static void * getlib(void)
 	{
-		const char * names[]={"./libasar"EXTENSION, "libasar", NULL};
+        const char * names[]={"./libasar"EXTENSION, "libasar"EXTENSION, NULL};
 		for (int i=0;names[i];i++)
 		{
-			void * rval=dlopen(names[i], RTLD_LAZY);
-			const char*e=dlerror();
+            void * rval=dlopen(names[i], RTLD_LAZY);
+            const char*e=dlerror();
             if(e)puts(e);
-			if (rval) return rval;
-		}
+            if (rval) return rval;
+        }
 		return NULL;
 	}
 

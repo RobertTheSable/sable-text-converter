@@ -7,6 +7,33 @@
 #include <bitset>
 #include <cmath>
 #include "wrapper/filesystem.h"
+#ifndef _WIN32
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <unistd.h>
+#include <fcntl.h>
+struct stdoutBuffer {
+    char buffer[101];
+    int saved_stdout;
+    int out_pipe[2];
+};
+stdoutBuffer capturePuts()
+{
+    stdoutBuffer buffer = {{0}, dup(STDOUT_FILENO)};
+    if( pipe(buffer.out_pipe) != 0 ) {
+        exit(1);
+    }
+    fcntl(buffer.out_pipe[0], F_SETFL, O_NONBLOCK);
+    dup2(buffer.out_pipe[1], STDOUT_FILENO);
+    close(buffer.out_pipe[1]);
+    return buffer;
+}
+void reopenPuts(stdoutBuffer& buffer)
+{
+    dup2(buffer.saved_stdout, STDOUT_FILENO);
+}
+#endif
 
 bool istringcompare(const std::string& a, const std::string& b) {
     if (a.length() != b.length()) {
@@ -112,7 +139,9 @@ bool sable::RomPatcher::applyPatchFile(const std::string &path, const std::strin
     if (!fs::exists(path)) {
         throw std::logic_error("Could not open " + path + " patch file.");
     }
+    auto buffer = capturePuts();
     if (format == "asm") {
+        // capture puts output from asar
         if (asar_init()) {
             if (asar_patch(path.c_str(), (char*)&m_data[m_HeaderSize], m_RomSize, &m_RomSize)) {
                 m_AState = AsarState::Success;
@@ -120,11 +149,20 @@ bool sable::RomPatcher::applyPatchFile(const std::string &path, const std::strin
                 m_AState = AsarState::Error;
             }
         } else {
-            return false;
+            m_AState = AsarState::Error;
         }
     } else {
-        return false;
+        m_AState = AsarState::Error;
     }
+#ifndef _WIN32
+    fflush(stdout);
+
+    auto size = read(buffer.out_pipe[0], buffer.buffer, 100);
+    reopenPuts(buffer);
+    if (m_AState == AsarState::Error) {
+        std::cerr << buffer.buffer << std::endl;
+    }
+#endif
     return m_AState == AsarState::Success;
 }
 
@@ -214,7 +252,7 @@ void sable::RomPatcher::writeIncludes(sable::ConstStringIterator start, sable::C
     }
 }
 
-void sable::RomPatcher::writeFontData(const sable::DataStore &data, std::ofstream &output)
+void sable::RomPatcher::writeFontData(const sable::DataStore &data, std::ostream &output)
 {
     for (auto& fontIt: data.getFonts()) {
         if (!fontIt.second.getFontWidthLocation().empty()) {
@@ -336,7 +374,6 @@ std::string sable::RomPatcher::generateAssignment(const std::string& label, int 
     } else {
         output << generateNumber(value, width, base);
     }
-
 
     return output.str();
 }
