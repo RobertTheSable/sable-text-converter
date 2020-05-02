@@ -139,9 +139,10 @@ bool sable::RomPatcher::applyPatchFile(const std::string &path, const std::strin
     if (!fs::exists(path)) {
         throw std::logic_error("Could not open " + path + " patch file.");
     }
+#ifndef _WIN32
     auto buffer = capturePuts();
+#endif
     if (format == "asm") {
-        // capture puts output from asar
         if (asar_init()) {
             if (asar_patch(path.c_str(), (char*)&m_data[m_HeaderSize], m_RomSize, &m_RomSize)) {
                 m_AState = AsarState::Success;
