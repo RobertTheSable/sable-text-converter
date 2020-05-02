@@ -32,10 +32,10 @@ sable::RomPatcher::RomPatcher(const std::string &mode) : m_AState(AsarState::Not
     }
 }
 
-void sable::RomPatcher::loadRom(const std::string &file, const std::string &name, int header)
+bool sable::RomPatcher::loadRom(const std::string &file, const std::string &name, int header)
 {
     if (!fs::exists(fs::path(file))) {
-        throw std::runtime_error(fs::absolute(file).string() + " does not exist.");
+        return false;
     } else if (file.empty()) {
         throw std::logic_error("Filename is empty.");
     }
@@ -69,6 +69,7 @@ void sable::RomPatcher::loadRom(const std::string &file, const std::string &name
     inFile.read((char*)&m_data[0], size);
 
     inFile.close();
+    return true;
 }
 
 void sable::RomPatcher::clear()

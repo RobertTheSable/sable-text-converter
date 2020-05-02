@@ -16,7 +16,7 @@ class RomPatcher
 {
 public:
     RomPatcher(const std::string& mode = "lorom");
-    void loadRom(const std::string& file, const std::string& name, int header = 0);
+    bool loadRom(const std::string& file, const std::string& name, int header = 0);
     void clear();
     //~RomPatcher();
     bool expand(int size);

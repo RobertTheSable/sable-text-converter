@@ -204,34 +204,37 @@ void Project::writePatchData()
 
         fs::path romFilePath = fs::path(m_RomsDir) / romData.file;
         std::string extension = romFilePath.extension().string();
-        r.loadRom(romFilePath.string(), romData.name, romData.hasHeader);
-        if (changeSettings && r.getRealSize() >= m_OutputSize) {
-            changeSettings = false;
-        }
-        r.expand(m_OutputSize);
-        auto result = r.applyPatchFile(patchFile);
-        if (result) {
-            std::cout << "Assembly for " << romData.name << " completed successfully." << std::endl;
-        }
-        std::vector<std::string> messages;
-        r.getMessages(std::back_inserter(messages));
-        if (result) {
-            for (auto& msg: messages) {
-                std::cout << msg << std::endl;
-            }
-            std::ofstream output(
-                        (fs::path(m_RomsDir) / (romData.name + extension)).string(),
-                        std::ios::out|std::ios::binary
-                        );
-            size_t test = r.getRealSize();
-            output.write(reinterpret_cast<char*>(&r.at(0)), r.getRealSize());
-            output.close();
-            r.clear();
+        if (!r.loadRom(romFilePath.string(), romData.name, romData.hasHeader)) {
+            std::cerr << fs::absolute(romFilePath).string() + " does not exist, or could not be opened.\n";
         } else {
-            for (auto& msg: messages) {
-                std::ostringstream error;
-                error << msg << '\n';
-                throw ASMError(error.str());
+            if (changeSettings && r.getRealSize() >= m_OutputSize) {
+                changeSettings = false;
+            }
+            r.expand(m_OutputSize);
+            auto result = r.applyPatchFile(patchFile);
+            if (result) {
+                std::cout << "Assembly for " << romData.name << " completed successfully." << std::endl;
+            }
+            std::vector<std::string> messages;
+            r.getMessages(std::back_inserter(messages));
+            if (result) {
+                for (auto& msg: messages) {
+                    std::cout << msg << std::endl;
+                }
+                std::ofstream output(
+                            (fs::path(m_RomsDir) / (romData.name + extension)).string(),
+                            std::ios::out|std::ios::binary
+                            );
+                size_t test = r.getRealSize();
+                output.write(reinterpret_cast<char*>(&r.at(0)), r.getRealSize());
+                output.close();
+                r.clear();
+            } else {
+                for (auto& msg: messages) {
+                    std::ostringstream error;
+                    error << msg << '\n';
+                    throw ASMError(error.str());
+                }
             }
         }
     }
