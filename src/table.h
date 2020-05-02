@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include "util.h"
 
 namespace sable {
 class Table {
@@ -19,7 +20,7 @@ public:
     void setDataAddress(int DataAddress);
     int getSize() const;
     size_t getEntryCount() const;
-    std::vector<std::string> getDataFromFile(std::istream& in);
+    std::vector<std::string> getDataFromFile(std::istream& in, util::Mapper mapType = util::Mapper::LOROM);
     struct Entry
     {
         std::string label;

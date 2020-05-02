@@ -17,7 +17,7 @@ class DataStore
 {
 public:
     DataStore();
-    DataStore(const YAML::Node& config, const std::string& defaultMode);
+    DataStore(const YAML::Node& config, const std::string& defaultMode, util::Mapper mapType = util::Mapper::LOROM);
     struct TextNode {
         std::string files;
         size_t size;
@@ -54,6 +54,7 @@ private:
     int dirIndex;
     int nextAddress;
     bool isSorted;
+    util::Mapper m_RomType;
 };
 }
 

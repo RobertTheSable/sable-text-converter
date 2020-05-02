@@ -5,19 +5,19 @@
 
 namespace sable {
 
-DataStore::DataStore() : nextAddress(0), dirIndex(0), isSorted(false)
+DataStore::DataStore() : nextAddress(0), dirIndex(0), isSorted(false), m_RomType(util::Mapper::INVALID)
 {
 
 }
 
-DataStore::DataStore(const YAML::Node &config, const std::string& defaultMode)
-    : m_Parser(config, defaultMode), nextAddress(0), dirIndex(0), isSorted(false)
+DataStore::DataStore(const YAML::Node &config, const std::string& defaultMode, util::Mapper mapType)
+    : m_Parser(config, defaultMode), nextAddress(0), dirIndex(0), isSorted(false), m_RomType(mapType)
 {
 }
 
 void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream& errorStream)
 {
-    if (nextAddress != 0 && util::LoROMToPC(nextAddress) == -1) {
+    if (nextAddress != 0 && util::ROMToPC(m_RomType, nextAddress) == -1) {
         std::ostringstream error;
         error << "Attempted to begin parsing with invalid ROM address $" << std::hex << nextAddress;
         throw ParseError(error.str());
@@ -73,7 +73,8 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
                         binaryOutputStack.push({settings.label + ".bin", dataLength});
                         binaryOutputStack.push({settings.label + "bank.bin", bankLength});
 
-                        settings.currentAddress = util::PCToLoROM(util::LoROMToPC(settings.currentAddress | 0xFFFF) +1);
+                        bool highType = (settings.currentAddress & 0x800000) == 0;
+                        settings.currentAddress = util::PCToROM(m_RomType, util::ROMToPC(m_RomType, settings.currentAddress | 0xFFFF) +1, highType);
                         m_Addresses.push_back({settings.currentAddress, "$" + settings.label, false});
                         settings.currentAddress += bankLength;
                         m_TextNodeList["$" + settings.label] = {

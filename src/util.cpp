@@ -79,10 +79,10 @@ int sable::util::ROMToPC(sable::util::Mapper mapType, int addr, bool header)
     }
 }
 
-int sable::util::PCtoRom(sable::util::Mapper mapType, int addr, bool header)
+int sable::util::PCToROM(sable::util::Mapper mapType, int addr, bool header, bool high)
 {
     if (mapType == Mapper::LOROM) {
-        return PCToLoROM(addr, header);
+        return PCToLoROM(addr, header, high);
     } else if(mapType == Mapper::EXLOROM){
         return PCToEXLoROM(addr, header);
     } else {

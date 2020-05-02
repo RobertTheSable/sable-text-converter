@@ -22,7 +22,7 @@ namespace sable {
     {
     public:
         TextParser()=default;
-        TextParser(const YAML::Node& node, const std::string& defaultMode);
+        TextParser(const YAML::Node& node, const std::string& defaultMode, util::Mapper mapType = util::Mapper::LOROM);
         struct lineNode{
             bool hasNewLines;
             int length;
@@ -36,6 +36,7 @@ namespace sable {
         int maxWidth;
         std::map<std::string, Font> m_Fonts;
         std::string defaultFont;
+        util::Mapper m_RomType;
         static std::string readUtf8Char(std::string::iterator& start, std::string::iterator end, bool advance = true);
         ParseSettings updateSettings(const ParseSettings &settings, const std::string& setting = "", unsigned int currentAddress = 0);
         static void insertData(unsigned int code, int size, back_inserter bi);

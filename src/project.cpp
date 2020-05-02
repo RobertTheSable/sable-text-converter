@@ -92,7 +92,7 @@ bool Project::parseText()
         fs::create_directory(mainDir / m_OutputDir / m_BinsDir / m_TextOutDir);
     }
 
-    DataStore m_DataStore = DataStore(YAML::LoadFile(m_FontConfigPath), m_DefaultMode);
+    DataStore m_DataStore = DataStore(YAML::LoadFile(m_FontConfigPath), m_DefaultMode, util::Mapper::LOROM);
     {
         fs::path input = fs::path(m_MainDir) / m_InputDir;
         std::vector<std::string> allFiles;

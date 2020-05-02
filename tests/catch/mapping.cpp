@@ -16,15 +16,15 @@ TEST_CASE("Test LoROM to PC Results")
 
 TEST_CASE("Test PC to LoROM Results")
 {
-    using sable::util::PCtoRom, sable::util::Mapper;
-    REQUIRE(PCtoRom(Mapper::LOROM, 0x0) == 0x808000);
-    REQUIRE(PCtoRom(Mapper::LOROM, 0x370000) == 0xee8000);
-    REQUIRE(PCtoRom(Mapper::LOROM, sable::util::NORMAL_ROM_MAX_SIZE) == -1);
+    using sable::util::PCToROM, sable::util::Mapper;
+    REQUIRE(PCToROM(Mapper::LOROM, 0x0) == 0x808000);
+    REQUIRE(PCToROM(Mapper::LOROM, 0x370000) == 0xee8000);
+    REQUIRE(PCToROM(Mapper::LOROM, sable::util::NORMAL_ROM_MAX_SIZE) == -1);
 }
 
 TEST_CASE("Test ExLoROM to PC Results")
 {
-    using sable::util::PCtoRom, sable::util::Mapper;
+    using sable::util::PCToROM, sable::util::Mapper;
     REQUIRE(ROMToPC(Mapper::EXLOROM, 0x80FFC0) == 0x007FC0);
     REQUIRE(ROMToPC(Mapper::EXLOROM, sable::util::HEADER_LOCATION) == 0x407FC0);
     REQUIRE(ROMToPC(Mapper::EXLOROM, 0xee8000) == 0x370000);
@@ -36,12 +36,12 @@ TEST_CASE("Test ExLoROM to PC Results")
 
 TEST_CASE("Test PC to ExLoROM Results")
 {
-    using sable::util::PCtoRom, sable::util::Mapper;
-    REQUIRE(PCtoRom(Mapper::EXLOROM, 0x0) == 0x808000);
-    REQUIRE(PCtoRom(Mapper::EXLOROM, 0x370000) == 0xee8000);
-    REQUIRE(PCtoRom(Mapper::EXLOROM, sable::util::NORMAL_ROM_MAX_SIZE) == 0x008000);
-    REQUIRE(PCtoRom(Mapper::EXLOROM, sable::util::ROM_MAX_SIZE) == -1);
-    REQUIRE(PCtoRom(Mapper::EXLOROM, sable::util::ROM_MAX_SIZE-1) == 0x7DFFFF);
+    using sable::util::PCToROM, sable::util::Mapper;
+    REQUIRE(PCToROM(Mapper::EXLOROM, 0x0) == 0x808000);
+    REQUIRE(PCToROM(Mapper::EXLOROM, 0x370000) == 0xee8000);
+    REQUIRE(PCToROM(Mapper::EXLOROM, sable::util::NORMAL_ROM_MAX_SIZE) == 0x008000);
+    REQUIRE(PCToROM(Mapper::EXLOROM, sable::util::ROM_MAX_SIZE) == -1);
+    REQUIRE(PCToROM(Mapper::EXLOROM, sable::util::ROM_MAX_SIZE-1) == 0x7DFFFF);
 }
 
 

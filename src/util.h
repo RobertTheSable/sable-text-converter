@@ -26,7 +26,7 @@ int PCToEXLoROM(int addr, bool header = false);
 int LoROMToPC(int addr, bool header = false);
 int EXLoROMToPC(int addr, bool header = false);
 int ROMToPC(Mapper mapType, int addr, bool header = false);
-int PCtoRom(Mapper mapType, int addr, bool header = false);
+int PCToROM(Mapper mapType, int addr, bool header = false, bool high = true);
 size_t calculateFileSize(const std::string& value);
 size_t calculateFileSize(int maxAddress, Mapper m = Mapper::LOROM);
 std::string getFileSizeString(int value);

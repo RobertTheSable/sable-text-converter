@@ -6,8 +6,8 @@
 #include <algorithm>
 namespace sable {
 
-TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode) :
-    defaultFont(defaultMode)
+TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, util::Mapper mapType) :
+    defaultFont(defaultMode), m_RomType(mapType)
     {
         for (auto it = node.begin(); it != node.end(); ++it) {
             m_Fonts[it->first.as<std::string>()] = Font(it->second, it->first.as<std::string>());
@@ -178,7 +178,7 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode) :
                         } else if (name == "address") {
                             if (option != "auto") {
                                 auto result = util::strToHex(option);
-                                if (result.second >= 0 && util::LoROMToPC(result.first) >= 0) {
+                                if (result.second >= 0 && util::ROMToPC(m_RomType, result.first) >= 0) {
                                     retVal.currentAddress = util::strToHex(option).first;
                                 } else {
                                     throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for address: must be auto or a SNES address.");
