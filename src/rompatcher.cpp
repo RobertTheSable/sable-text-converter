@@ -94,6 +94,7 @@ bool sable::RomPatcher::expand(int size)
         auto newHeader = m_data.begin()
                 + util::ROMToPC(m_MapType, util::HEADER_LOCATION)
                 + m_HeaderSize;
+        // TODO: check rom name or dev ID to see if extended header needs to be copied
         std::copy(
                     m_data.begin()+(m_HeaderSize + util::ROMToPC(oldMapType, 0x008000)),
                     m_data.begin()+(m_HeaderSize + util::ROMToPC(oldMapType, 0x018000)),

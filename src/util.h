@@ -7,6 +7,7 @@
 namespace sable {
 namespace util {
 
+// TODO: hirom support
 enum Mapper {
     INVALID,
     LOROM,
