@@ -198,7 +198,6 @@ int sable::RomPatcher::getRealSize() const
 void sable::RomPatcher::writeParsedData(const sable::DataStore &m_DataStore, const fs::path& includePath, std::ostream &mainText, std::ostream &textDefines)
 {
     for (auto& node: m_DataStore) {
-        //int dif = it.address - lastPosition;
         if (node.isTable) {
             textDefines << generateAssignment("def_table_" + node.label, node.address, 3) << '\n';
             mainText  << "ORG " + generateDefine("def_table_" + node.label) + '\n';
@@ -316,7 +315,11 @@ std::string sable::RomPatcher::generateInclude(const fs::path &file, const fs::p
         includePath += file.generic_string();
     } else {
         // can't use fs::relative because g++ 7 doesn't support it.
+#ifdef NO_FS_RELATIVE
         includePath +=  file.generic_string().substr(basePath.generic_string().length() + 1);
+#else
+        includePath +=  fs::relative(file, basePath).generic_string();
+#endif
     }
     return includePath;
 }
