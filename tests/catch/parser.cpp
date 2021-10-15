@@ -4,7 +4,6 @@
 #include <algorithm>
 #include "parse.h"
 #include "helpers.h"
-#include "utf8.h"
 #include <iostream>
 
 typedef std::vector<unsigned char> ByteVector;
@@ -93,6 +92,18 @@ TEST_CASE("Single lines", "[parser]")
         REQUIRE(v.size() == 13);
         REQUIRE(v == ByteVector({0x26, 0x26, 53, 0x26, 0x1b, 53, 0x26, 0x1e, 53, 0x1f, 59, 0, 0}));
     }
+    SECTION("Check digraphs including multibyte punctuation")
+    {
+        sample.str("e† A");
+        std::pair<bool, int> result;
+        auto expected =
+                node["normal"][Font::ENCODING]["e†"][Font::TEXT_LENGTH_VAL].as<int>() +
+                node["normal"][Font::ENCODING][" "][Font::TEXT_LENGTH_VAL].as<int>() +
+                node["normal"][Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL].as<int>();
+        REQUIRE_NOTHROW(result = p.parseLine(sample, settings, std::back_inserter(v)));
+        REQUIRE(result.second == expected);
+        REQUIRE(v.size() == 5);
+    }
     SECTION("Check extras are read correctly.")
     {
         sample.str("[Extra1]");
@@ -106,6 +117,17 @@ TEST_CASE("Single lines", "[parser]")
         REQUIRE(node["normal"][Font::COMMANDS]["Test"]["code"].as<int>() == 7);
         REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 0));
         REQUIRE(v == ByteVector({0, 7, 0, 0}));
+    }
+    SECTION("Check commands are read correctly when there is text left in the line.")
+    {
+        sample.str("[Test]A");
+        REQUIRE(node["normal"][Font::COMMANDS]["Test"]["code"].as<int>() == 7);
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v)) == std::make_pair(true, 1));
+        REQUIRE(v.size() == 5);
+        auto expected = ByteVector({0, 7, 1, 0, 0});
+        for (size_t i = 0; i < v.size() ; i++) {
+            REQUIRE(expected[i] == v[i]);
+        }
     }
     SECTION("Check commands with newline settings are read correctly.")
     {

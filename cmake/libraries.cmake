@@ -38,8 +38,6 @@ if(NOT ASAR)
     endif()
 endif()
 
-execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/utf8 
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/cxxopts
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
                 
@@ -48,6 +46,8 @@ if (SABLE_BUILD_TESTS)
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
+find_package(Boost 1.71.0 REQUIRED COMPONENTS locale)
+
 set(SABLE_LIBRARIES "")
 
 list(
@@ -55,4 +55,5 @@ list(
 
     yaml-cpp
     asar
+    Boost::locale
 )

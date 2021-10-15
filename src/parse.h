@@ -6,8 +6,11 @@
 #include <string>
 #include <tuple>
 #include <yaml-cpp/yaml.h>
+#include <boost/locale.hpp>
 #include "font.h"
 #include "util.h"
+
+using boost::locale::boundary::ssegment_index;
 
 namespace sable {
     typedef std::back_insert_iterator<std::vector<unsigned char>> back_inserter;
@@ -32,13 +35,18 @@ namespace sable {
         const std::map<std::string, Font>& getFonts() const;
         ParseSettings getDefaultSetting(int address);
     private:
+        std::locale m_Locale;
         bool useDigraphs;
         int maxWidth;
         std::map<std::string, Font> m_Fonts;
         std::string defaultFont;
         util::Mapper m_RomType;
-        static std::string readUtf8Char(std::string::iterator& start, std::string::iterator end, bool advance = true);
-        ParseSettings updateSettings(const ParseSettings &settings, const std::string& setting = "", unsigned int currentAddress = 0);
+        ParseSettings updateSettings(
+                const ParseSettings &settings,
+                ssegment_index::iterator& it,
+                const ssegment_index::const_iterator& end,
+                unsigned int currentAddress = 0
+                );
         static void insertData(unsigned int code, int size, back_inserter bi);
     };
 }

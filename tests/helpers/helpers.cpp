@@ -1,8 +1,18 @@
 #include "helpers.h"
 #include "font.h"
 
-YAML::Node sable_tests::createSampleNode(bool digraphs, unsigned int byteWidth, unsigned int maxWidth, unsigned int defaultWidth, const std::vector<std::tuple<std::string, int, bool> > &commands, const std::vector<std::string> &extras, unsigned int skip, int command, unsigned int offset, bool fixedWidth)
-{
+YAML::Node sable_tests::createSampleNode(
+        bool digraphs,
+        unsigned int byteWidth,
+        unsigned int maxWidth,
+        unsigned int defaultWidth,
+        const std::vector<std::tuple<std::string, int, bool> > &commands,
+        const std::vector<std::string> &extras,
+        unsigned int skip,
+        int command,
+        unsigned int offset,
+        bool fixedWidth
+    ) {
     using sable::Font;
     YAML::Node sample;
     sample[Font::USE_DIGRAPHS] = digraphs ? "true" : "false";
@@ -75,7 +85,7 @@ YAML::Node sable_tests::getSampleNode()
                     {"NewLine", 01, true},
                     {"Test", 07, false}
                 },
-                {"ll", "la", "e?", "[special]", "❤"}
+                {"ll", "la", "e?", "[special]", "❤", "e†"}
                 );
     sampleNode["nodigraph"] = sable_tests::createSampleNode(
                 false,

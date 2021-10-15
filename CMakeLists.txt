@@ -38,7 +38,7 @@ include(cmake/platform.cmake)
 include(cmake/libraries.cmake)
 include(cmake/filesystem.cmake)
 
-include_directories(include external/utf8/source external/cxxopts/include)
+include_directories(include external/cxxopts/include)
 
 add_subdirectory(src)
 

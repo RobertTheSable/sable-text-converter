@@ -6,9 +6,6 @@
 	path = external/asar
 	url = https://github.com/RPGHacker/asar.git
 	ignore = dirty
-[submodule "external/utf8"]
-	path = external/utf8
-	url = https://github.com/nemtrif/utfcpp.git
 [submodule "external/cxxopts"]
 	path = external/cxxopts
 	url = https://github.com/jarro2783/cxxopts.git
