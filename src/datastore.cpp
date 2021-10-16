@@ -5,13 +5,13 @@
 
 namespace sable {
 
-DataStore::DataStore() : nextAddress(0), dirIndex(0), isSorted(false), m_RomType(util::Mapper::INVALID)
+DataStore::DataStore() : dirIndex(0), nextAddress(0), isSorted(false), m_RomType(util::Mapper::INVALID)
 {
 
 }
 
-DataStore::DataStore(const YAML::Node &config, const std::string& defaultMode, util::Mapper mapType)
-    : m_Parser(config, defaultMode), nextAddress(0), dirIndex(0), isSorted(false), m_RomType(mapType)
+DataStore::DataStore(const YAML::Node &config, const std::string& defaultMode, const std::string& localeName, util::Mapper mapType)
+    : m_Parser(config, defaultMode, localeName), dirIndex(0), nextAddress(0), isSorted(false), m_RomType(mapType)
 {
 }
 

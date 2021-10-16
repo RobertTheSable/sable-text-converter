@@ -47,6 +47,7 @@ if (SABLE_BUILD_TESTS)
 endif()
 
 find_package(Boost 1.71.0 REQUIRED COMPONENTS locale)
+find_package(ICU REQUIRED COMPONENTS uc)
 
 set(SABLE_LIBRARIES "")
 
@@ -56,4 +57,5 @@ list(
     yaml-cpp
     asar
     Boost::locale
+    ICU::uc
 )

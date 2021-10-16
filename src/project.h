@@ -65,6 +65,7 @@ public:
     static constexpr const char* DEFAULT_MODE = "defaultMode";
 //    static constexpr const char* MAP_TYPE = "mapper";
     static constexpr const char* OUT_SIZE = "outputSize";
+    static constexpr const char* LOCALE = "locale";
 
 
 private:
@@ -78,7 +79,7 @@ private:
     int nextAddress;
     std::string m_MainDir, m_InputDir, m_OutputDir, m_BinsDir,
     m_TextOutDir, m_RomsDir, m_FontDir, m_FontConfigPath,
-    m_DefaultMode, m_ConfigPath;
+    m_DefaultMode, m_ConfigPath, m_LocaleString;
     size_t m_OutputSize;
     StringVector m_Includes, m_Extras, m_FontIncludes;
     std::vector<Rom> m_Roms;

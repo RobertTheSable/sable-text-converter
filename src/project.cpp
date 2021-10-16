@@ -4,9 +4,11 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <boost/locale.hpp>
 #include "wrapper/filesystem.h"
 #include "rompatcher.h"
 #include "exceptions.h"
+#include "localecheck.h"
 
 namespace sable {
 
@@ -17,7 +19,7 @@ Project::Project(const YAML::Node &config, const std::string &projectDir)
 }
 
 Project::Project(const std::string &projectDir)
-    : nextAddress(0), maxAddress(0), m_ConfigPath((fs::path(projectDir) / "config.yml").string())
+    : nextAddress(0), m_ConfigPath((fs::path(projectDir) / "config.yml").string()), maxAddress(0)
 {
     if (!fs::exists(fs::path(projectDir) / "config.yml")) {
         throw ConfigError((fs::path(projectDir) / "config.yml").string() + " not found.");
@@ -42,6 +44,14 @@ void Project::init(const YAML::Node &config, const std::string &projectDir)
         m_OutputSize = config[CONFIG_SECTION][OUT_SIZE].IsDefined() ?
                     util::calculateFileSize(config[CONFIG_SECTION][OUT_SIZE].as<std::string>()) :
                     0;
+        if (config[CONFIG_SECTION][LOCALE].IsDefined()) {
+            m_LocaleString = config[CONFIG_SECTION][LOCALE].as<std::string>();
+            if (!isLocaleValid(m_LocaleString.c_str())) {
+                throw ConfigError("The provided locale is not valid.");
+            }
+        } else {
+            m_LocaleString = "en_US.UTF8";
+        }
         fs::path mainDir(projectDir);
         if (fs::path(m_MainDir).is_relative()) {
             m_MainDir = (mainDir / m_MainDir).string();
@@ -93,7 +103,7 @@ bool Project::parseText()
     }
 
     auto mapper = m_OutputSize > util::NORMAL_ROM_MAX_SIZE ? util::Mapper::EXLOROM : util::Mapper::LOROM;
-    DataStore m_DataStore = DataStore(YAML::LoadFile(m_FontConfigPath), m_DefaultMode, mapper);
+    DataStore m_DataStore = DataStore(YAML::LoadFile(m_FontConfigPath), m_DefaultMode, m_LocaleString, mapper);
     {
         fs::path input = fs::path(m_MainDir) / m_InputDir;
         std::vector<std::string> allFiles;

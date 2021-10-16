@@ -7,10 +7,10 @@
 
 namespace sable {
 
-TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, util::Mapper mapType) :
+TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, const std::string& localeName, util::Mapper mapType) :
     defaultFont(defaultMode), m_RomType(mapType)
     {
-        m_Locale =  boost::locale::generator().generate("en_US.UTF-8");
+        m_Locale =  boost::locale::generator().generate(localeName);
         for (auto it = node.begin(); it != node.end(); ++it) {
             m_Fonts[it->first.as<std::string>()] = Font(it->second, it->first.as<std::string>());
         }

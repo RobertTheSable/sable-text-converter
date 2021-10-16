@@ -25,7 +25,7 @@ namespace sable {
     {
     public:
         TextParser()=default;
-        TextParser(const YAML::Node& node, const std::string& defaultMode, util::Mapper mapType = util::Mapper::LOROM);
+        TextParser(const YAML::Node& node, const std::string& defaultMode, const std::string& localeName, util::Mapper mapType = util::Mapper::LOROM);
         struct lineNode{
             bool hasNewLines;
             int length;

@@ -17,7 +17,7 @@ class DataStore
 {
 public:
     DataStore();
-    DataStore(const YAML::Node& config, const std::string& defaultMode, util::Mapper mapType = util::Mapper::LOROM);
+    DataStore(const YAML::Node& config, const std::string& defaultMode, const std::string& localeName, util::Mapper mapType = util::Mapper::LOROM);
     struct TextNode {
         std::string files;
         size_t size;

@@ -12,7 +12,7 @@ TEST_CASE("Class properties", "[parser]")
 {
     using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal");
+    TextParser p(node, "normal", "en_US.UTF-8");
     SECTION("Iterate over fonts.")
     {
         auto& fonts = p.getFonts();
@@ -28,7 +28,7 @@ TEST_CASE("Single lines", "[parser]")
 {
     using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal");
+    TextParser p(node, "normal", "en_US.UTF-8");
     auto settings = p.getDefaultSetting(0x808000);
     std::istringstream sample;
     ByteVector v = {};
@@ -171,7 +171,7 @@ TEST_CASE("Test ending behavior", "[parser]")
 {
     using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal");
+    TextParser p(node, "normal", "en_US.UTF-8");
     auto settings = p.getDefaultSetting(0x808000);
     std::istringstream sample;
     ByteVector v = {};
@@ -194,7 +194,7 @@ TEST_CASE("Default settings", "[parser]")
     auto node = sable_tests::getSampleNode();
     SECTION("Normal Settings")
     {
-        TextParser p(node, "normal");
+        TextParser p(node, "normal", "en_US.UTF-8");
         auto settings = p.getDefaultSetting(0x808000);
         REQUIRE(settings.mode == "normal");
         REQUIRE(settings.label.empty());
@@ -205,7 +205,7 @@ TEST_CASE("Default settings", "[parser]")
     }
     SECTION("Menu Settings")
     {
-        TextParser p(node, "menu");
+        TextParser p(node, "menu", "en_US.UTF-8");
         auto settings = p.getDefaultSetting(0x908000);
         REQUIRE(settings.mode == "menu");
         REQUIRE(settings.label.empty());
@@ -220,7 +220,7 @@ TEST_CASE("Change parser settings", "[parser]")
 {
     using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal");
+    TextParser p(node, "normal", "en_US.UTF-8");
     auto settings = p.getDefaultSetting(0x808000);
     std::istringstream sample;
     ByteVector v = {};
@@ -301,7 +301,7 @@ TEST_CASE("Multiline scenarios", "[parser]")
 {
     using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal");
+    TextParser p(node, "normal", "en_US.UTF-8");
     auto settings = p.getDefaultSetting(0x808000);
     std::istringstream sample;
     ByteVector v = {};
@@ -320,7 +320,7 @@ TEST_CASE("Parser error checking", "[parser]")
 {
     using sable::Font, sable::TextParser, Catch::Matchers::Contains;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal");
+    TextParser p(node, "normal", "en_US.UTF-8");
     auto settings = p.getDefaultSetting(0x80800);
     std::istringstream sample;
     ByteVector v = {};

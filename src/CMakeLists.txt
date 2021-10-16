@@ -10,6 +10,8 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/exceptions.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/parse.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/parse.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/localecheck.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/localecheck.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/util.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/util.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/table.cpp"

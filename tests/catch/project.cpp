@@ -1,6 +1,11 @@
 #include <catch2/catch.hpp>
 #include "yaml-cpp/yaml.h"
 #include "project.h"
+#ifdef WIN32
+        #define MISSING_FILE_ERROR "sample\\text_map.yml not found."
+#else
+        #define MISSING_FILE_ERROR "./sample/text_map.yml not found."
+#endif
 
 using sable::Project;
 
@@ -21,45 +26,55 @@ TEST_CASE("Test project config validation", "[project]")
                     "romDir: roms\n"
                 "}"
                 ", config: \n"
-                    "{directory: sample, inMapping: text_map.yml},\n"
+                    "{directory: sample, inMapping: text_map.yml, locale: en_US.utf8},\n"
                 "roms: []"
                 "}"
                 );
     testNode["roms"].push_back(YAML::Load("{name: test, file: test.smc, header: false}"));
-
-    SECTION("Empty Node Fails")
+    SECTION("Invalid Configurations")
     {
-        REQUIRE_THROWS(Project(YAML::Node(), "."));
-    }
-    SECTION("Missing ROMs section")
-    {
-        testNode.remove(Project::ROMS);
-        REQUIRE_THROWS(Project(testNode, "."));
-    }
-    SECTION("Missing Config section")
-    {
-        testNode.remove(Project::CONFIG_SECTION);
-        REQUIRE_THROWS(Project(testNode, "."));
-    }
-    SECTION("Missing Files section")
-    {
-        testNode.remove(Project::FILES_SECTION);
-        REQUIRE_THROWS(Project(testNode, "."));
-    }
-    SECTION("Missing font binaries section")
-    {
-        testNode[Project::FILES_SECTION]
-                [Project::OUTPUT_SECTION]
-                [Project::OUTPUT_BIN].remove(Project::FONT_SECTION);
-        REQUIRE_THROWS(Project(testNode, "."));
+        SECTION("Empty Node Fails")
+        {
+            REQUIRE_THROWS(Project(YAML::Node(), "."));
+        }
+        SECTION("Missing ROMs section")
+        {
+            testNode.remove(Project::ROMS);
+            REQUIRE_THROWS(Project(testNode, "."));
+        }
+        SECTION("Missing Config section")
+        {
+            testNode.remove(Project::CONFIG_SECTION);
+            REQUIRE_THROWS(Project(testNode, "."));
+        }
+        SECTION("Missing Files section")
+        {
+            testNode.remove(Project::FILES_SECTION);
+            REQUIRE_THROWS(Project(testNode, "."));
+        }
+        SECTION("Missing font binaries section")
+        {
+            testNode[Project::FILES_SECTION]
+                    [Project::OUTPUT_SECTION]
+                    [Project::OUTPUT_BIN].remove(Project::FONT_SECTION);
+            REQUIRE_THROWS(Project(testNode, "."));
+        }
+        SECTION("Missing font binaries section")
+        {
+            testNode[Project::CONFIG_SECTION][Project::LOCALE] = "argleblargleblaaaa";
+            REQUIRE_THROWS_WITH(Project(testNode, "."), "The provided locale is not valid.");
+        }
     }
     SECTION("Valid config file throws only exception for missing file.")
     {
-#ifdef WIN32
-        using Catch::Matchers::Contains;
-        REQUIRE_THROWS_WITH(Project(testNode, "."), Contains("sample\\text_map.yml not found."));
-#else
-        REQUIRE_THROWS_WITH(Project(testNode, "."), "./sample/text_map.yml not found.");
-#endif
+        SECTION("Do nothing")
+        {
+
+        }
+        SECTION("Default locale is used correctly.")
+        {
+            testNode[Project::CONFIG_SECTION].remove(Project::LOCALE);
+        }
+        REQUIRE_THROWS_WITH(Project(testNode, "."), MISSING_FILE_ERROR);
     }
 }
