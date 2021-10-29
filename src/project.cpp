@@ -367,7 +367,9 @@ bool Project::validateConfig(const YAML::Node &configYML)
                         isValid = false;
                         errorString << "fonts directory must be a scalar.\n";
                     }
-                    if (!outputConfig[OUTPUT_BIN][FONT_SECTION][INCLUDE_VAL].IsSequence()) {
+                    if (outputConfig[OUTPUT_BIN][FONT_SECTION][INCLUDE_VAL].IsDefined() &&
+                        !outputConfig[OUTPUT_BIN][FONT_SECTION][INCLUDE_VAL].IsSequence()
+                    ) {
                         isValid = false;
                         errorString << "fonts includes must be a sequence.\n";
                     }
