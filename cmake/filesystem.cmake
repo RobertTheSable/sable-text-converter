@@ -68,18 +68,14 @@ endif()
         
 if (NOT (HAS_STD_FILESYSTEM OR HAS_EXPERIMENTAL_FILESYSTEM) )
     message(STATUS "Checking for Boost libraries...")
-    find_library(HAS_BOOST_FS boost_filesystem)
+    find_package(Boost 1.71.0 REQUIRED COMPONENTS system filesystem)
 
-    if(NOT HAS_BOOST_FS)
-        message(FATAL_ERROR "-- Boost Filesystem not found.")
-    else()
-        list(
-            APPEND SABLE_FS_LIBRARIES
-            
-            boost_system
-            boost_filesystem
-        )
-    endif()
+    list(
+        APPEND SABLE_FS_LIBRARIES
+
+        Boost::system
+        Boost::filesystem
+    )
     set(SABLE_ALT_FILESYSTEM "USE_BOOST_FILESYSTEM")
 else()
     if (NOT HAS_STD_FILESYSTEM )

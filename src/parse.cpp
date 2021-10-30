@@ -106,7 +106,12 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, c
                             } else if (it != map.end() && it->rule() & boost::locale::boundary::word_none) {
                                 // we've reached the end of a word, so we need to grab the character from the next word.
                                 // can't just grab one character because of unicode
-                                nextChar = ssegment_index(character, it->str().begin(), it->str().end(), m_Locale).begin()->str();
+                                
+                                // for some reason, using it->str without copying it on windows makes ICU throw an error
+                                // who knows why :v
+                                std::string tmpStr = it->str(); 
+                                nextChar = ssegment_index(character, tmpStr.begin(), tmpStr.end(), m_Locale).begin()->str();
+                                
                             }
                         }
                         unsigned int code;
