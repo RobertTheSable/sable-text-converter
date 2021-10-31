@@ -34,7 +34,7 @@ and 32 bit:
 export MINGW_ARCH=i686-w64-mingw32
 ```
 
-Then run:
+Then move into the other folder you created and run:
 ```
 CXXFLAGS="-std=c++14" ../icu4c/source/configure --build=x86_64-linux-gnu  --host=$MINGW_ARCH --with-cross-build=$ICU_GIT_PATH/buildA --prefix=/usr/$MINGW_ARCH/ --enable-static=yes --enable-shared=no
 gmake
