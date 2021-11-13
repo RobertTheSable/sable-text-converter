@@ -71,7 +71,7 @@ TEST_CASE("Single lines", "[parser]")
     SECTION("Parse line with supported digraphs")
     {
         sample.str("ll la ld e?");
-        auto encNode = node["normal"][Font::ENCODING];
+        auto&& encNode = node["normal"][Font::ENCODING];
         int expected = (encNode[" "][Font::TEXT_LENGTH_VAL].as<int>() * 3) +
                 encNode["e?"][Font::TEXT_LENGTH_VAL].as<int>() +
                 encNode["ll"][Font::TEXT_LENGTH_VAL].as<int>() +
@@ -103,6 +103,18 @@ TEST_CASE("Single lines", "[parser]")
         REQUIRE_NOTHROW(result = p.parseLine(sample, settings, std::back_inserter(v)));
         REQUIRE(result.second == expected);
         REQUIRE(v.size() == 5);
+    }
+    SECTION("Check that a Noun is recognized")
+    {
+        node["normal"][Font::NOUNS]["Noun"][Font::CODE_VAL] = std::vector<int>{1,1,1};
+        p = TextParser(node, "normal", "en_US.UTF-8");
+        sample.str("Noun");
+        std::pair<bool, int> result;
+        REQUIRE_NOTHROW(result = p.parseLine(sample, settings, std::back_inserter(v)));
+        REQUIRE(v.size() == 5);
+        REQUIRE(v.front() == 1);
+        REQUIRE(v[1] == 1);
+        REQUIRE(v[2] == 1);
     }
     SECTION("Check extras are read correctly.")
     {
@@ -338,7 +350,7 @@ TEST_CASE("Parser error checking", "[parser]")
     SECTION("Undefined bracketed value")
     {
         sample.str("[Missing]");
-        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), Contains("not found in Extras of font normal"));
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v)), Contains("not found in font normal"));
     }
     SECTION("Unenclosed bracket.")
     {

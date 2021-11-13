@@ -4,7 +4,7 @@
 
 namespace sable {
 
-    Font::Font(const YAML::Node &config, const std::string& name) : m_IsValid(false), m_Name(name), m_YamlNodeMark(config.Mark())
+    Font::Font(const YAML::Node &config, const std::string& name) : m_YamlNodeMark(config.Mark()), m_Name(name), m_IsValid(false)
         {
             m_ByteWidth = validate<int>(config[BYTE_WIDTH], BYTE_WIDTH, [] (const int& val) {
                 if (val != 1 && val != 2) {
@@ -32,6 +32,9 @@ namespace sable {
                 throw FontError(e.mark, m_Name, CMD_NEWLINE_VAL, "a scalar.");
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
                 throw FontError(e.mark, m_Name, CODE_VAL, "an integer.");
+            }
+            if (config[NOUNS].IsDefined()) {
+                m_Nouns = generateNouns(config[NOUNS], NOUNS);
             }
             if (config[EXTRAS].IsDefined()) {
                 try {
@@ -80,7 +83,7 @@ namespace sable {
     unsigned int Font::getCommandCode(const std::string &id) const
     {
         if (m_CommandConvertMap.find(id) == m_CommandConvertMap.end()) {
-            throw std::runtime_error("");
+            throw CodeNotFound("");
         }
         return m_CommandConvertMap.at(id).code;
     }
@@ -90,15 +93,25 @@ namespace sable {
         if (!next.empty() && m_TextConvertMap.find(id + next) != m_TextConvertMap.end()) {
             return std::make_tuple(m_TextConvertMap.at(id + next).code, true);
         } else if (m_TextConvertMap.find(id) == m_TextConvertMap.end()) {
-            throw std::runtime_error(id + " not found in " + ENCODING + " of font " + m_Name);
+            throw CodeNotFound(id + " not found in " + ENCODING + " of font " + m_Name);
         }
         return std::make_tuple(m_TextConvertMap.at(id).code, false);
+    }
+
+    CharacterIterator Font::getNounData(const std::string &id)
+    {
+        auto nounItr = m_Nouns.find(id);
+        if (nounItr == m_Nouns.end()) {
+            throw CodeNotFound(id + " not found in " + NOUNS + " of font " + m_Name);
+        }
+        NounNode& noun = nounItr->second;
+        return CharacterIterator(noun.codes.cbegin(), noun.codes.cend(), noun.width);
     }
 
     int Font::getExtraValue(const std::string &id) const
     {
         if (m_Extras.find(id) == m_Extras.end()) {
-            throw std::runtime_error(id + " not found in " + EXTRAS + " of font " + m_Name);
+            throw CodeNotFound(id + " not found in font " + m_Name);
         }
         return m_Extras.at(id);
     }
@@ -106,7 +119,7 @@ namespace sable {
     int Font::getWidth(const std::string &id) const
     {
         if (m_TextConvertMap.find(id) == m_TextConvertMap.end()) {
-            throw std::runtime_error(id + " not found in " + COMMANDS + " of font " + m_Name);
+            throw CodeNotFound(id + " not found in " + COMMANDS + " of font " + m_Name);
         } else if (m_IsFixedWidth || m_TextConvertMap.at(id).width <= 0) {
             return m_DefaultWidth;
         } else {
@@ -117,7 +130,7 @@ namespace sable {
     bool Font::isCommandNewline(const std::string &id) const
     {
         if (m_CommandConvertMap.find(id) == m_CommandConvertMap.end()) {
-            throw std::runtime_error(id + " not found in " + COMMANDS + " of font " + m_Name);
+            throw CodeNotFound(id + " not found in " + COMMANDS + " of font " + m_Name);
         }
         return m_CommandConvertMap.at(id).isNewLine;
     }
@@ -227,9 +240,9 @@ namespace sable {
     }
 
     FontError::FontError(const YAML::Mark &mark, const std::string &name, const std::string &field, const std::string &msg) :
-        std::runtime_error(buildWhat(mark, name, field, msg)), m_Mark(mark), m_Field(field), m_Message(msg), m_Name(name) {}
+        std::runtime_error(buildWhat(mark, name, field, msg)), m_Mark(mark), m_Name(name), m_Field(field), m_Message(msg) {}
     FontError::FontError(const YAML::Mark &mark, const std::string &name, const std::string &field, const std::string& subField, const std::string &msg) :
-        std::runtime_error(buildWhat(mark, name, field, msg, subField)), m_Mark(mark), m_Field(field+'>'+subField), m_Message(msg), m_Name(name) {}
+        std::runtime_error(buildWhat(mark, name, field, msg, subField)), m_Mark(mark), m_Name(name), m_Field(field+'>'+subField), m_Message(msg) {}
 
     YAML::Mark FontError::getMark() const
     {
@@ -269,7 +282,7 @@ namespace sable {
     }
 
     template<class T>
-    std::unordered_map<std::string, T> Font::generateMap(const YAML::Node &&node, const std::string& field, const std::function<void (std::string&)>&& formatter)
+    std::unordered_map<std::string, T> Font::generateMap(const YAML::Node &&node, const std::string& field, const std::optional<std::function<void (std::string&)>>& formatter)
     {
         std::unordered_map<std::string, T> map;
         try {
@@ -278,11 +291,77 @@ namespace sable {
             } else {
                 for (auto it = node.begin(); it != node.end(); ++it) {
                     std::string str = it->first.as<std::string>();
-                    formatter(str);
+                    if (formatter) {
+                        formatter.value()(str);
+                    }
                     try {
                         map[str] = it->second.as<T>();
                     } catch (YAML::TypedBadConversion<T>) {
                         throw FontError(node.Mark(), m_Name, field, str, "must define a numeric code.");
+                    }
+                }
+            }
+            return map;
+        } catch (YAML::InvalidNode &e) {
+            throw FontError(e.mark, m_Name, field);
+        }
+    }
+
+    std::unordered_map<std::string, Font::NounNode> Font::generateNouns(
+            const YAML::Node &&node,
+            const std::string &field
+    ) {
+        std::unordered_map<std::string, NounNode> map;
+        try {
+            if(!node.IsMap()) {
+                throw FontError(node.Mark(), m_Name, field, "a map.");
+            } else {
+                for (auto it = node.begin(); it != node.end(); ++it) {
+                    std::string str = it->first.as<std::string>();
+                    try {
+                        for (auto it = node.begin(); it != node.end(); ++it) {
+                            if (!it->second.IsMap()) {
+                                throw FontError(node.Mark(), m_Name, field , it->first.Scalar(), "is not a map.");
+                            }
+                            auto&& mapNode = it->second;
+                            map[str] = [&mapNode] {
+                                NounNode n;
+                                if (mapNode[TEXT_LENGTH_VAL].IsDefined()) {
+                                    n.width = mapNode[TEXT_LENGTH_VAL].as<int>();
+                                }
+                                if (!mapNode[CODE_VAL].IsDefined() || !mapNode[CODE_VAL].IsSequence()) {
+                                    throw YAML::TypedBadConversion<std::vector<int>>(mapNode.Mark());
+                                }
+                                n.codes.reserve(mapNode[CODE_VAL].size());
+                                for (auto it2 = mapNode[CODE_VAL].begin(); it2 != mapNode[CODE_VAL].end(); ++it2) {
+                                    try {
+                                        n.codes.push_back(it2->as<int>());
+                                    } catch (YAML::TypedBadConversion<int> &e) {
+                                        throw YAML::TypedBadConversion<std::vector<int>>(mapNode[CODE_VAL].Mark());
+                                    }
+
+                                }
+                                return n;
+                            } ();
+                        }
+                    } catch (YAML::TypedBadConversion<int> &e) {
+                        // catching this outside of the lambda so I don't have to capture more variables
+                        throw FontError(
+                            node.Mark(),
+                            m_Name,
+                            field,
+                            str,
+                            std::string("") + "has a \"" + TEXT_LENGTH_VAL + "\" field that is not an integer."
+                        );
+
+                    } catch (YAML::BadConversion &e) {
+                        throw FontError(
+                            node.Mark(),
+                            m_Name,
+                            field,
+                            str,
+                            std::string("") + "must have a \"" + CODE_VAL + "\" field that is a sequence of integers."
+                        );
                     }
                 }
             }

@@ -2,6 +2,7 @@
 #include <vector>
 #include "font.h"
 #include "helpers.h"
+#include "exceptions.h"
 
 TEST_CASE("Test uninititalized font.")
 {
@@ -105,9 +106,6 @@ TEST_CASE("Test 1-byte fonts.")
         normalNode[Font::USE_DIGRAPHS] = "false";
         Font f(normalNode, "noDigraphs");
         REQUIRE(!f.getHasDigraphs());
-//        auto result = f.getTextCode("l", "l");
-//        REQUIRE(std::get<0>(result) == normalNode[Font::ENCODING]["l"][Font::CODE_VAL].as<int>());
-//        REQUIRE(!std::get<1>(result));
     }
     SECTION("Test font with extras.")
     {
@@ -115,6 +113,33 @@ TEST_CASE("Test 1-byte fonts.")
         Font f(normalNode, "normal");
         REQUIRE(f.getExtraValue("SomeExtra") == 1);
         REQUIRE_THROWS(f.getExtraValue("SomeMissingExtra"));
+    }
+    SECTION("Test font with nouns.")
+    {
+        std::vector<int> data = {0, 1, 2, 3, 4};
+        SECTION("Nouns with regular ints")
+        {
+            normalNode[Font::NOUNS]["SomeNoun"][Font::CODE_VAL] = data;
+        }
+        SECTION("Nouns with hex strings")
+        {
+            std::vector<std::string> stringData;
+            for (auto &i: data) {
+                stringData.push_back(std::string("0x") + std::to_string(i));
+            }
+             normalNode[Font::NOUNS]["SomeNoun"][Font::CODE_VAL] = stringData;
+        }
+        Font f(normalNode, "normal");
+        REQUIRE_NOTHROW(f.getNounData("SomeNoun"));
+        auto nounData = f.getNounData("SomeNoun");
+        REQUIRE(data.front() == *nounData);
+        int count = 0;
+        for (int var: data) {
+            int tmp = *(nounData++);
+            REQUIRE(tmp == var);
+            count++;
+        }
+        REQUIRE(count == data.size());
     }
 }
 
@@ -245,5 +270,60 @@ TEST_CASE("Test config validation")
     {
         normalNode[Font::EXTRAS] = "1";
         REQUIRE_THROWS_WITH(Font(normalNode, ""), Contains("must be a map."));
+    }
+    SECTION("Check Nouns top level validation")
+    {
+        SECTION("Invalid node type - scalar.")
+        {
+            normalNode[Font::NOUNS] = 1;
+        }
+        SECTION("Invalid node type - sequence.")
+        {
+            normalNode[Font::NOUNS] = std::vector<int>{1, 2, 3};
+        }
+        REQUIRE_THROWS_AS(Font(normalNode, ""), sable::FontError);
+        REQUIRE_THROWS_WITH(Font(normalNode, ""), Contains("must be a map."));
+    }
+    SECTION("Nouns map containing only scalars.")
+    {
+        normalNode[Font::NOUNS][Font::TEXT_LENGTH_VAL] = "stuff";
+        REQUIRE_THROWS_AS(Font(normalNode, "bad_nouns"), sable::FontError);
+    }
+    SECTION("Nouns code field validation")
+    {
+        SECTION("Nouns map containing with node missing required fields.")
+        {
+            normalNode[Font::NOUNS]["Stuff"]["MoreStuff"] = "EvenMoreStuff";
+        }
+        SECTION("Nouns map containing with node that has invalid code type.")
+        {
+            normalNode[Font::NOUNS]["Stuff"][Font::CODE_VAL] = "EvenMoreStuff";
+        }
+        SECTION("Nouns map containing with node that has invalid code type.")
+        {
+            normalNode[Font::NOUNS]["Stuff"][Font::CODE_VAL] = std::vector<std::string>{"a", "b", "c"};
+        }
+        REQUIRE_THROWS_AS(Font(normalNode, "bad_nouns"), sable::FontError);
+        REQUIRE_THROWS_WITH(
+            Font(normalNode, "bad_nouns"),
+            Contains(std::string("") + "must have a \"" + Font::CODE_VAL + "\" field that is a sequence of integers.")
+        );
+    }
+    SECTION("Width validation")
+    {
+        normalNode[Font::NOUNS]["SomeNoun"][Font::CODE_VAL] = std::vector<int>{0, 1, 2, 3, 4};
+        SECTION("Nouns width that is a non-integer scalar.")
+        {
+            normalNode[Font::NOUNS]["SomeNoun"][Font::TEXT_LENGTH_VAL] = "something";
+        }
+        SECTION("Nouns width that is a non-scalar.")
+        {
+            normalNode[Font::NOUNS]["SomeNoun"][Font::TEXT_LENGTH_VAL] = std::vector<int>{0, 1, 2, 3, 4};
+        }
+        REQUIRE_THROWS_AS(Font(normalNode, "bad_nouns"), sable::FontError);
+        REQUIRE_THROWS_WITH(
+            Font(normalNode, "bad_nouns"),
+            Contains(std::string("") + "has a \"" + Font::TEXT_LENGTH_VAL + "\" field that is not an integer.")
+        );
     }
 }

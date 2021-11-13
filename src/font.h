@@ -6,7 +6,9 @@
 #include <string>
 #include <stdexcept>
 #include <functional>
+#include <optional>
 #include <cctype>
+#include "characteriterator.h"
 
 namespace sable {
     class Font
@@ -23,6 +25,7 @@ namespace sable {
         static constexpr const char* FONT_ADDR = "FontWidthAddress";
         static constexpr const char* ENCODING = "Encoding";
         static constexpr const char* COMMANDS = "Commands";
+        static constexpr const char* NOUNS = "Nouns";
         static constexpr const char* EXTRAS = "Extras";
         static constexpr const char* CODE_VAL = "code";
         static constexpr const char* TEXT_LENGTH_VAL = "length";
@@ -41,6 +44,7 @@ namespace sable {
 
         unsigned int getCommandCode(const std::string& id) const;
         std::tuple<unsigned int, bool> getTextCode(const std::string& id, const std::string& next = "") const;
+        CharacterIterator getNounData(const std::string& id);
         int getExtraValue(const std::string& id) const;
         int getWidth(const std::string& id) const;
         bool isCommandNewline(const std::string& id) const;
@@ -57,6 +61,10 @@ namespace sable {
             unsigned int code;
             bool isNewLine = false;
         };
+        struct NounNode {
+            std::vector<int> codes;
+            int width = 0;
+        };
         YAML::Mark m_YamlNodeMark;
         std::string m_Name;
         bool m_IsValid, m_HasDigraphs, m_IsFixedWidth;
@@ -66,12 +74,21 @@ namespace sable {
         std::unordered_map<std::string, TextNode> m_TextConvertMap;
         std::unordered_map<std::string, CommandNode> m_CommandConvertMap;
         std::unordered_map<std::string, int> m_Extras;
+        std::unordered_map<std::string, NounNode> m_Nouns;
         template <class T>
         T validate(const YAML::Node&& node, const std::string& field, const std::function<T (const T&)>& validator);
         template <class T>
         T validate(const YAML::Node&& node, const std::string& field, const std::function<T (const T&)>&& validator = [](const T& val){return val;});
         template <class T>
-        std::unordered_map<std::string, T> generateMap(const YAML::Node&& node, const std::string& field, const std::function<void (std::string&)>&& formatter = [](std::string& str){});
+        std::unordered_map<std::string, T> generateMap(
+            const YAML::Node&& node,
+            const std::string& field,
+            const std::optional<std::function<void (std::string&)>>& formatter = std::nullopt
+        );
+        std::unordered_map<std::string, NounNode> generateNouns(
+            const YAML::Node&& node,
+            const std::string& field
+        );
     public:
         friend YAML::convert<sable::Font::TextNode>;
         friend YAML::convert<sable::Font::CommandNode>;

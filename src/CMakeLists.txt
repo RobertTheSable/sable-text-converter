@@ -5,6 +5,8 @@ list(
     APPEND SABLE_SOURCE_FILES
 
     "${PROJECT_SOURCE_DIR}/include/asar/asardll.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/characteriterator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/characteriterator.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/font.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/font.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/exceptions.h"

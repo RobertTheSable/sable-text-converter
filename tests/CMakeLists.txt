@@ -13,6 +13,7 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/project.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/datastore.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/rompatcher.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/catch/characteriterator.cpp"
 )
 
 include_directories(helpers)

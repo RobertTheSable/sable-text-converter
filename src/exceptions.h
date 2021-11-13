@@ -33,5 +33,8 @@ namespace sable {
         YAML::Mark m_Mark;
         std::string m_Name, m_Field, m_Message;
     };
+    class CodeNotFound : public std::runtime_error {
+        using std::runtime_error::runtime_error;
+    };
 }
 #endif // EXCEPTIONS_H
