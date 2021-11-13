@@ -117,9 +117,15 @@ TEST_CASE("Test 1-byte fonts.")
     SECTION("Test font with nouns.")
     {
         std::vector<int> data = {0, 1, 2, 3, 4};
+        int expectedWidth = 8 * data.size();
         SECTION("Nouns with regular ints")
         {
             normalNode[Font::NOUNS]["SomeNoun"][Font::CODE_VAL] = data;
+            SECTION("Noun with a custom width")
+            {
+                normalNode[Font::NOUNS]["SomeNoun"][Font::TEXT_LENGTH_VAL] = 16;
+                expectedWidth = 16;
+            }
         }
         SECTION("Nouns with hex strings")
         {
@@ -132,6 +138,7 @@ TEST_CASE("Test 1-byte fonts.")
         Font f(normalNode, "normal");
         REQUIRE_NOTHROW(f.getNounData("SomeNoun"));
         auto nounData = f.getNounData("SomeNoun");
+        REQUIRE(nounData.getWidth() == expectedWidth);
         REQUIRE(data.front() == *nounData);
         int count = 0;
         for (int var: data) {

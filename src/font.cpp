@@ -105,7 +105,15 @@ namespace sable {
             throw CodeNotFound(id + " not found in " + NOUNS + " of font " + m_Name);
         }
         NounNode& noun = nounItr->second;
-        return CharacterIterator(noun.codes.cbegin(), noun.codes.cend(), noun.width);
+        int width = noun.width;
+        if  (m_IsFixedWidth || width <= 0) {
+            width = m_DefaultWidth * noun.codes.size();
+        }
+        return CharacterIterator(
+            noun.codes.cbegin(),
+            noun.codes.cend(),
+            width
+        );
     }
 
     int Font::getExtraValue(const std::string &id) const
