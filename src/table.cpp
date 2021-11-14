@@ -51,7 +51,7 @@ size_t Table::getEntryCount() const
     return entries.size();
 }
 
-std::vector<std::string> Table::getDataFromFile(std::istream &tableFile, util::Mapper mapType)
+std::vector<std::string> Table::getDataFromFile(std::istream &tableFile, const util::Mapper& mapper)
 {
     std::vector<std::string> v;
     std::string line, input;
@@ -72,7 +72,7 @@ std::vector<std::string> Table::getDataFromFile(std::istream &tableFile, util::M
                                 );
                 }
                 auto result = util::strToHex(option);
-                if (result.second < 0 || util::ROMToPC(mapType, result.first) == -1) {
+                if (result.second < 0 || mapper.ToPC(result.first) == -1) {
                     throw std::runtime_error(
                                 "line " + std::to_string(tableLine) +
                                 ": " + option + " is not a valid SNES address."
@@ -160,7 +160,7 @@ std::vector<std::string> Table::getDataFromFile(std::istream &tableFile, util::M
             } else if (input == "data") {
                 if (lineStream >> option) {
                     auto result = util::strToHex(option);
-                    if (result.second < 0 || util::ROMToPC(mapType, result.first) == -1) {
+                    if (result.second < 0 || mapper.ToPC(result.first) == -1) {
                         throw std::runtime_error(
                                     "line " + std::to_string(tableLine) +
                                     ": " + option + " is not a valid SNES address."

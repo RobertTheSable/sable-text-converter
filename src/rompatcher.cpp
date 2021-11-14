@@ -48,15 +48,9 @@ bool istringcompare(const std::string& a, const std::string& b) {
     return true;
 }
 
-sable::RomPatcher::RomPatcher(const std::string &mode) : m_AState(AsarState::NotRun)
+sable::RomPatcher::RomPatcher(const util::MapperType& mapper) : m_MapType(mapper), m_AState(AsarState::NotRun)
 {
-    if (istringcompare(mode, "lorom")) {
-        m_MapType = util::Mapper::LOROM;
-    } else if (istringcompare(mode, "exlorom")) {
-        m_MapType = util::Mapper::EXLOROM;
-    } else {
-        m_MapType = util::Mapper::INVALID;
-    }
+
 }
 
 bool sable::RomPatcher::loadRom(const std::string &file, const std::string &name, int header)
@@ -77,7 +71,7 @@ bool sable::RomPatcher::loadRom(const std::string &file, const std::string &name
     }
     auto pos = inFile.tellg();
     inFile.seekg(0, std::ios_base::beg);
-    auto size = pos - inFile.tellg();
+    unsigned long size = pos - inFile.tellg();
     if (header > 0) {
         m_HeaderSize = 512;
     } else if (header < 0) {
@@ -88,7 +82,7 @@ bool sable::RomPatcher::loadRom(const std::string &file, const std::string &name
     if (m_HeaderSize != 512 && m_HeaderSize != 0) {
         throw std::runtime_error(file + " has an invalid header.");
     }
-    if ((size-m_HeaderSize) > util::ROM_MAX_SIZE) {
+    if ((size-m_HeaderSize) >= util::MAX_ALLOWED_FILESIZE_SHORTCUT) {
         throw std::runtime_error(file + " is too large.");
     }
     m_RomSize = size - m_HeaderSize;
@@ -104,31 +98,49 @@ void sable::RomPatcher::clear()
     m_data.clear();
 }
 
-bool sable::RomPatcher::expand(int size)
+bool sable::RomPatcher::expand(int size, const util::Mapper& mapper)
 {
-    if (size <= 0 || size > util::ROM_MAX_SIZE){
+    if (size <= 0 || size > util::MAX_ALLOWED_FILESIZE_SHORTCUT) {
         throw std::runtime_error("Invalid rom size.");
+    }
+    if (util::getExpandedType(m_MapType) != mapper.getType() && m_MapType != mapper.getType()) {
+        throw std::logic_error("Tried to expand ROM with incompatible mapper types");
     }
     auto oldsize = m_RomSize;
     m_RomSize = size;
     m_data.resize(m_HeaderSize + m_RomSize, 0);
+    util::Mapper oldMapper(m_MapType, m_HeaderSize != 0, true, util::NORMAL_ROM_MAX_SIZE);
     if (oldsize <= util::NORMAL_ROM_MAX_SIZE && m_RomSize > util::NORMAL_ROM_MAX_SIZE) {
         auto oldHeader = m_data.begin()
-                + util::ROMToPC(m_MapType, util::HEADER_LOCATION)
-                + m_HeaderSize;
-        auto oldMapType = m_MapType;
-        m_MapType = util::getExpandedType(m_MapType);
+                + oldMapper.ToPC(util::HEADER_LOCATION);
+        //auto oldMapType = m_MapType;
+        //m_MapType = util::getExpandedType(m_MapType);
         auto newHeader = m_data.begin()
-                + util::ROMToPC(m_MapType, util::HEADER_LOCATION)
+                + mapper.ToPC(util::HEADER_LOCATION)
                 + m_HeaderSize;
         // TODO: check rom name or dev ID to see if extended header needs to be copied
+        int startAddress = 0, stopAddress = 0, modeMask = 0;
+        if (mapper.getType() == util::MapperType::EXHIROM) {
+            startAddress = 0x408000;
+            stopAddress = 0x410000;
+            modeMask = 4;
+        } else if (mapper.getType() == util::MapperType::EXLOROM) {
+            startAddress = 0x008000;
+            stopAddress = 0x018000;
+            modeMask = 0;
+        } else {
+            throw std::logic_error("Tried to expand with a non-expanded mapper.");
+        }
         std::copy(
-                    m_data.begin()+(m_HeaderSize + util::ROMToPC(oldMapType, 0x008000)),
-                    m_data.begin()+(m_HeaderSize + util::ROMToPC(oldMapType, 0x018000)),
-                    m_data.begin()+(m_HeaderSize + util::ROMToPC(m_MapType, 0x008000))
-                    );
+            m_data.begin()+(oldMapper.ToPC(startAddress)),
+            m_data.begin()+(oldMapper.ToPC(stopAddress)),
+            m_data.begin()+(m_HeaderSize + mapper.ToPC(startAddress))
+        );
+        // Update the internal size and mapper mode, if needed
         *(oldHeader+0x17) = ceil(log((int)(m_RomSize/1024)) / log(2));
         *(newHeader+0x17) = ceil(log((int)(m_RomSize/1024)) / log(2));
+        *(oldHeader+0x15) |= modeMask;
+        *(newHeader+0x15) |= modeMask;
     }
     return true;
 }
@@ -158,7 +170,7 @@ bool sable::RomPatcher::applyPatchFile(const std::string &path, const std::strin
 #ifndef _WIN32
     fflush(stdout);
 
-    auto size = read(buffer.out_pipe[0], buffer.buffer, 100);
+    //auto size = read(buffer.out_pipe[0], buffer.buffer, 100);
     reopenPuts(buffer);
     if (m_AState == AsarState::Error) {
         std::cerr << buffer.buffer << std::endl;
@@ -236,7 +248,6 @@ void sable::RomPatcher::writeParsedData(const sable::DataStore &m_DataStore, con
             }
             std::string token = m_DataStore.getFile(node.label).files;
             mainText << generateInclude(includePath / token , fs::path(), true) + '\n';
-                    // << "incbin " + (fs::path(m_BinsDir) / m_TextOutDir / token).string() + '\n';
             if (m_DataStore.getFile(node.label).printpc) {
                 mainText << "print pc\n";
             }
@@ -291,15 +302,24 @@ void sable::RomPatcher::writeFontData(const sable::DataStore &data, std::ostream
     }
 }
 
-std::string sable::RomPatcher::getMapperDirective()
+std::string sable::RomPatcher::getMapperDirective(const util::MapperType& mapper)
 {
     std::string value;
-    if (m_MapType == util::Mapper::LOROM) {
-        value = "lorom";
-    } else if (m_MapType == util::Mapper::EXLOROM) {
-        value = "exlorom";
-    } else {
-        throw std::logic_error("Invalid map type.");
+    switch (mapper) {
+        case util::MapperType::LOROM:
+            value = "lorom";
+            break;
+        case util::MapperType::EXLOROM:
+            value = "exlorom";
+            break;
+        case util::MapperType::HIROM:
+            value = "hirom";
+            break;
+        case util::MapperType::EXHIROM:
+            value = "exhirom";
+            break;
+        default:
+            throw std::logic_error("Invalid map type.");
     }
     return value;
 }
@@ -359,11 +379,6 @@ std::string sable::RomPatcher::generateNumber(int number, int width, int base) c
     }
     return output.str();
 
-}
-
-sable::util::Mapper sable::RomPatcher::getMapType() const
-{
-    return m_MapType;
 }
 
 std::string sable::RomPatcher::generateAssignment(const std::string& label, int value, int width, int base, const std::string& baseLabel) const

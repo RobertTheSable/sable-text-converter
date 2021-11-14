@@ -22,24 +22,47 @@ TEST_CASE("Basic generation functions")
 TEST_CASE("Expansion Test", "[rompatcher]")
 {
     using sable::RomPatcher;
-    RomPatcher r("lorom");
-    r.loadRom("sample.sfc", "patch test", -1);
-    SECTION("Resizing to normal ROM size.")
+    SECTION("LoROM")
     {
-        REQUIRE(r.getRealSize() == 131072);
+        RomPatcher r(sable::util::MapperType::LOROM);
+        sable::util::Mapper m(sable::util::MapperType::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
+        r.loadRom("sample.sfc", "patch test", -1);
+        SECTION("Resizing to normal ROM size.")
+        {
+            REQUIRE(r.getRealSize() == 131072);
 
-        r.expand(sable::util::calculateFileSize(0xE08001, sable::util::Mapper::LOROM));
-        REQUIRE(r.getRealSize() == 0x380000);
-        REQUIRE(r.getMapType() == sable::util::Mapper::LOROM);
+            REQUIRE_NOTHROW(r.expand(m.calculateFileSize(0xE08001), m));
+            REQUIRE(r.getRealSize() == 0x380000);
+        }
+        SECTION("Resizing to EXLOROM ROM size.")
+        {
+            sable::util::Mapper m2(sable::util::MapperType::EXLOROM, false, true, 0x600000);
+            REQUIRE(m.ToPC(sable::util::HEADER_LOCATION) == 0x007FC0);
+            unsigned char test = r.at(m.ToPC(sable::util::HEADER_LOCATION));
+            unsigned char mode = r.at(m.ToPC(sable::util::HEADER_LOCATION) + 0x15);
+            REQUIRE_NOTHROW(r.expand(m2.calculateFileSize(0x208000), m2));
+            REQUIRE(r.getRealSize() == 0x600000);
+            REQUIRE(m2.ToPC(sable::util::HEADER_LOCATION) == 0x400000+m.ToPC(sable::util::HEADER_LOCATION));
+            REQUIRE(r.at(m2.ToPC(sable::util::HEADER_LOCATION)) == test);
+            REQUIRE(r.at(m2.ToPC(sable::util::HEADER_LOCATION) + 0x15) == mode);
+        }
     }
-    SECTION("Resizing to EXLOROM ROM size.")
+    SECTION("Resizing to EXHIROM ROM size.")
     {
-        REQUIRE(sable::util::LoROMToPC(sable::util::HEADER_LOCATION) == 0x007FC0);
-        char test = r.at(sable::util::LoROMToPC(sable::util::HEADER_LOCATION));
-        r.expand(sable::util::calculateFileSize(0x208000, sable::util::Mapper::EXLOROM));
+        RomPatcher r(sable::util::MapperType::HIROM);
+        sable::util::Mapper m(sable::util::MapperType::HIROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
+        sable::util::Mapper m2(sable::util::MapperType::EXHIROM, false, true, 0x600000);
+        r.loadRom("sample.sfc", "patch test", -1);
+
+        REQUIRE(m.ToPC(sable::util::HEADER_LOCATION) == 0x00FFC0);
+        REQUIRE(m2.ToPC(sable::util::HEADER_LOCATION) == 0x400000+m.ToPC(sable::util::HEADER_LOCATION));
+
+        unsigned char test = r.at(m.ToPC(sable::util::HEADER_LOCATION));
+        unsigned char mode = r.at(m.ToPC(sable::util::HEADER_LOCATION) + 0x15);
+        r.expand(m2.calculateFileSize(0x408000), m2);
         REQUIRE(r.getRealSize() == 0x600000);
-        REQUIRE(r.at(sable::util::EXLoROMToPC(sable::util::HEADER_LOCATION)) == test);
-        REQUIRE(r.getMapType() == sable::util::Mapper::EXLOROM);
+        REQUIRE(r.at(m2.ToPC(sable::util::HEADER_LOCATION)) == test);
+        REQUIRE(r.at(m2.ToPC(sable::util::HEADER_LOCATION) + 0x15) == (mode | 4) );
     }
 }
 
@@ -47,9 +70,10 @@ TEST_CASE("Expansion Test", "[rompatcher]")
 TEST_CASE("Asar patch testing", "[rompatcher]")
 {
     using sable::RomPatcher;
-    RomPatcher r;
+    RomPatcher r(sable::util::MapperType::LOROM);
+    sable::util::Mapper m(sable::util::MapperType::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
     r.loadRom("sample.sfc", "patch test", -1);
-    r.expand(sable::util::calculateFileSize(0xE08000, sable::util::Mapper::LOROM));
+    r.expand(m.calculateFileSize(0xE08000), m);
     SECTION("Test that Asar patch can be applied.")
     {
         REQUIRE(r.applyPatchFile("sample.asm") == true);

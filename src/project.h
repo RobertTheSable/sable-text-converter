@@ -63,7 +63,8 @@ public:
     static constexpr const char* EXTRAS = "extras";
     static constexpr const char* ROMS = "roms";
     static constexpr const char* DEFAULT_MODE = "defaultMode";
-//    static constexpr const char* MAP_TYPE = "mapper";
+    static constexpr const char* MAP_TYPE = "mapper";
+    static constexpr const char* USE_MIRRORED_BANKS = "useMirrorBanks";
     static constexpr const char* OUT_SIZE = "outputSize";
     static constexpr const char* LOCALE = "locale";
 
@@ -83,6 +84,8 @@ private:
     size_t m_OutputSize;
     StringVector m_Includes, m_Extras, m_FontIncludes;
     std::vector<Rom> m_Roms;
+    util::MapperType m_BaseType;
+    util::Mapper m_Mapper;
     //TextParser m_Parser;
     void outputFile(const std::string &file, const std::vector<unsigned char>& data, size_t length, int start = 0);
     static bool validateConfig(const YAML::Node& configYML);

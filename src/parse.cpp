@@ -8,8 +8,8 @@
 
 using sable::TextParser, sable::Font;
 
-TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, const std::string& localeName, util::Mapper mapType) :
-    defaultFont(defaultMode), m_RomType(mapType)
+TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, const std::string& localeName) :
+    defaultFont(defaultMode)
 {
     m_Locale =  boost::locale::generator().generate(localeName);
     for (auto it = node.begin(); it != node.end(); ++it) {
@@ -17,7 +17,7 @@ TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, c
     }
 }
 
-std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & settings, back_inserter insert)
+std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & settings, back_inserter insert, const util::Mapper& mapper)
 {
     using boost::locale::boundary::character, boost::locale::boundary::word;
     int length = 0;
@@ -85,7 +85,7 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                 }
             } else if (*it == "@") {
                 auto startPoint = it;
-                settings = updateSettings(settings, it, map.end(), settings.currentAddress);
+                settings = updateSettings(settings, it, map.end(), mapper);
                 if (startPoint == map.begin() && (state.peek() != std::char_traits<char>::eof())) {
                     return std::make_pair(finished, length);
                 }
@@ -171,7 +171,7 @@ void TextParser::insertData(unsigned int code, int size, back_inserter bi)
 
 using sable::ParseSettings;
 
-sable::ParseSettings TextParser::updateSettings(const ParseSettings &settings, ssegment_index::iterator& it, const ssegment_index::const_iterator& end, unsigned int currentAddress)
+sable::ParseSettings TextParser::updateSettings(const ParseSettings &settings, ssegment_index::iterator& it, const ssegment_index::const_iterator& end, const util::Mapper& mapper)
 {
     static const std::map<std::string, int> SUPPORTED_SETTINGS = {
         {"printpc", 1},
@@ -216,10 +216,16 @@ sable::ParseSettings TextParser::updateSettings(const ParseSettings &settings, s
                     } else if (name == "address") {
                         if (option != "auto") {
                             auto result = util::strToHex(option);
-                            if (result.second >= 0 && util::ROMToPC(m_RomType, result.first) >= 0) {
+                            int convertedAddress = mapper.ToPC(result.first);
+                            if (result.second >= 0 && mapper.ToPC(result.first) >= 0) {
                                 retVal.currentAddress = util::strToHex(option).first;
                             } else {
-                                throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for address: must be auto or a SNES address.");
+                                if (convertedAddress == -2) {
+                                    throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for address: address is too large for the specified ROM size.");
+                                } else {
+                                    // don't need to handle -2 case since it won't happen when given an SNES-style address to start with.
+                                    throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for address: must be auto or a SNES address.");
+                                }
                             }
                         }
                     } else if (name == "width") {

@@ -20,7 +20,7 @@ public:
     void setDataAddress(int DataAddress);
     int getSize() const;
     size_t getEntryCount() const;
-    std::vector<std::string> getDataFromFile(std::istream& in, util::Mapper mapType = util::Mapper::LOROM);
+    std::vector<std::string> getDataFromFile(std::istream& in, const util::Mapper& mapper);
     struct Entry
     {
         std::string label;

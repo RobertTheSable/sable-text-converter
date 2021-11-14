@@ -36,16 +36,16 @@ int main(int argc, char * argv[])
              cout << programOptions.help({"", "Group"}) << '\n';
         } else {
             try {
-                sable::Project parser(starting_path.string());
-                if (parser) {
+                sable::Project project(starting_path.string());
+                if (project) {
                     if (!options.count("a")) {
-                        parser.parseText();
+                        project.parseText();
                         if (verbosity > 1) {
                             cout << "Script parsing completed.\n";
                         }
                     }
                     if (!options.count("s")) {
-                        parser.writePatchData();
+                        project.writePatchData();
 
                     }
                 }

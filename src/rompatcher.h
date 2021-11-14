@@ -15,11 +15,11 @@ typedef std::vector<std::string>::const_iterator ConstStringIterator;
 class RomPatcher
 {
 public:
-    RomPatcher(const std::string& mode = "lorom");
+    RomPatcher(const util::MapperType& mapper = util::MapperType::LOROM);
     bool loadRom(const std::string& file, const std::string& name, int header = 0);
     void clear();
     //~RomPatcher();
-    bool expand(int size);
+    bool expand(int size, const util::Mapper& mapper);
     bool applyPatchFile(const std::string& path, const std::string& format = "asm");
     unsigned char& at(int n);
     bool getMessages(std::back_insert_iterator<std::vector<std::string>> v);
@@ -29,7 +29,7 @@ public:
     void writeIncludes(ConstStringIterator start, ConstStringIterator end, std::ostream& mainFile, const fs::path& includePath = fs::path());
     void writeFontData(const DataStore& data, std::ostream& output);
 
-    std::string getMapperDirective();
+    std::string getMapperDirective(const util::MapperType& mapper);
     std::string generateInclude(const fs::path& file, const fs::path& basePath, bool isBin) const;
     std::string generateDefine(const std::string& label) const;
     std::string generateAssignment(const std::string& label, int value, int width, int base = 16, const std::string& baseLabel = "") const;
@@ -39,16 +39,13 @@ public:
 //    unsigned char &atROMAddr(int n);
 //    std::string getName() const;
 
-    sable::util::Mapper getMapType() const;
-
-
 private:
     std::string generateNumber(int number, int width, int base = 16) const;
     std::vector<unsigned char> m_data;
     std::string m_Name;
     int m_RomSize;
     int m_HeaderSize;
-    sable::util::Mapper m_MapType;
+    sable::util::MapperType m_MapType;
     enum AsarState {NotRun, Success, Error};
     AsarState m_AState;
 };

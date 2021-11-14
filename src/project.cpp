@@ -13,13 +13,13 @@
 namespace sable {
 
 Project::Project(const YAML::Node &config, const std::string &projectDir)
-    : nextAddress(0), maxAddress(0)
+    : nextAddress(0), m_Mapper(util::MapperType::INVALID, false, true), maxAddress(0)
 {
     init(config, projectDir);
 }
 
 Project::Project(const std::string &projectDir)
-    : nextAddress(0), m_ConfigPath((fs::path(projectDir) / "config.yml").string()), maxAddress(0)
+    : nextAddress(0), m_ConfigPath((fs::path(projectDir) / "config.yml").string()), m_Mapper(util::MapperType::INVALID, false, true), maxAddress(0)
 {
     if (!fs::exists(fs::path(projectDir) / "config.yml")) {
         throw ConfigError((fs::path(projectDir) / "config.yml").string() + " not found.");
@@ -51,6 +51,31 @@ void Project::init(const YAML::Node &config, const std::string &projectDir)
             }
         } else {
             m_LocaleString = "en_US.UTF8";
+        }
+        if (config[CONFIG_SECTION][MAP_TYPE].IsDefined()) {
+            try {
+                bool useMirrors = false;
+                if (config[CONFIG_SECTION][USE_MIRRORED_BANKS].IsDefined()) {
+                    useMirrors = config[CONFIG_SECTION][USE_MIRRORED_BANKS].as<std::string>() == "true";
+                }
+                auto mapperType = config[CONFIG_SECTION][MAP_TYPE].as<util::MapperType>();
+                m_BaseType = mapperType;
+                if (m_OutputSize > util::NORMAL_ROM_MAX_SIZE) {
+                    mapperType = util::getExpandedType(mapperType);
+                }
+                m_Mapper = util::Mapper(mapperType, false, !useMirrors, m_OutputSize);
+            } catch (YAML::TypedBadConversion<util::MapperType> &e) {
+                throw ConfigError("The provided mapper must be one of: lorom, hirom, exlorom, exhirom.");
+            } catch (YAML::TypedBadConversion<std::string> &e) {
+                throw ConfigError("The useMirrorBanks option should be true or false.");
+            }
+        } else {
+            m_BaseType = util::MapperType::LOROM;
+            if (m_OutputSize > util::NORMAL_ROM_MAX_SIZE) {
+                m_Mapper = util::Mapper(util::MapperType::EXLOROM, false, true, m_OutputSize);
+            } else {
+                m_Mapper = util::Mapper(util::MapperType::LOROM, false, true, m_OutputSize);
+            }
         }
         fs::path mainDir(projectDir);
         if (fs::path(m_MainDir).is_relative()) {
@@ -102,8 +127,9 @@ bool Project::parseText()
         fs::create_directory(mainDir / m_OutputDir / m_BinsDir / m_TextOutDir);
     }
 
-    auto mapper = m_OutputSize > util::NORMAL_ROM_MAX_SIZE ? util::Mapper::EXLOROM : util::Mapper::LOROM;
-    DataStore m_DataStore = DataStore(YAML::LoadFile(m_FontConfigPath), m_DefaultMode, m_LocaleString, mapper);
+//    auto mapperType = m_OutputSize > util::NORMAL_ROM_MAX_SIZE ? util::MapperType::EXLOROM : util::MapperType::LOROM;
+//    util::Mapper mapper(mapperType, false, true, m_OutputSize);
+    DataStore m_DataStore = DataStore(YAML::LoadFile(m_FontConfigPath), m_DefaultMode, m_LocaleString);
     {
         fs::path input = fs::path(m_MainDir) / m_InputDir;
         std::vector<std::string> allFiles;
@@ -144,7 +170,7 @@ bool Project::parseText()
         for (auto &file: allFiles) {
             std::ifstream input(file);
             while (input) {
-                m_DataStore.addFile(input, fs::path(file), std::cerr);
+                m_DataStore.addFile(input, fs::path(file), std::cerr, m_Mapper);
                 int index = 0;
                 for (auto outData = m_DataStore.getOutputFile(); outData.second != 0; outData = m_DataStore.getOutputFile()) {
                     outputFile(
@@ -170,7 +196,7 @@ bool Project::parseText()
         if (!mainText || !textDefines) {
             throw ASMError("Could not open files in " + (mainDir / m_OutputDir).string() + " for writing.\n");
         }
-        RomPatcher r(m_OutputSize > util::NORMAL_ROM_MAX_SIZE ? "exlorom" : "lorom");
+        RomPatcher r(m_BaseType);
         r.writeParsedData(m_DataStore, fs::path(m_BinsDir) / m_TextOutDir, mainText, textDefines);
         textDefines.flush();
         textDefines.close();
@@ -178,7 +204,7 @@ bool Project::parseText()
         mainText.close();
         for (Rom& romData: m_Roms) {
             std::ofstream mainFile((fs::path(m_MainDir) / (romData.name + ".asm")).string());
-            mainFile << r.getMapperDirective() + "\n\n";
+            mainFile << r.getMapperDirective(m_Mapper.getType()) + "\n\n";
             r.writeIncludes(romData.includes.cbegin(), romData.includes.cend(), mainFile, fs::path(m_OutputDir));
             r.writeIncludes(m_Includes.cbegin(), m_Includes.cend(), mainFile, fs::path(m_OutputDir));
             r.writeIncludes(m_Extras.cbegin(), m_Extras.cend(), mainFile, fs::path(m_OutputDir) / m_BinsDir);
@@ -206,11 +232,11 @@ void Project::writePatchData()
 
     bool changeSettings = false;
     if (m_OutputSize == 0) {
-        m_OutputSize = util::calculateFileSize(getMaxAddress());
+        m_OutputSize = m_Mapper.calculateFileSize(getMaxAddress());
         changeSettings = true;
     }
     for (Rom& romData: m_Roms) {
-        RomPatcher r("lorom");
+        RomPatcher r(m_BaseType);
         std::string patchFile = (mainDir / (romData.name + ".asm")).string();
 
         fs::path romFilePath = fs::path(m_RomsDir) / romData.file;
@@ -221,7 +247,7 @@ void Project::writePatchData()
             if (changeSettings && r.getRealSize() >= m_OutputSize) {
                 changeSettings = false;
             }
-            r.expand(m_OutputSize);
+            r.expand(m_OutputSize, m_Mapper);
             auto result = r.applyPatchFile(patchFile);
             if (result) {
                 std::cout << "Assembly for " << romData.name << " completed successfully." << std::endl;
@@ -236,7 +262,6 @@ void Project::writePatchData()
                             (fs::path(m_RomsDir) / (romData.name + extension)).string(),
                             std::ios::out|std::ios::binary
                             );
-                size_t test = r.getRealSize();
                 output.write(reinterpret_cast<char*>(&r.at(0)), r.getRealSize());
                 output.close();
                 r.clear();

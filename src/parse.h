@@ -25,13 +25,13 @@ namespace sable {
     {
     public:
         TextParser()=default;
-        TextParser(const YAML::Node& node, const std::string& defaultMode, const std::string& localeName, util::Mapper mapType = util::Mapper::LOROM);
+        TextParser(const YAML::Node& node, const std::string& defaultMode, const std::string& localeName);
         struct lineNode{
             bool hasNewLines;
             int length;
             std::vector<unsigned char> data;
         };
-        std::pair<bool, int> parseLine(std::istream &input, ParseSettings &settings, back_inserter insert);
+        std::pair<bool, int> parseLine(std::istream &input, ParseSettings &settings, back_inserter insert, const util::Mapper& mapper);
         const std::map<std::string, Font>& getFonts() const;
         ParseSettings getDefaultSetting(int address);
     private:
@@ -40,12 +40,11 @@ namespace sable {
         int maxWidth;
         std::map<std::string, Font> m_Fonts;
         std::string defaultFont;
-        util::Mapper m_RomType;
         ParseSettings updateSettings(
                 const ParseSettings &settings,
                 ssegment_index::iterator& it,
                 const ssegment_index::const_iterator& end,
-                unsigned int currentAddress = 0
+                const util::Mapper& mapper
                 );
         static void insertData(unsigned int code, int size, back_inserter bi);
     };

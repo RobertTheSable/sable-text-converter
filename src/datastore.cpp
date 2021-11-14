@@ -5,19 +5,19 @@
 
 namespace sable {
 
-DataStore::DataStore() : dirIndex(0), nextAddress(0), isSorted(false), m_RomType(util::Mapper::INVALID)
+DataStore::DataStore() : dirIndex(0), nextAddress(0), isSorted(false)
 {
 
 }
 
-DataStore::DataStore(const YAML::Node &config, const std::string& defaultMode, const std::string& localeName, util::Mapper mapType)
-    : m_Parser(config, defaultMode, localeName), dirIndex(0), nextAddress(0), isSorted(false), m_RomType(mapType)
+DataStore::DataStore(const YAML::Node &config, const std::string& defaultMode, const std::string& localeName)
+    : m_Parser(config, defaultMode, localeName), dirIndex(0), nextAddress(0), isSorted(false)
 {
 }
 
-void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream& errorStream)
+void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream& errorStream, const sable::util::Mapper& mapper)
 {
-    if (nextAddress != 0 && util::ROMToPC(m_RomType, nextAddress) == -1) {
+    if (nextAddress != 0 && mapper.ToPC(nextAddress) == -1) {
         std::ostringstream error;
         error << "Attempted to begin parsing with invalid ROM address $" << std::hex << nextAddress;
         throw ParseError(error.str());
@@ -41,7 +41,7 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
         bool done;
         int length;
         try {
-            std::tie(done, length) = m_Parser.parseLine(input, settings, std::back_inserter(tempFileData));
+            std::tie(done, length) = m_Parser.parseLine(input, settings, std::back_inserter(tempFileData), mapper);
             line++;
         } catch (std::runtime_error &e) {
             throw ParseError("Error in text file " + path.string() + ": " + e.what());
@@ -73,8 +73,11 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
                         binaryOutputStack.push({settings.label + ".bin", dataLength});
                         binaryOutputStack.push({settings.label + "bank.bin", bankLength});
 
-                        bool highType = (settings.currentAddress & 0x800000) == 0;
-                        settings.currentAddress = util::PCToROM(m_RomType, util::ROMToPC(m_RomType, settings.currentAddress | 0xFFFF) +1, highType);
+                        int mirrorMask = 0;
+                        if (mapper.getSize() <= util::NORMAL_ROM_MAX_SIZE) {
+                            mirrorMask = (~settings.currentAddress & 0x800000);
+                        }
+                        settings.currentAddress = mapper.ToRom(mapper.ToPC(settings.currentAddress | 0xFFFF) +1) ^ mirrorMask;
                         m_Addresses.push_back({settings.currentAddress, "$" + settings.label, false});
                         settings.currentAddress += bankLength;
                         m_TextNodeList["$" + settings.label] = {
@@ -121,8 +124,9 @@ std::vector<std::string> DataStore::addTable(std::istream &tablefile, const fs::
     std::string label = dir.filename().string();
     Table table;
     table.setAddress(nextAddress);
+    util::Mapper m(util::MapperType::LOROM, false, true, 0x400000);
     try {
-        files = table.getDataFromFile(tablefile);
+        files = table.getDataFromFile(tablefile, m);
     } catch (std::runtime_error &e) {
         throw ParseError("Error in table " + path.string() + ", " + e.what());
     }

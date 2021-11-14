@@ -17,7 +17,7 @@ class DataStore
 {
 public:
     DataStore();
-    DataStore(const YAML::Node& config, const std::string& defaultMode, const std::string& localeName, util::Mapper mapType = util::Mapper::LOROM);
+    DataStore(const YAML::Node& config, const std::string& defaultMode, const std::string& localeName);
     struct TextNode {
         std::string files;
         size_t size;
@@ -28,7 +28,7 @@ public:
         std::string label;
         bool isTable;
     };
-    void addFile(std::istream& file, const fs::path& path, std::ostream& errorStream);
+    void addFile(std::istream& file, const fs::path& path, std::ostream& errorStream, const sable::util::Mapper& mapper);
     std::pair<std::string, int> getOutputFile();
     std::vector<std::string> addTable(std::istream& file, const fs::path& path);
     std::vector<AddressNode>::const_iterator begin() const;
@@ -54,7 +54,6 @@ private:
     int dirIndex;
     int nextAddress;
     bool isSorted;
-    util::Mapper m_RomType;
 };
 }
 

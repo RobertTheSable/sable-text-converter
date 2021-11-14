@@ -10,12 +10,13 @@ TEST_CASE("Loading script data from files")
     std::istringstream input;
     std::ostringstream errors;
     std::vector<unsigned char> v;
+    sable::util::Mapper m(sable::util::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
     SECTION("Basic file")
     {
         input.str("@address 808000\n"
                   "@label test1\n"
                   "ABCDEFG\n");
-        REQUIRE_NOTHROW(dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors));
+        REQUIRE_NOTHROW(dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m));
         auto queueItem = dataTester.getOutputFile();
         REQUIRE(queueItem.first == "test1.bin");
         REQUIRE(dataTester.data_end() - dataTester.data_begin() == 9);
@@ -35,7 +36,7 @@ TEST_CASE("Loading script data from files")
         input.str("@address 80FFFF\n"
                   "@label test1\n"
                   "ABCDEFG\n");
-        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m);
         v = std::vector<unsigned char>(dataTester.data_begin(), dataTester.data_end());
         REQUIRE(v.size() == 9);
         auto queueItem = dataTester.getOutputFile();
@@ -57,7 +58,7 @@ TEST_CASE("Loading script data from files")
                   "ABCDEFG[End]\n"
                   "@label test2\n"
                   "ABCDEFG\n");
-        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m);
         REQUIRE(dataTester.end() - dataTester.begin() == 2);
         REQUIRE((++dataTester.begin())->address == 0x808009);
         REQUIRE((++dataTester.begin())->label == "test2");
@@ -78,7 +79,7 @@ TEST_CASE("Loading script data from files")
         input.str("@address 808000\n"
                   "ABCDEFG[End]\n"
                   "ABCDEFG\n");
-        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m);
         REQUIRE(dataTester.getOutputFile().first == fs::temp_directory_path().filename().string() + "_0.bin");
         REQUIRE(dataTester.getOutputFile().first == fs::temp_directory_path().filename().string() + "_1.bin");
     }
@@ -88,7 +89,7 @@ TEST_CASE("Loading script data from files")
                   "@label test1\n"
                   "ABCDEFG\n"
                   "XYZ");
-        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m);
         REQUIRE(dataTester.data_end() - dataTester.data_begin() == 14);
         REQUIRE(dataTester.getOutputFile().second == 14);
     }
@@ -98,12 +99,12 @@ TEST_CASE("Loading script data from files")
         input.str("@address 808000\n"
                   "@label test1\n"
                   "ABCDEFG\n");
-        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m);
         dataTester.getOutputFile();
         input.clear();
         input.str("@label test2\n"
                   "TUVWXYZ\n");
-        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        dataTester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m);
         REQUIRE(dataTester.getNextAddress() == 0x808000 + 18);
         REQUIRE((++dataTester.begin())->address == 0x808009);
         REQUIRE((++dataTester.begin())->label == "test2");
@@ -114,13 +115,14 @@ TEST_CASE("Loading script data from files")
 TEST_CASE("Parse with an alternate default mode")
 {
     sable::DataStore tester(sable_tests::getSampleNode(), "menu", "en_US.UTF-8");
+    sable::util::Mapper m(sable::util::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
     std::istringstream input;
     std::ostringstream errors;
     std::vector<unsigned char> v;
     input.str("@address 808000\n"
               "@label test1\n"
               "ABCDEFG\n");
-    tester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+    tester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m);
     REQUIRE(*tester.data_begin() == 0);
     REQUIRE(*(tester.data_end() -1) == 0xFF);
     REQUIRE(tester.data_end() - tester.data_begin() == 16);
@@ -129,6 +131,7 @@ TEST_CASE("Parse with an alternate default mode")
 
 TEST_CASE("Add files that are part of a table")
 {
+    sable::util::Mapper m(sable::util::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
     sable::DataStore tester(sable_tests::getSampleNode(), "menu", "en_US.UTF-8");
     std::istringstream input;
     std::ostringstream error;
@@ -148,7 +151,7 @@ TEST_CASE("Add files that are part of a table")
         input.str("@address auto\n"
                   "@label test1\n"
                   "ABCDEFG\n");
-        tester.addFile(input, fs::temp_directory_path() / "file1.txt", error);
+        tester.addFile(input, fs::temp_directory_path() / "file1.txt", error, m);
         REQUIRE(tester.end() - tester.begin() == 2);
         REQUIRE(tester.begin()->address == 0x808000);
         REQUIRE(tester.begin()->isTable);
@@ -173,7 +176,7 @@ TEST_CASE("Add files that are part of a table")
         input.str("@address auto\n"
                   "@label test1\n"
                   "ABCDEFG\n");
-        tester.addFile(input, fs::temp_directory_path() / "file1.txt", error);
+        tester.addFile(input, fs::temp_directory_path() / "file1.txt", error, m);
         REQUIRE(tester.end() - tester.begin() == 2);
         REQUIRE(tester.begin()->address == 0x808000);
         REQUIRE(tester.begin()->isTable);
@@ -241,6 +244,7 @@ TEST_CASE("Sorting addresses")
 TEST_CASE("Data store error handling")
 {
     sable::DataStore tester(sable_tests::getSampleNode(), "normal", "en_US.UTF-8");
+    sable::util::Mapper m(sable::util::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
     std::istringstream input;
     std::vector<unsigned char> v = {};
     std::ostringstream errors;
@@ -249,7 +253,7 @@ TEST_CASE("Data store error handling")
         input.str("@address 808000\n"
                   "@label test1\n"
                   "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG\n");
-        tester.addFile(input, fs::temp_directory_path() / "test.txt", errors);
+        tester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m);
         REQUIRE_THAT(errors.str(), Contains(" on line 3: Line is longer than the specified max width of 160 pixels."));
         REQUIRE(tester.data_end() - tester.data_begin() == 95);
 
@@ -259,7 +263,7 @@ TEST_CASE("Data store error handling")
         input.str("@address 808000\n"
                   "@label test1\n"
                   "%");
-        REQUIRE_THROWS(tester.addFile(input, fs::temp_directory_path() / "test.txt", errors));
+        REQUIRE_THROWS(tester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m));
     }
     SECTION("Invalid address handling")
     {
@@ -268,7 +272,7 @@ TEST_CASE("Data store error handling")
                   "@label test1\n"
                   "ABCDEFG\n");
         REQUIRE_THROWS_WITH(
-                    tester.addFile(input, fs::temp_directory_path() / "test.txt", errors),
+                    tester.addFile(input, fs::temp_directory_path() / "test.txt", errors, m),
                     "Attempted to begin parsing with invalid ROM address $7e0000");
     }
     SECTION("Missing file label.")

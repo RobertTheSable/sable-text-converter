@@ -28,89 +28,17 @@ std::pair<unsigned int, int> sable::util::strToHex(const std::string &val)
     }
     return std::make_pair(tmp, bytes);
 }
-int sable::util::PCToLoROM(int addr, bool header, bool high)
-{
-    if (header) {
-        addr-=512;
-    }
-    if (addr<0 || addr>=0x400000) {
-        return -1;
-    }
-    addr=((addr<<1)&0x7F0000)|(addr&0x7FFF)|0x8000;
-    if (high) {
-        addr|=0x800000;
-    }
-    return addr;
-}
-int sable::util::LoROMToPC(int addr, bool header)
-{
-    if (addr<0 || addr>0xFFFFFF ||//not 24bit
-                (addr&0xFE0000)==0x7E0000 ||//wram
-                (addr&0x408000)==0x000000 ||//hardware regs
-                (addr&0x708000)==0x700000)//sram (low parts of banks 70-7D)
-            return -1;
-    addr=((addr&0x7F0000)>>1|(addr&0x7FFF));
-    if (header) addr+=512;
-    return addr;
-}
 
-int sable::util::EXLoROMToPC(int addr, bool header)
+sable::util::MapperType sable::util::getExpandedType(sable::util::MapperType m)
 {
-    if (addr<0 || addr>0xFFFFFF ||//not 24bit
-                (addr&0xFE0000)==0x7E0000 ||//wram
-                (addr&0x408000)==0x000000 ||//hardware regs
-                (addr&0x708000)==0x700000) //sram (low parts of banks 70-7D)
-            return -1;
-    if (addr&0x800000) {
-        addr=((addr&0x7F0000)>>1|(addr&0x7FFF));
-    } else {
-        addr=((addr&0x7F0000)>>1|(addr&0x7FFF))+0x400000;
+    switch (m) {
+        case MapperType::LOROM:
+            return MapperType::EXLOROM;
+        case MapperType::HIROM:
+            return MapperType::EXHIROM;
+        default:
+            return m;
     }
-    if (header) addr+=512;
-    return addr;
-}
-
-int sable::util::ROMToPC(sable::util::Mapper mapType, int addr, bool header)
-{
-    if (mapType == Mapper::LOROM) {
-        return LoROMToPC(addr, header);
-    } else if (mapType == Mapper::EXLOROM) {
-        return EXLoROMToPC(addr, header);
-    } else {
-        return -1;
-    }
-}
-
-int sable::util::PCToROM(sable::util::Mapper mapType, int addr, bool header, bool high)
-{
-    if (mapType == Mapper::LOROM) {
-        return PCToLoROM(addr, header, high);
-    } else if(mapType == Mapper::EXLOROM){
-        return PCToEXLoROM(addr, header);
-    } else {
-        return -1;
-    }
-}
-
-int sable::util::PCToEXLoROM(int addr, bool header)
-{
-    if (addr >= ROM_MAX_SIZE) {
-        return -1;
-    } else {
-        if (addr >= NORMAL_ROM_MAX_SIZE) {
-            return PCToLoROM(addr - 0x400000, header, false);
-        } else {
-            return PCToLoROM(addr, header, true);
-        }
-    }
-}
-
-sable::util::Mapper sable::util::getExpandedType(sable::util::Mapper m)
-{
-    if (m == Mapper::LOROM) {
-        return Mapper::EXLOROM;
-    }
-    return m;
 }
 
 size_t sable::util::calculateFileSize(const std::string &value)
@@ -147,12 +75,8 @@ size_t sable::util::calculateFileSize(const std::string &value)
             }
             if (calculatedValue != 0 && (calculatedValue % (1024 * 1024)) == 0) {
                 calculatedValue /= 1024;
-                if (calculatedValue <= MAX_ALLOWED_FILESIZE) {
-                    if (calculatedValue >= ROM_MAX_SIZE){
-                        returnVal = ROM_MAX_SIZE;
-                    } else {
-                        returnVal = calculatedValue;
-                    }
+                if (calculatedValue <= MAX_ALLOWED_FILESIZE_SHORTCUT) {
+                    returnVal = calculatedValue;
                 }
             }
         }
@@ -160,9 +84,142 @@ size_t sable::util::calculateFileSize(const std::string &value)
     return returnVal;
 }
 
-size_t sable::util::calculateFileSize(int maxAddress, Mapper m)
+std::string sable::util::getFileSizeString(int value)
 {
-    int address = ROMToPC(m, maxAddress);
+    if (value > MAX_ALLOWED_FILESIZE_SHORTCUT|| value <= 0) {
+        return "";
+    } else if (value >= ROM_MAX_SIZE) {
+        value = MAX_ALLOWED_FILESIZE_SHORTCUT;
+    }
+    int returnVal = value / 1024;
+    if (returnVal < 1024) {
+        return std::to_string(returnVal)+ "kb";
+    }
+    returnVal /= 1024;
+    if ((value/1024) % 1024 == 512) {
+        return std::to_string(returnVal) + ".5mb";
+    } else {
+        return std::to_string(returnVal)+ "mb";
+    }
+
+}
+
+sable::util::Mapper::Mapper(const sable::util::MapperType &m, bool header, bool highType, int size): shift(0), offset(0), max_size(size), m_type(m)
+{
+    using sable::util::MapperType;
+    if (header) {
+        offset = 0x200;
+        max_size += 0x200;
+    }
+    if ((max_size - offset) > 0x400000) {
+        m_type = getExpandedType(m_type);
+    }
+
+    if (max_size > 0x800000) {
+        m_type = MapperType::INVALID;
+    } else {
+        mask = 0;
+        switch (m_type) {
+        case MapperType::LOROM:
+            if (highType) {
+                mask = 0x800000;
+            }
+            [[fallthrough]];
+        case MapperType::EXLOROM:
+            shift = 1;
+            if (size <= 0x400000) {
+                m_type = MapperType::LOROM;
+            } else {
+                mask = 0x800000;
+            }
+            mask = mask | 0x8000;
+            // LoROM SRAM overlaps with ROMSEL region
+            sram_mask = 0x708000;
+            break;
+        case MapperType::HIROM:
+            // lunar address doesn't have a separate "high" hirom type but it seems like it's theoretically possible
+            if (highType) {
+                mask = 0x800000;
+            }
+            [[fallthrough]];
+        case MapperType::EXHIROM:
+            shift = 0;
+            if (size <= 0x400000) {
+                m_type = MapperType::HIROM;
+            } else {
+                mask = 0x800000;
+            }
+            mask = mask | 0x400000;
+            // HiROM SRAM doesn't overlap with ROMSEL region
+            sram_mask = 0;
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+int sable::util::Mapper::ToRom(int address) const
+{
+    if (address < 0 || address >= max_size) {
+        // cannot exist in the ROM
+        return -1;
+    }
+    int adjustedAddress = (address - offset);
+    int sizeMask =  ((adjustedAddress << 1) ^ (mask)) & 0x800000;
+    int bank = ((adjustedAddress << shift) | mask) & 0x7F0000;
+    int shortAddress = (adjustedAddress | mask) & 0xFFFF;
+    int finalAddress = shortAddress | bank | sizeMask;
+
+    // Prevent returning an address that points to WRAM.
+    if ((finalAddress & 0xFE0000) == 0x7E0000) {
+        // ExLoROM can use 0x7E00-0x7EFF
+        // ExHiROM can use 0x7E00-0x7E7F and 0x7F00-0x7F7F
+        if (((~mask & 0x800000) | (finalAddress & ((~mask & 0x8000) << shift))) == 0) {
+            // area can exist in the ROM but is not mapped
+            return -2;
+        }
+        finalAddress ^= 0x400000 << shift;
+    }
+    return finalAddress;
+}
+
+int sable::util::Mapper::ToPC(int address) const
+{
+    if (address<0 || address>0xFFFFFF) //not 24bit
+        return -1;
+    if ((address&0xFE0000)==0x7E0000) //wram
+        return -1;
+    if ((address&0x408000)==0x000000)//hardware regs
+        return -1;
+    if ((address&sram_mask)==0x700000) //sram (low parts of banks 70-7D)
+        return -1;
+    int reverseAddressMask = (~mask) & 0xFFFF;
+    int reverseBankMask = (~mask) & 0x7F0000;
+    int reverseSizeMask = ((max_size - 1) & (0x800000 & ~address) >> 1) << shift;
+    int bank = ((address & reverseBankMask) | reverseSizeMask) >> shift;
+    int calculatedAddress = ((address & reverseAddressMask) | bank) + offset;
+    if (calculatedAddress >= max_size) {
+        return -2;
+    }
+    return calculatedAddress;
+}
+
+sable::util::MapperType sable::util::Mapper::getType() const
+{
+    return m_type;
+}
+
+
+sable::util::Mapper::operator bool() const
+{
+    return m_type != MapperType::INVALID;
+}
+
+
+size_t sable::util::Mapper::calculateFileSize(int maxAddress) const
+{
+    int address = ToPC(maxAddress);
     if (address < 0) {
         std::ostringstream errorMsg;
         errorMsg << "Error: address " << std::hex << address
@@ -188,22 +245,32 @@ size_t sable::util::calculateFileSize(int maxAddress, Mapper m)
     }
 }
 
-std::string sable::util::getFileSizeString(int value)
+void sable::util::Mapper::setIsHeadered(bool isHeadered)
 {
-    if (value > MAX_ALLOWED_FILESIZE|| value <= 0) {
-        return "";
-    } else if (value >= ROM_MAX_SIZE) {
-        value = MAX_ALLOWED_FILESIZE;
-    }
-    int returnVal = value / 1024;
-    if (returnVal < 1024) {
-        return std::to_string(returnVal)+ "kb";
-    }
-    returnVal /= 1024;
-    if ((value/1024) % 1024 == 512) {
-        return std::to_string(returnVal) + ".5mb";
-    } else {
-        return std::to_string(returnVal)+ "mb";
-    }
+    offset = isHeadered ? 0x200 : 0;
+}
 
+int sable::util::Mapper::getSize() const
+{
+    return max_size;
+}
+
+bool YAML::convert<sable::util::MapperType>::decode(const YAML::Node &node, sable::util::MapperType &rhs)
+{
+    using sable::util::MapperType;
+    std::string stringVal = node.as<std::string>();
+    std::transform(stringVal.begin(), stringVal.end(), stringVal.begin(), ::tolower);
+    if (stringVal == "lorom") {
+        rhs = MapperType::LOROM;
+    } else if (stringVal == "hirom") {
+        rhs = MapperType::HIROM;
+    } else if (stringVal == "exlorom") {
+        rhs = MapperType::EXLOROM;
+    } else if (stringVal == "exhirom") {
+        rhs = MapperType::EXHIROM;
+    } else {
+        rhs = MapperType::INVALID;
+        return false;
+    }
+    return true;
 }
