@@ -43,13 +43,20 @@ configuration. The "main" asm file for each rom
 * config
   * directory - the subdirectory that contains the text conversion 
     configuration file.
-  * inMapping - the name of the file that configu
+  * inMapping - the name of the file that holds the text configuration.
   * defaultMode - the default mode for text conversion. If no value is given, 
     the default is `normal`.
   * outputSize: the size of the output roms. Can be given as number of bytes, or 
     megabtyes/kilobytes with mb/kb suffixes. Max supported size is 8MB.
-       * If 8MB is set as the output size, the actual output size will be more 
-       like 7.9MB dues to technical limitations of SNES addressing.
+    * If 8MB is set as the output size, the actual output size will be more 
+      like 7.9MB dues to technical limitations of SNES addressing.
+  * mapper - the type of memory mapping the game uses.
+    * Currenly supported values are `lorom`, `hirom`, `exlorom`, and `exhirom`.
+      The default value is `lorom`.
+    * If `lorom` or `hirom` are given, but outputSize is larger than 4m, sable will autocorrect 
+      to use the expanded mapper format.
+  * useMirrorBanks - whether to primarily use the mirrored (0x00 - 0x6F) banks for the LoROM mapper.
+    * "true" or "false" are accepted values. The default is "false."
 * roms - a sequence of all the input rom files to generate patches. Each should 
 have the following fields:
   * name - the name of the output file, minus the extension(which is chosen 
@@ -134,6 +141,22 @@ portraits, closing windows, and the like.
         at the end of a text node, unless the "autoend" setting is disabled.
         * NewLine: Sable will insert the code for this command every time it
         reaches a line break in the text file it is parsing.
+* Extras: Simple encodings that can be used in brackets. Useful for arguments to commands.
+* Nouns: Multi-character strings that use a fixed encoding rather than parsing each character individually.
+    * Most useful for faking variable width text in fixed width fonts.
+    * For example, if you addd the following to a font:
+    ```
+    Nouns:
+        text:
+            code:
+                - 0x70
+                - 0x72
+                - 0x61
+                - 0x6E
+                - 0x6B
+    ```
+    Then any instance of `text` will be parsed as `0x70,0x72,0x61,0x6E,0x6B` rather than whatever each individual character would be parse as otherwise.
+        * in this case, the resulting string is 5 instead of 4 bytes, but this is more useful for cases where you want a smaller number of bytes.
 * HasDigraphs
     * Accepted values: `true` or `false`
     * Whether or not the current font has any multi-character encoding bytes.
@@ -161,7 +184,7 @@ Each text type entry may have the following additional tags:
         will be used as the width for all characters.
 * MaxEncodedValue:
     * Used when writing font widths. This will be defined as the upper limit to write
-    widths for. If this value is not defined, the maximum value will be calulated 
+    widths for. If this value is not defined, the maximum value will be calculated 
     based on the given byte width.
 
 ## Text file format

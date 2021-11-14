@@ -26,9 +26,9 @@ TEST_CASE("Expansion Test", "[rompatcher]")
     {
         RomPatcher r(sable::util::MapperType::LOROM);
         sable::util::Mapper m(sable::util::MapperType::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
-        r.loadRom("sample.sfc", "patch test", -1);
         SECTION("Resizing to normal ROM size.")
         {
+            r.loadRom("sample.sfc", "patch test", -1);
             REQUIRE(r.getRealSize() == 131072);
 
             REQUIRE_NOTHROW(r.expand(m.calculateFileSize(0xE08001), m));
@@ -36,6 +36,15 @@ TEST_CASE("Expansion Test", "[rompatcher]")
         }
         SECTION("Resizing to EXLOROM ROM size.")
         {
+            SECTION("Base LOROM mapper.")
+            {
+                r = RomPatcher(sable::util::MapperType::LOROM);
+            }
+            SECTION("Corrected base size from EXLOROM > LOROM.")
+            {
+                r = RomPatcher(sable::util::MapperType::EXLOROM);
+            }
+            r.loadRom("sample.sfc", "patch test", -1);
             sable::util::Mapper m2(sable::util::MapperType::EXLOROM, false, true, 0x600000);
             REQUIRE(m.ToPC(sable::util::HEADER_LOCATION) == 0x007FC0);
             unsigned char test = r.at(m.ToPC(sable::util::HEADER_LOCATION));
@@ -50,6 +59,15 @@ TEST_CASE("Expansion Test", "[rompatcher]")
     SECTION("Resizing to EXHIROM ROM size.")
     {
         RomPatcher r(sable::util::MapperType::HIROM);
+        SECTION("Base HIROM mapper.")
+        {
+            r = RomPatcher(sable::util::MapperType::HIROM);
+        }
+        SECTION("Corrected base size from EXHIROM > HIROM.")
+        {
+            r = RomPatcher(sable::util::MapperType::EXHIROM);
+        }
+
         sable::util::Mapper m(sable::util::MapperType::HIROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
         sable::util::Mapper m2(sable::util::MapperType::EXHIROM, false, true, 0x600000);
         r.loadRom("sample.sfc", "patch test", -1);
@@ -63,6 +81,22 @@ TEST_CASE("Expansion Test", "[rompatcher]")
         REQUIRE(r.getRealSize() == 0x600000);
         REQUIRE(r.at(m2.ToPC(sable::util::HEADER_LOCATION)) == test);
         REQUIRE(r.at(m2.ToPC(sable::util::HEADER_LOCATION) + 0x15) == (mode | 4) );
+    }
+}
+
+TEST_CASE("Expansion error checking.", "[rompatcher]")
+{
+    SECTION("HIROM > EXLOROM throws logic error")
+    {
+        RomPatcher r(sable::util::MapperType::HIROM);
+        sable::util::Mapper m(sable::util::MapperType::EXLOROM, false, true, 0x600000);
+        REQUIRE_THROWS_AS(r.expand(0x60000, m), std::logic_error);
+    }
+    SECTION("LoROM > EXHiROM throws logic error")
+    {
+        RomPatcher r(sable::util::MapperType::LOROM);
+        sable::util::Mapper m(sable::util::MapperType::EXHIROM, false, true, 0x600000);
+        REQUIRE_THROWS_AS(r.expand(0x60000, m), std::logic_error);
     }
 }
 

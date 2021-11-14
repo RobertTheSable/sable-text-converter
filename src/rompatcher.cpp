@@ -85,6 +85,17 @@ bool sable::RomPatcher::loadRom(const std::string &file, const std::string &name
     if ((size-m_HeaderSize) >= util::MAX_ALLOWED_FILESIZE_SHORTCUT) {
         throw std::runtime_error(file + " is too large.");
     }
+    if ((size-m_HeaderSize) <= util::NORMAL_ROM_MAX_SIZE) {
+        switch (m_MapType) {
+            case util::MapperType::EXHIROM:
+                m_MapType = util::MapperType::HIROM;
+                break;
+            case util::MapperType::EXLOROM:
+                m_MapType = util::MapperType::LOROM;
+                break;
+            default:;
+        }
+    }
     m_RomSize = size - m_HeaderSize;
     m_data.resize(size);
     inFile.read((char*)&m_data[0], size);
