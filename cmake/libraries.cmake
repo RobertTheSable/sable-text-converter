@@ -36,6 +36,8 @@ if(NOT ASAR)
     if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
         set_target_properties(asar PROPERTIES PREFIX "")
     endif()
+else()
+    message(STATUS "Found asar ${ASAR}")
 endif()
 
 execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/cxxopts
