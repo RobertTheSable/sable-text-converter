@@ -33,11 +33,12 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
         ssegment_index map(word, line.begin(), line.end(), m_Locale);
         auto it = map.begin();
         bool printNewLine = true;
-        while (it != map.end() && !finished) {
+        bool finishedByComment = false;
+        while (it != map.end() && !finished && !finishedByComment) {
             if (*it == "#") {
-                finished = true;
-                if (it == map.begin()) {
-                    printNewLine = false;
+                finishedByComment = true;
+                if (input.peek() == std::char_traits<char>::eof()) {
+                     printNewLine = false;
                 }
             } else if (*it == "[") {
                 std::string temp;

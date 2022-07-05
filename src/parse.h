@@ -19,6 +19,7 @@ namespace sable {
         std::string mode, label;
         int maxWidth;
         int currentAddress;
+        int page;
     };
 
     class TextParser
