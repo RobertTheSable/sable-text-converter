@@ -130,6 +130,7 @@ TEST_CASE("Single lines", "[parser]")
         REQUIRE(node["normal"][Font::COMMANDS]["Test"]["code"].as<int>() == 7);
         REQUIRE(p.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 0));
         REQUIRE(v == ByteVector({0, 7, 0, 0}));
+        REQUIRE(settings.page == 0);
     }
     SECTION("Check commands are read correctly when there is text left in the line.")
     {
@@ -141,6 +142,7 @@ TEST_CASE("Single lines", "[parser]")
         for (size_t i = 0; i < v.size() ; i++) {
             REQUIRE(expected[i] == v[i]);
         }
+        REQUIRE(settings.page == 0);
     }
     SECTION("Check commands with newline settings are read correctly.")
     {
@@ -149,6 +151,7 @@ TEST_CASE("Single lines", "[parser]")
         REQUIRE(v.front() == 1);
         REQUIRE(v.back() == 1);
         REQUIRE(v.size() == 3);
+        REQUIRE(settings.page == 0);
     }
     SECTION("Check bracketed text")
     {
@@ -169,6 +172,7 @@ TEST_CASE("Single lines", "[parser]")
         REQUIRE(p.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 6));
         REQUIRE(v.size() == 5);
         REQUIRE(v.back() == 0);
+        REQUIRE(settings.page == 0);
     }
     SECTION("Manual end without autoend")
     {
@@ -177,6 +181,52 @@ TEST_CASE("Single lines", "[parser]")
         REQUIRE(p.parseLine(sample, settings, std::back_inserter(v), m).second == 17);
         REQUIRE(v.size() == 8);
         REQUIRE(v.back() == 26);
+        REQUIRE(settings.page == 0);
+    }
+    SECTION("Commands that switch pages.")
+    {
+        using sable_tests::EncNode, sable_tests::NounNode;
+        YAML::Node pageNodeYaml2;
+        pageNodeYaml2[Font::ENCODING] = std::map<std::string, EncNode>{
+            {"シ", {"0x5c", "11"}},
+            {"ー", {"0xb9", "10"}},
+            {"ダ", {"0x88", "11"}},
+            {"E", {"0x3f", "10"}},
+        };
+        pageNodeYaml2[Font::NOUNS] = std::map<std::string, NounNode>{
+            { "マルス", {
+                    {"6", "7"},
+                    "18"
+            }},
+        };
+        node["normal"][Font::COMMANDS]["Page0"] = std::map<std::string, std::string>{
+            {"code", "0x11"},
+            {"page", "0"},
+        };
+        node["normal"][Font::COMMANDS]["Page1"] = std::map<std::string, std::string>{
+            {"code", "0x12"},
+            {"page", "1"},
+        };
+        node["normal"][Font::PAGES].push_back(pageNodeYaml2);
+        TextParser pwp(node, "normal", "ja_JP.UTF-8");
+        SECTION("Switch from page 0 > 1")
+        {
+            sample.str("ABC[Page1]シーダ");
+            REQUIRE_NOTHROW(pwp.parseLine(sample, settings, std::back_inserter(v), m));
+            REQUIRE(settings.page == 1);
+            REQUIRE(v.size() == 10);
+            REQUIRE(v[5] == 0x5c);
+        }
+        SECTION("Switch from page 0 > 1 > 0")
+        {
+            sample.str("A[Page1]シ[Page0]C");
+            REQUIRE_NOTHROW(pwp.parseLine(sample, settings, std::back_inserter(v), m));
+            REQUIRE(settings.page == 0);
+            REQUIRE(v.size() == 9);
+            REQUIRE(v[0] == 1);
+            REQUIRE(v[3] == 0x5c);
+            REQUIRE(v[6] == 3);
+        }
     }
 }
 
@@ -312,8 +362,15 @@ TEST_CASE("Change parser settings", "[parser]")
     }
     SECTION("Set page correctly")
     {
+        using sable_tests::EncNode, sable_tests::NounNode;
+        YAML::Node pageNodeYaml2;
+        pageNodeYaml2[Font::ENCODING] = std::map<std::string, EncNode>{
+            {"シ", {"0x5c", "11"}},
+        };
+        node["normal"][Font::PAGES].push_back(pageNodeYaml2);
+        TextParser pwp(node, "normal", "ja_JP.UTF-8");
         sample.str("@page 1");
-        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 0));
+        REQUIRE(pwp.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 0));
         REQUIRE(settings.page == 1);
     }
 }
@@ -402,5 +459,39 @@ TEST_CASE("Parser error checking", "[parser]")
         sample.str("@address $608000");
         REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v), m), "Invalid option \"$608000\" for address: address is too large for the specified ROM size.");
         sample.clear();
+    }
+    SECTION("Page out of range in font with no extra pages.")
+    {
+        sample.str("@page 1");
+        REQUIRE_THROWS_WITH(
+            p.parseLine(sample, settings, std::back_inserter(v), m),
+            "Page 1 not found in font normal"
+        );
+    }
+    SECTION("Page out of range in font with one extra pages.")
+    {
+        using sable_tests::EncNode, sable_tests::NounNode;
+        YAML::Node pageNodeYaml2;
+        pageNodeYaml2[Font::ENCODING] = std::map<std::string, EncNode>{
+            {"シ", {"0x5c", "11"}},
+        };
+        node["normal"][Font::PAGES].push_back(pageNodeYaml2);
+        node["normal"][Font::COMMANDS]["Page2"] = std::map<std::string, std::string>{
+            {"code", "0x12"},
+            {"page", "2"},
+        };
+        SECTION("With implicit page switching.")
+        {
+            sample.str("@page 2");
+        }
+        SECTION("With a command that switches pages.")
+        {
+            sample.str("[Page2]");
+        }
+        TextParser pwp(node, "normal", "ja_JP.UTF-8");
+        REQUIRE_THROWS_WITH(
+            pwp.parseLine(sample, settings, std::back_inserter(v), m),
+            "Page 2 not found in font normal"
+        );
     }
 }

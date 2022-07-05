@@ -28,6 +28,8 @@ namespace sable {
             }
 
             try {
+                // I'd like to validate page command configs here
+                // but there's no way to do that and allow commands to be mirrored.
                 m_CommandConvertMap = generateMap<CommandNode>(config[COMMANDS], COMMANDS);
             } catch (ConvertError &e) {
                 throw FontError(e.mark, m_Name, e.field, e.type);
@@ -35,7 +37,7 @@ namespace sable {
             if (config[EXTRAS].IsDefined()) {
                 try {
                     m_Extras = generateMap<int>(config[EXTRAS], EXTRAS);
-                } catch(YAML::TypedBadConversion<int> &e) {
+                } catch (YAML::TypedBadConversion<int> &e) {
                     throw FontError(e.mark, m_Name, EXTRAS, "scalar integers.");
                 }
             }
@@ -60,8 +62,12 @@ namespace sable {
                 m_MaxEncodedValue = validate<int>(config[MAX_CHAR], MAX_CHAR);
             } else {
                 m_MaxEncodedValue = 0;
-                for (int i = 0; i < m_ByteWidth; i++) {
-                    m_MaxEncodedValue |= (0xFF << i);
+                if (m_ByteWidth == 1) {
+                    m_MaxEncodedValue = 0xFF;
+                } else if (m_ByteWidth == 2) {
+                    m_MaxEncodedValue = 0xFFFF;
+                } else {
+                    throw std::logic_error("Only fonts of width 1 or 2 are allowed.");
                 }
             }
             m_IsValid = true;
@@ -76,12 +82,23 @@ namespace sable {
 
     }
 
-    unsigned int Font::getCommandCode(const std::string &id) const
+
+    const Font::CommandNode &Font::getCommandData(const std::string &id) const
     {
         if (m_CommandConvertMap.find(id) == m_CommandConvertMap.end()) {
             throw CodeNotFound("");
         }
-        return m_CommandConvertMap.at(id).code;
+        return m_CommandConvertMap.at(id);
+    }
+
+    bool Font::isCommandNewline(const std::string &id) const
+    {
+         return getCommandData(id).isNewLine;
+    }
+
+    unsigned int Font::getCommandCode(const std::string &id) const
+    {
+        return getCommandData(id).code;
     }
 
     std::tuple<unsigned int, bool> Font::getTextCode(const std::string &id, const std::string& next) const
@@ -94,7 +111,7 @@ namespace sable {
         if (!(page < m_Pages.size())) {
             throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
         }
-        auto &m_TextConvertMap = m_Pages[page].glyphs;
+        const auto &m_TextConvertMap = m_Pages[page].glyphs;
         if (!next.empty() && m_TextConvertMap.find(id + next) != m_TextConvertMap.end()) {
             return std::make_tuple(m_TextConvertMap.at(id + next).code, true);
         } else if (m_TextConvertMap.find(id) == m_TextConvertMap.end()) {
@@ -147,7 +164,7 @@ namespace sable {
         if (!(page < m_Pages.size())) {
             throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
         }
-        auto &m_TextConvertMap = m_Pages[page].glyphs;
+        const auto &m_TextConvertMap = m_Pages[page].glyphs;
         if (m_TextConvertMap.find(id) == m_TextConvertMap.end()) {
             throw CodeNotFound(id + " not found in " + ENCODING + " of font " + m_Name);
         } else if (m_IsFixedWidth || m_TextConvertMap.at(id).width <= 0) {
@@ -155,14 +172,6 @@ namespace sable {
         } else {
             return m_TextConvertMap.at(id).width;
         }
-    }
-
-    bool Font::isCommandNewline(const std::string &id) const
-    {
-        if (m_CommandConvertMap.find(id) == m_CommandConvertMap.end()) {
-            throw CodeNotFound(id + " not found in " + COMMANDS + " of font " + m_Name);
-        }
-        return m_CommandConvertMap.at(id).isNewLine;
     }
 
     void Font::getFontWidths(std::back_insert_iterator<std::vector<int> > inserter) const
@@ -181,7 +190,7 @@ namespace sable {
                         m_Name
             );
         }
-        auto &m_TextConvertMap = m_Pages[page].glyphs;
+        const auto& m_TextConvertMap = m_Pages[page].glyphs;
         std::vector<TextDataPair> v(m_TextConvertMap.begin(), m_TextConvertMap.end());
         std::sort(v.begin(), v.end(), [](TextDataPair& a, TextDataPair& b) {
             return a.second.code < b.second.code;
@@ -197,24 +206,34 @@ namespace sable {
                 index++;
                 ++t;
             }
-        }
-        unsigned int lastCode = m_MaxEncodedValue+1;
-        while (index <= m_MaxEncodedValue) {
-            if (lastCode != t->second.code) {
-                if (index == t->second.code) {
-                    if (t->second.width > 0) {
-                        *(inserter++) = t->second.width;
+        } else {
+            // never ran into an issue with this until I started testing pages
+            // my best guess is that adding those cases somehow messed with emory enough
+            // to trigger the infinite loop condition.
+            unsigned int lastCode = m_MaxEncodedValue+1;
+            while (t != v.end()) {
+                if (lastCode != t->second.code ) {
+                    if (index == t->second.code) {
+                        if (t->second.width > 0) {
+                            *(inserter++) = t->second.width;
+                        } else {
+                            *(inserter++) = m_DefaultWidth;
+                        }
+                        index++;
+                        lastCode = (t++)->second.code;
                     } else {
                         *(inserter++) = m_DefaultWidth;
+                        index++;
                     }
-                    index++;
-                    lastCode = (t++)->second.code;
                 } else {
-                    *(inserter++) = m_DefaultWidth;
-                    index++;
+                    t++;
                 }
             }
+            for ( ; index <= m_MaxEncodedValue; index++) {
+                *(inserter++) = m_DefaultWidth;
+            }
         }
+
     }
 
     unsigned int Font::getEndValue() const
@@ -291,6 +310,7 @@ namespace sable {
 
     int Font::getMaxEncodedValue() const
     {
+        // TODO: needs to be done on a per-page basis, since the final page may have less items
         return m_MaxEncodedValue;
     }
 
@@ -299,25 +319,15 @@ namespace sable {
         return m_HasDigraphs;
     }
     template<class T>
-    T Font::validate(const YAML::Node &&node, const std::string& field, const std::function<T (const T&)>& validator)
+    T Font::validate(const YAML::Node &&node, const std::string& field, const Validator<T>& validator)
     {
+        //
         try {
-            return validator(node.as<T>());
-        } catch (YAML::InvalidNode &e) {
-            throw FontError(e.mark, m_Name, field);
-        } catch (YAML::TypedBadConversion<std::string> &e) {
-            throw FontError(e.mark, m_Name, field, "a string.");
-        } catch (YAML::TypedBadConversion<int> &e) {
-            throw FontError(e.mark, m_Name, field, "a scalar integer.");
-        } catch (std::runtime_error& e) {
-            throw FontError(node.Mark(), m_Name, field, e.what());
-        }
-    }
-    template<class T>
-    T Font::validate(const YAML::Node &&node, const std::string& field, const std::function<T (const T&)>&& validator)
-    {
-        try {
-            return validator(node.as<T>());
+            if (validator == std::nullopt) {
+                return [](const T& val){return val;}(node.as<T>());
+            } else {
+                return (*validator)(node.as<T>());
+            }
         } catch (YAML::InvalidNode &e) {
             throw FontError(e.mark, m_Name, field);
         } catch (YAML::TypedBadConversion<std::string> &e) {
@@ -358,7 +368,14 @@ namespace sable {
     {
         std::stringstream message;
         message << "In font \"" + name + '"';
-        if (!msg.empty()) {
+        if (field.empty()) {
+            message << ", line " << mark.line << ": ";
+            if (msg.empty()) {
+                message << "Unknown error.";
+            } else {
+                message << msg;
+            }
+        } else if (!msg.empty()) {
             if (!subField.empty()) {
                 message << ", line " << mark.line << ": Field \"" + field + "\" has invalid entry \"" << subField +"\"" +
                            (msg.empty() ? "" : ": " + msg);
@@ -372,8 +389,12 @@ namespace sable {
     }
 
     template<class T>
-    std::unordered_map<std::string, T> Font::generateMap(const YAML::Node &&node, const std::string& field, const std::optional<std::function<void (std::string&)>>& formatter)
-    {
+    std::unordered_map<std::string, T> Font::generateMap(
+            const YAML::Node &&node,
+            const std::string& field,
+            const std::optional<std::function<void (std::string&)>>& formatter,
+            const Validator<T> validator
+    ) {
         std::unordered_map<std::string, T> map;
         try {
             if(!node.IsMap()) {
@@ -385,9 +406,15 @@ namespace sable {
                         formatter.value()(str);
                     }
                     try {
-                        map[str] = it->second.as<T>();
+                        if (validator != std::nullopt) {
+                            map[str] = (*validator)(it->second.as<T>());
+                        } else {
+                            map[str] = it->second.as<T>();
+                        }
                     } catch (YAML::TypedBadConversion<T>) {
                         throw FontError(node.Mark(), m_Name, field, str, "must define a numeric code.");
+                    } catch (ConfigError &e) {
+                        throw FontError(node.Mark(), m_Name, "", e.what());
                     }
                 }
             }

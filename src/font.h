@@ -46,7 +46,16 @@ namespace sable {
 
         int getNumberOfPages() const;
 
+        struct CommandNode {
+            unsigned int code;
+            int page;
+            bool isNewLine = false;
+        };
+
+        const CommandNode& getCommandData(const std::string& id) const;
+
         unsigned int getCommandCode(const std::string& id) const;
+        bool isCommandNewline(const std::string& id) const;
 
         [[deprecated("Use getTextCode(int page, const std::string& id, ...) instead.")]]
         std::tuple<unsigned int, bool> getTextCode(const std::string& id, const std::string& next = "") const;
@@ -61,7 +70,6 @@ namespace sable {
         CharacterIterator getNounData(int page, const std::string& id);
 
         int getExtraValue(const std::string& id) const;
-        bool isCommandNewline(const std::string& id) const;
 
         [[deprecated("Use getFontWidths(int page, ...) instead.")]]
         void getFontWidths(std::back_insert_iterator<std::vector<int>> inserter) const;
@@ -73,11 +81,6 @@ namespace sable {
         struct TextNode {
             unsigned int code;
             int width = 0;
-        };
-        struct CommandNode {
-            unsigned int code;
-            int page;
-            bool isNewLine = false;
         };
         struct NounNode {
             std::vector<int> codes;
@@ -102,14 +105,17 @@ namespace sable {
         std::unordered_map<std::string, CommandNode> m_CommandConvertMap;
         std::unordered_map<std::string, int> m_Extras;
         template <class T>
-        T validate(const YAML::Node&& node, const std::string& field, const std::function<T (const T&)>& validator);
+        using Validator = std::optional<std::function<T (const T&)>>;
+
         template <class T>
-        T validate(const YAML::Node&& node, const std::string& field, const std::function<T (const T&)>&& validator = [](const T& val){return val;});
+        T validate(const YAML::Node&& node, const std::string& field, const Validator<T>& validator = std::nullopt);
+
         template <class T>
         std::unordered_map<std::string, T> generateMap(
             const YAML::Node&& node,
             const std::string& field,
-            const std::optional<std::function<void (std::string&)>>& formatter = std::nullopt
+            const std::optional<std::function<void (std::string&)>>& formatter = std::nullopt,
+            const Validator<T> validator = std::nullopt
         );
         std::unordered_map<std::string, NounNode> generateNouns(
             const YAML::Node&& node,

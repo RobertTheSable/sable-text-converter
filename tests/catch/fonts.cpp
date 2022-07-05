@@ -3,48 +3,6 @@
 #include "font.h"
 #include "helpers.h"
 #include "exceptions.h"
-#include "yaml-cpp/yaml.h"
-
-struct EncNode {
-    std::string code;
-    std::string length;
-    bool scalar = false;
-};
-
-template <>
-struct YAML::convert<EncNode> {
-    static YAML::Node encode(const EncNode& rhs)
-    {
-        using sable::Font;
-        YAML::Node node;
-        if (!rhs.scalar) {
-            node[Font::CODE_VAL] = rhs.code;
-            node[Font::TEXT_LENGTH_VAL] = rhs.length;
-        } else {
-            node = rhs.code;
-        }
-        return node;
-    }
-};
-
-
-struct NounNode {
-    std::vector<std::string> codes;
-    std::string length;
-};
-
-template <>
-struct YAML::convert<NounNode> {
-    static YAML::Node encode(const NounNode& rhs)
-    {
-        using sable::Font;
-        YAML::Node node;
-        node[Font::CODE_VAL] = rhs.codes;
-        node[Font::TEXT_LENGTH_VAL] = rhs.length;
-        return node;
-    }
-};
-
 
 TEST_CASE("Test uninititalized font.")
 {
@@ -192,6 +150,7 @@ TEST_CASE("Test 1-byte fonts.")
     }
     SECTION("Test a font with pages.")
     {
+        using sable_tests::EncNode, sable_tests::NounNode;
         std::map<std::string, EncNode> encNode = {
             {"待", {"0x01", "13"}},
             {"祖", {"0x02", "13"}},
@@ -218,6 +177,14 @@ TEST_CASE("Test 1-byte fonts.")
             normalNode[Font::PAGES].push_back(pageNodeYaml);
             usenouns = true;
         }
+        normalNode[Font::COMMANDS]["Page0"] = std::map<std::string, std::string>{
+            {"code", "0x11"},
+            {"page", "0"},
+        };
+        normalNode[Font::COMMANDS]["Page1"] = std::map<std::string, std::string>{
+            {"code", "0x12"},
+            {"page", "1"},
+        };
         REQUIRE_NOTHROW(Font(normalNode, "normal"));
         Font f(normalNode, "normal");
         REQUIRE_THROWS(f.getTextCode(2, "A"));
@@ -249,6 +216,10 @@ TEST_CASE("Test 1-byte fonts.")
         REQUIRE(widths[255] == 13);
         REQUIRE(widths[257] == 8);
         REQUIRE(widths[258] == 12);
+
+        REQUIRE(f.getCommandData("Page0").page == 0);
+        REQUIRE(f.getCommandData("Page1").page == 1);
+        REQUIRE(f.getCommandData("NewLine").page == -1);
     }
 }
 

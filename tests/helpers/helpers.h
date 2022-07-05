@@ -18,5 +18,32 @@ YAML::Node createSampleNode(
         bool fixedWidth = false
 );
 YAML::Node getSampleNode();
+
+
+
+struct EncNode {
+    std::string code;
+    std::string length;
+    bool scalar = false;
+};
+
+
+struct NounNode {
+    std::vector<std::string> codes;
+    std::string length;
+};
+
+};
+
+namespace YAML {
+template <>
+struct convert<sable_tests::EncNode> {
+    static YAML::Node encode(const sable_tests::EncNode& rhs);
+};
+
+template <>
+struct convert<sable_tests::NounNode> {
+    static Node encode(const sable_tests::NounNode& rhs);
+};
 };
 #endif

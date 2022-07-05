@@ -38,6 +38,12 @@ YAML::Node sable_tests::createSampleNode(
             sample[Font::ENCODING][lowerCase][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
         }
     }
+    // add a duplicate entry
+//    sample[Font::ENCODING]["A2"][Font::CODE_VAL] = sample[Font::ENCODING]["A"][Font::CODE_VAL].Scalar();
+//    if (!fixedWidth) {
+//        sample[Font::ENCODING]["A2"][Font::TEXT_LENGTH_VAL] =
+//                sample[Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL].Scalar();
+//    }
     index = offset + 52;
     for (int var = 0; var < 21; ++var) {
         sample[Font::ENCODING][parsedChars[var]][Font::CODE_VAL] = index++;
@@ -119,4 +125,29 @@ YAML::Node sable_tests::getSampleNode()
                 true
                 );
     return sampleNode;
+}
+
+namespace YAML {
+using sable_tests::EncNode, sable_tests::NounNode;
+Node convert<sable_tests::EncNode>::encode(const EncNode& rhs)
+{
+    using sable::Font;
+    Node node;
+    if (!rhs.scalar) {
+        node[Font::CODE_VAL] = rhs.code;
+        node[Font::TEXT_LENGTH_VAL] = rhs.length;
+    } else {
+        node = rhs.code;
+    }
+    return node;
+}
+
+Node convert<NounNode>::encode(const NounNode& rhs)
+{
+    using sable::Font;
+    Node node;
+    node[Font::CODE_VAL] = rhs.codes;
+    node[Font::TEXT_LENGTH_VAL] = rhs.length;
+    return node;
+}
 }

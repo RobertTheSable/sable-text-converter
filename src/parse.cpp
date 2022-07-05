@@ -60,12 +60,21 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                     if (bytes < 0) {
                         bytes = activeFont.getByteWidth();
                         try {
-                            code = activeFont.getCommandCode(temp);
+                            const auto& codeStruct = activeFont.getCommandData(temp);
+                            code = codeStruct.code;
                             finished = (settings.autoend && code == activeFont.getEndValue());
                             if (activeFont.getCommandValue() != -1 && !finished) {
                                 insertData(activeFont.getCommandValue(), activeFont.getByteWidth(), insert);
                             }
-                            printNewLine = !activeFont.isCommandNewline(temp);
+                            if (codeStruct.page >= 0) {
+                                if (!(codeStruct.page < activeFont.getNumberOfPages())) {
+                                    throw std::runtime_error(
+                                        std::string("Page ") + std::to_string(codeStruct.page) + " not found in font " + settings.mode
+                                    );
+                                }
+                                settings.page = codeStruct.page;
+                            }
+                            printNewLine = !codeStruct.isNewLine;
                         } catch (CodeNotFound &e) {
                             try {
                                 std::tie(code, std::ignore) = activeFont.getTextCode(settings.page, temp);
@@ -87,6 +96,11 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
             } else if (*it == "@") {
                 auto startPoint = it;
                 settings = updateSettings(settings, it, map.end(), mapper);
+                if (!(settings.page < activeFont.getNumberOfPages())) {
+                    throw std::runtime_error(
+                        std::string("Page ") + std::to_string(settings.page) + " not found in font " + settings.mode
+                    );
+                }
                 if (startPoint == map.begin() && (state.peek() != std::char_traits<char>::eof())) {
                     return std::make_pair(finished, length);
                 }
@@ -97,7 +111,7 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                 }
                 std::string contents = (it++)->str();
                 try {
-                    auto noun = activeFont.getNounData(contents);
+                    auto noun = activeFont.getNounData(settings.page, contents);
                     while (noun) {
                         insertData(*(noun++), activeFont.getByteWidth(), insert);
                     }
