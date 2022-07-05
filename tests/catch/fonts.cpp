@@ -3,13 +3,55 @@
 #include "font.h"
 #include "helpers.h"
 #include "exceptions.h"
+#include "yaml-cpp/yaml.h"
+
+struct EncNode {
+    std::string code;
+    std::string length;
+    bool scalar = false;
+};
+
+template <>
+struct YAML::convert<EncNode> {
+    static YAML::Node encode(const EncNode& rhs)
+    {
+        using sable::Font;
+        YAML::Node node;
+        if (!rhs.scalar) {
+            node[Font::CODE_VAL] = rhs.code;
+            node[Font::TEXT_LENGTH_VAL] = rhs.length;
+        } else {
+            node = rhs.code;
+        }
+        return node;
+    }
+};
+
+
+struct NounNode {
+    std::vector<std::string> codes;
+    std::string length;
+};
+
+template <>
+struct YAML::convert<NounNode> {
+    static YAML::Node encode(const NounNode& rhs)
+    {
+        using sable::Font;
+        YAML::Node node;
+        node[Font::CODE_VAL] = rhs.codes;
+        node[Font::TEXT_LENGTH_VAL] = rhs.length;
+        return node;
+    }
+};
+
 
 TEST_CASE("Test uninititalized font.")
 {
     using sable::Font;
     Font f;
     REQUIRE(!f);
-    REQUIRE_THROWS(f.getTextCode("A"));
+    REQUIRE_THROWS(f.getTextCode(0, "A"));
 }
 
 TEST_CASE("Test 1-byte fonts.")
@@ -29,25 +71,25 @@ TEST_CASE("Test 1-byte fonts.")
         REQUIRE(f);
         std::vector<int> v;
         int expectedResult = normalNode[Font::ENCODING]["A"][Font::CODE_VAL].as<int>();
-        REQUIRE(std::get<0>(f.getTextCode("A")) == expectedResult);
-        REQUIRE(std::get<0>(f.getTextCode("Special")) == 100);
+        REQUIRE(std::get<0>(f.getTextCode(0, "A")) == expectedResult);
+        REQUIRE(std::get<0>(f.getTextCode(0, "Special")) == 100);
         expectedResult = normalNode[Font::ENCODING]["ll"][Font::CODE_VAL].as<int>();
-        REQUIRE(std::get<0>( f.getTextCode("l", "l")) == expectedResult);
-        REQUIRE(f.getWidth("l") == normalNode[Font::ENCODING]["l"][Font::TEXT_LENGTH_VAL].as<int>());
-        REQUIRE(f.getWidth("la") == normalNode[Font::ENCODING]["la"][Font::TEXT_LENGTH_VAL].as<int>());
-        REQUIRE(f.getWidth("❤") == normalNode[Font::ENCODING]["❤"][Font::TEXT_LENGTH_VAL].as<int>());
-        REQUIRE(!std::get<1>(f.getTextCode("l", "d")));
+        REQUIRE(std::get<0>( f.getTextCode(0, "l", "l")) == expectedResult);
+        REQUIRE(f.getWidth(0, "l") == normalNode[Font::ENCODING]["l"][Font::TEXT_LENGTH_VAL].as<int>());
+        REQUIRE(f.getWidth(0, "la") == normalNode[Font::ENCODING]["la"][Font::TEXT_LENGTH_VAL].as<int>());
+        REQUIRE(f.getWidth(0, "❤") == normalNode[Font::ENCODING]["❤"][Font::TEXT_LENGTH_VAL].as<int>());
+        REQUIRE(!std::get<1>(f.getTextCode(0, "l", "d")));
         REQUIRE(f.getMaxEncodedValue() == 255);
         v.reserve(f.getMaxEncodedValue());
-        f.getFontWidths(std::back_inserter(v));
+        f.getFontWidths(0, std::back_inserter(v));
         REQUIRE(v.size() == f.getMaxEncodedValue());
         REQUIRE(v[0] == normalNode[Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL].as<int>());
         REQUIRE(v[74] == normalNode[Font::DEFAULT_WIDTH].as<int>());
         REQUIRE(f.getCommandValue() == 0);
         REQUIRE(f.getMaxWidth() == 160);
         REQUIRE(f.getByteWidth() == 1);
-        REQUIRE_THROWS(f.getTextCode("@"));
-        REQUIRE_THROWS(f.getWidth("@"));
+        REQUIRE_THROWS(f.getTextCode(0, "@"));
+        REQUIRE_THROWS(f.getWidth(0, "@"));
         REQUIRE(f.getHasDigraphs());
         REQUIRE(f.getFontWidthLocation() == "!somewhere");
         REQUIRE_THROWS(f.getExtraValue("SomeExtra"));
@@ -58,7 +100,7 @@ TEST_CASE("Test 1-byte fonts.")
         Font f(normalNode, "normal");
         std::vector<int> v;
         v.reserve(f.getMaxEncodedValue());
-        f.getFontWidths(std::back_inserter(v));
+        f.getFontWidths(0, std::back_inserter(v));
         REQUIRE(v[74] == 0);
     }
     SECTION("Test commands")
@@ -86,20 +128,20 @@ TEST_CASE("Test 1-byte fonts.")
         normalNode[Font::FIXED_WIDTH] = 8;
         normalNode[Font::ENCODING]["%"] = 4;
         Font f(normalNode, "fixedWidth");
-        REQUIRE(std::get<0>(f.getTextCode("%")) == 4);
-        REQUIRE(f.getWidth("A") == 8);
-        REQUIRE(f.getWidth("A") == f.getWidth("%"));
+        REQUIRE(std::get<0>(f.getTextCode(0, "%")) == 4);
+        REQUIRE(f.getWidth(0, "A") == 8);
+        REQUIRE(f.getWidth(0, "A") == f.getWidth(0, "%"));
         std::vector<int> v;
         v.reserve(f.getMaxEncodedValue());
-        f.getFontWidths(std::back_inserter(v));
+        f.getFontWidths(0, std::back_inserter(v));
         REQUIRE(v.front() == v.back());
     }
     SECTION("Fixed width font with default width.")
     {
         normalNode[Font::FIXED_WIDTH] = "true";
         Font f(normalNode, "fixedWidth");
-        REQUIRE(f.getWidth("A") == 8);
-        REQUIRE(f.getWidth("A") == f.getWidth("❤"));
+        REQUIRE(f.getWidth(0, "A") == 8);
+        REQUIRE(f.getWidth(0, "A") == f.getWidth(0, "❤"));
     }
     SECTION("Test font without digraphs")
     {
@@ -136,8 +178,8 @@ TEST_CASE("Test 1-byte fonts.")
              normalNode[Font::NOUNS]["SomeNoun"][Font::CODE_VAL] = stringData;
         }
         Font f(normalNode, "normal");
-        REQUIRE_NOTHROW(f.getNounData("SomeNoun"));
-        auto nounData = f.getNounData("SomeNoun");
+        REQUIRE_NOTHROW(f.getNounData(0, "SomeNoun"));
+        auto nounData = f.getNounData(0, "SomeNoun");
         REQUIRE(nounData.getWidth() == expectedWidth);
         REQUIRE(data.front() == *nounData);
         int count = 0;
@@ -147,6 +189,66 @@ TEST_CASE("Test 1-byte fonts.")
             count++;
         }
         REQUIRE(count == data.size());
+    }
+    SECTION("Test a font with pages.")
+    {
+        std::map<std::string, EncNode> encNode = {
+            {"待", {"0x01", "13"}},
+            {"祖", {"0x02", "13"}},
+            {"老", {"0x03", "", true}},
+            {"東", {"0x04", "12"}},
+            {"A", {"0x05", "10"}},
+        };
+        bool usenouns = false;
+        SECTION("Pages without nouns")
+        {
+            normalNode[Font::PAGES] = std::vector{encNode};
+            Font f(normalNode, "normal");
+        }
+        SECTION("Pages with nouns")
+        {
+            YAML::Node pageNodeYaml;
+            pageNodeYaml[Font::ENCODING] = encNode;
+            pageNodeYaml[Font::NOUNS] = std::map<std::string, NounNode>{
+                { "マルス", {
+                        {"6", "7"},
+                        "18"
+                }},
+            };
+            normalNode[Font::PAGES].push_back(pageNodeYaml);
+            usenouns = true;
+        }
+        REQUIRE_NOTHROW(Font(normalNode, "normal"));
+        Font f(normalNode, "normal");
+        REQUIRE_THROWS(f.getTextCode(2, "A"));
+        REQUIRE_THROWS(f.getWidth(2, "A"));
+        REQUIRE(std::get<0>(f.getTextCode(0, "A")) == 1);
+        REQUIRE(std::get<0>(f.getTextCode(1, "A")) == 5);
+        REQUIRE_THROWS(f.getTextCode(0, "待"));
+        REQUIRE(std::get<0>(f.getTextCode(1, "待")) == 1);
+        REQUIRE(f.getWidth(1, "祖") == 13);
+        REQUIRE(f.getWidth(1, "東") == 12);
+        REQUIRE(f.getWidth(1, "老") == 8);
+
+        REQUIRE(f.getWidth(0, "A") == 1);
+        REQUIRE(f.getWidth(1, "A") == 10);
+        REQUIRE_THROWS(f.getWidth(0, "老"));
+        if (usenouns) {
+            REQUIRE_THROWS(f.getNounData(0, "マルス"));
+            REQUIRE_NOTHROW(f.getNounData(1, "マルス"));
+            auto it = f.getNounData(1, "マルス");
+            REQUIRE(it.getWidth() == 18);
+            REQUIRE(*(it++) == 6);
+            REQUIRE(*it == 7);
+        }
+        std::vector<int> widths;
+        f.getFontWidths(0, std::back_inserter(widths));
+        REQUIRE(widths.size() == f.getMaxEncodedValue());
+        f.getFontWidths(1, std::back_inserter(widths));
+        REQUIRE(widths.size() == (f.getMaxEncodedValue() * 2));
+        REQUIRE(widths[255] == 13);
+        REQUIRE(widths[257] == 8);
+        REQUIRE(widths[258] == 12);
     }
 }
 

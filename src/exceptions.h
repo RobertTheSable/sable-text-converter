@@ -36,5 +36,12 @@ namespace sable {
     class CodeNotFound : public std::runtime_error {
         using std::runtime_error::runtime_error;
     };
+    struct ConvertError: public std::runtime_error {
+        std::string field;
+        std::string type;
+        YAML::Mark mark;
+        ConvertError(std::string field, std::string type, YAML::Mark mark);
+    };
+
 }
 #endif // EXCEPTIONS_H

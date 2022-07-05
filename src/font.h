@@ -30,6 +30,8 @@ namespace sable {
         static constexpr const char* CODE_VAL = "code";
         static constexpr const char* TEXT_LENGTH_VAL = "length";
         static constexpr const char* CMD_NEWLINE_VAL = "newline";
+        static constexpr const char* CMD_PAGE = "page";
+        static constexpr const char* PAGES = "Pages";
         Font()=default;
         Font(const YAML::Node &config, const std::string& name);
         Font& operator=(Font&&) =default;
@@ -42,13 +44,28 @@ namespace sable {
         bool getHasDigraphs() const;
         const std::string& getFontWidthLocation() const;
 
+        int getNumberOfPages() const;
+
         unsigned int getCommandCode(const std::string& id) const;
+
+        [[deprecated("Use getTextCode(int page, const std::string& id, ...) instead.")]]
         std::tuple<unsigned int, bool> getTextCode(const std::string& id, const std::string& next = "") const;
-        CharacterIterator getNounData(const std::string& id);
-        int getExtraValue(const std::string& id) const;
+        std::tuple<unsigned int, bool> getTextCode(int page, const std::string& id, const std::string& next = "") const;
+
+        [[deprecated("Use getWidth(int page, const std::string& id) instead.")]]
         int getWidth(const std::string& id) const;
+        int getWidth(int page, const std::string& id) const;
+
+        [[deprecated("Use getNounData(int page, const std::string& id) instead.")]]
+        CharacterIterator getNounData(const std::string& id);
+        CharacterIterator getNounData(int page, const std::string& id);
+
+        int getExtraValue(const std::string& id) const;
         bool isCommandNewline(const std::string& id) const;
+
+        [[deprecated("Use getFontWidths(int page, ...) instead.")]]
         void getFontWidths(std::back_insert_iterator<std::vector<int>> inserter) const;
+        void getFontWidths(int page, std::back_insert_iterator<std::vector<int>> inserter) const;
 
         explicit operator bool() const;
 
@@ -59,22 +76,31 @@ namespace sable {
         };
         struct CommandNode {
             unsigned int code;
+            int page;
             bool isNewLine = false;
         };
         struct NounNode {
             std::vector<int> codes;
             int width = 0;
         };
+        struct Page {
+            std::unordered_map<std::string, TextNode> glyphs;
+            std::unordered_map<std::string, NounNode> nouns;
+        };
+
+        Page buildPage(
+            const YAML::Node& n
+        );
+
         YAML::Mark m_YamlNodeMark;
         std::string m_Name;
         bool m_IsValid, m_HasDigraphs, m_IsFixedWidth;
         int m_ByteWidth, m_CommandValue, m_MaxWidth, m_MaxEncodedValue, m_DefaultWidth;
         unsigned int endValue;
         std::string m_FontWidthLocation;
-        std::unordered_map<std::string, TextNode> m_TextConvertMap;
+        std::vector<Page> m_Pages;
         std::unordered_map<std::string, CommandNode> m_CommandConvertMap;
         std::unordered_map<std::string, int> m_Extras;
-        std::unordered_map<std::string, NounNode> m_Nouns;
         template <class T>
         T validate(const YAML::Node&& node, const std::string& field, const std::function<T (const T&)>& validator);
         template <class T>

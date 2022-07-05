@@ -12,29 +12,25 @@ namespace sable {
                 }
                 return val;
             });
-            try {
-                m_TextConvertMap = generateMap<TextNode>(config[ENCODING], ENCODING, [](std::string& str) {
-                        if (str.front() == '[') {
-                            str.erase(0,1);
-                        }
-                        if (str.back() == ']') {
-                            str.pop_back();
-                        }
-                    });
-            } catch(YAML::TypedBadConversion<int> &e) {
-                throw FontError(e.mark, m_Name, TEXT_LENGTH_VAL, "an integer.");
-            } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw FontError(e.mark, m_Name, CODE_VAL, "an integer.");
+
+            if (!config[ENCODING].IsDefined()) {
+                throw FontError(config.Mark(), m_Name, ENCODING, "is missing.");
             }
+            m_Pages.push_back(buildPage(config));
+
+            if (config[PAGES].IsDefined()) {
+                if (!config[PAGES].IsSequence()) {
+                    throw FontError(config[PAGES].Mark(), m_Name, PAGES, "a seuqence of maps.");
+                }
+                for (YAML::Node page: config[PAGES]) {
+                    m_Pages.push_back(buildPage(page));
+                }
+            }
+
             try {
                 m_CommandConvertMap = generateMap<CommandNode>(config[COMMANDS], COMMANDS);
-            } catch(YAML::TypedBadConversion<std::string> &e) {
-                throw FontError(e.mark, m_Name, CMD_NEWLINE_VAL, "a scalar.");
-            } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw FontError(e.mark, m_Name, CODE_VAL, "an integer.");
-            }
-            if (config[NOUNS].IsDefined()) {
-                m_Nouns = generateNouns(config[NOUNS], NOUNS);
+            } catch (ConvertError &e) {
+                throw FontError(e.mark, m_Name, e.field, e.type);
             }
             if (config[EXTRAS].IsDefined()) {
                 try {
@@ -90,6 +86,15 @@ namespace sable {
 
     std::tuple<unsigned int, bool> Font::getTextCode(const std::string &id, const std::string& next) const
     {
+        return getTextCode(0, id, next);
+    }
+
+    std::tuple<unsigned int, bool> Font::getTextCode(int page, const std::string &id, const std::string& next) const
+    {
+        if (!(page < m_Pages.size())) {
+            throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
+        }
+        auto &m_TextConvertMap = m_Pages[page].glyphs;
         if (!next.empty() && m_TextConvertMap.find(id + next) != m_TextConvertMap.end()) {
             return std::make_tuple(m_TextConvertMap.at(id + next).code, true);
         } else if (m_TextConvertMap.find(id) == m_TextConvertMap.end()) {
@@ -100,8 +105,16 @@ namespace sable {
 
     CharacterIterator Font::getNounData(const std::string &id)
     {
-        auto nounItr = m_Nouns.find(id);
-        if (nounItr == m_Nouns.end()) {
+        return getNounData(0, id);
+    }
+
+    CharacterIterator Font::getNounData(int page, const std::string &id)
+    {
+        if (!(page < m_Pages.size())) {
+            throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
+        }
+        auto nounItr = m_Pages[page].nouns.find(id);
+        if (nounItr == m_Pages[page].nouns.end()) {
             throw CodeNotFound(id + " not found in " + NOUNS + " of font " + m_Name);
         }
         NounNode& noun = nounItr->second;
@@ -126,8 +139,17 @@ namespace sable {
 
     int Font::getWidth(const std::string &id) const
     {
+        return getWidth(0, id);
+    }
+
+    int Font::getWidth(int page, const std::string &id) const
+    {
+        if (!(page < m_Pages.size())) {
+            throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
+        }
+        auto &m_TextConvertMap = m_Pages[page].glyphs;
         if (m_TextConvertMap.find(id) == m_TextConvertMap.end()) {
-            throw CodeNotFound(id + " not found in " + COMMANDS + " of font " + m_Name);
+            throw CodeNotFound(id + " not found in " + ENCODING + " of font " + m_Name);
         } else if (m_IsFixedWidth || m_TextConvertMap.at(id).width <= 0) {
             return m_DefaultWidth;
         } else {
@@ -145,7 +167,21 @@ namespace sable {
 
     void Font::getFontWidths(std::back_insert_iterator<std::vector<int> > inserter) const
     {
+        getFontWidths(0, inserter);
+    }
+
+    void Font::getFontWidths(int page, std::back_insert_iterator<std::vector<int> > inserter) const
+    {
         typedef std::pair<std::string, TextNode> TextDataPair;
+        if (!(page < m_Pages.size())) {
+            throw std::logic_error(
+                std::string("Tried to get widths for non-existent page ")  +
+                        std::to_string(page) +
+                        " in font " +
+                        m_Name
+            );
+        }
+        auto &m_TextConvertMap = m_Pages[page].glyphs;
         std::vector<TextDataPair> v(m_TextConvertMap.begin(), m_TextConvertMap.end());
         std::sort(v.begin(), v.end(), [](TextDataPair& a, TextDataPair& b) {
             return a.second.code < b.second.code;
@@ -166,7 +202,11 @@ namespace sable {
         while (index <= m_MaxEncodedValue) {
             if (lastCode != t->second.code) {
                 if (index == t->second.code) {
-                    *(inserter++) = t->second.width;
+                    if (t->second.width > 0) {
+                        *(inserter++) = t->second.width;
+                    } else {
+                        *(inserter++) = m_DefaultWidth;
+                    }
                     index++;
                     lastCode = (t++)->second.code;
                 } else {
@@ -187,9 +227,51 @@ namespace sable {
         return m_FontWidthLocation;
     }
 
+    int Font::getNumberOfPages() const
+    {
+        return m_Pages.size();
+    }
+
     Font::operator bool() const
     {
         return m_IsValid;
+    }
+
+    Font::Page Font::buildPage(const YAML::Node &node)
+    {
+        auto formatTextMap = [](std::string& str) {
+            if (str.front() == '[') {
+                str.erase(0,1);
+            }
+            if (str.back() == ']') {
+                str.pop_back();
+            }
+        };
+        Page page;
+        if (node[ENCODING].IsDefined()) {
+            try {
+                page.glyphs = generateMap<TextNode>(node[ENCODING], ENCODING, formatTextMap);
+            } catch (ConvertError &e) {
+                throw FontError(e.mark, m_Name, e.field, e.type);
+            }
+
+            if (node[NOUNS].IsDefined()) {
+                page.nouns = generateNouns(node[NOUNS], NOUNS);
+            }
+        } else if (node.IsMap()) {
+            try {
+                page.glyphs = generateMap<TextNode>(
+                    std::move(node),
+                    std::string("Each entry in ") + PAGES,
+                    formatTextMap
+                );
+            } catch (ConvertError &e) {
+                throw FontError(e.mark, m_Name, e.field, e.type);
+            }
+        } else {
+            throw FontError(node.Mark(), m_Name, PAGES, "a sequence of maps.");
+        }
+        return page;
     }
 
     int Font::getByteWidth() const
@@ -378,33 +460,67 @@ namespace sable {
             throw FontError(e.mark, m_Name, field);
         }
     }
+
+    ConvertError::ConvertError(std::string f, std::string t, YAML::Mark m):
+        std::runtime_error(f + " must be " + t), field(f), type(t), mark(m) {};
 }
 namespace YAML {
     bool convert<sable::Font::TextNode>::decode(const Node& node, sable::Font::TextNode& rhs)
     {
-        if (node.IsMap() && node[sable::Font::CODE_VAL].IsDefined()) {
-            rhs.code = node[sable::Font::CODE_VAL].as<unsigned int>();
-            if (node[sable::Font::TEXT_LENGTH_VAL].IsDefined()) {
-                rhs.width = node[sable::Font::TEXT_LENGTH_VAL].as<int>();
+        using sable::Font;
+        if (node.IsMap() && node[Font::CODE_VAL].IsDefined()) {
+            try {
+                rhs.code = node[Font::CODE_VAL].as<unsigned int>();
+            } catch(YAML::TypedBadConversion<unsigned int> &e) {
+                throw sable::ConvertError(Font::CODE_VAL, "an integer.", e.mark);
+            }
+            if (node[Font::TEXT_LENGTH_VAL].IsDefined()) {
+                try {
+                    rhs.width = node[Font::TEXT_LENGTH_VAL].as<int>();
+                } catch(YAML::TypedBadConversion<int> &e) {
+                    throw sable::ConvertError(Font::TEXT_LENGTH_VAL, "an integer.", e.mark);
+                }
             }
             return true;
         } else if (node.IsScalar()) {
-            rhs.code = node.as<unsigned int>();
+            try {
+                rhs.code = node.as<unsigned int>();
+            } catch(YAML::TypedBadConversion<unsigned int> &e) {
+                throw sable::ConvertError(Font::CODE_VAL, "an integer.", e.mark);
+            }
             return true;
         }
         return false;
     }
     bool convert<sable::Font::CommandNode>::decode(const Node& node, sable::Font::CommandNode& rhs)
     {
-        if (node.IsMap() && node[sable::Font::CODE_VAL].IsDefined()) {
-            rhs.code = node[sable::Font::CODE_VAL].as<unsigned int>();
-            if (node[sable::Font::CMD_NEWLINE_VAL].IsDefined()) {
-                node[sable::Font::CMD_NEWLINE_VAL].as<std::string>();
+        using sable::Font;
+        rhs.page = -1;
+        if (node.IsMap() && node[Font::CODE_VAL].IsDefined()) {
+            try {
+                rhs.code = node[Font::CODE_VAL].as<unsigned int>();
+            } catch(YAML::TypedBadConversion<unsigned int> &e) {
+                throw sable::ConvertError(Font::CODE_VAL, "an integer.", e.mark);
+            }
+            if (node[Font::CMD_NEWLINE_VAL].IsDefined()) {
+                try {
+                    node[Font::CMD_NEWLINE_VAL].as<std::string>();
+                } catch(YAML::TypedBadConversion<std::string> &e) {
+                   throw sable::ConvertError(Font::CMD_NEWLINE_VAL, "a scalar.", e.mark);
+                }
                 rhs.isNewLine = true;
+            }
+
+            if (node[Font::CMD_PAGE].IsDefined()) {
+                rhs.page = node[Font::CMD_PAGE].as<int>();
             }
             return true;
         } else if (node.IsScalar()) {
-            rhs.code = node.as<unsigned int>();
+            try {
+                rhs.code = node.as<unsigned int>();
+            } catch(YAML::TypedBadConversion<unsigned int> &e) {
+                throw sable::ConvertError(Font::CODE_VAL, "an integer.", e.mark);
+            }
             return true;
         }
         return false;

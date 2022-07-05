@@ -310,6 +310,12 @@ TEST_CASE("Change parser settings", "[parser]")
         REQUIRE(settings.printpc);
         REQUIRE(settings.currentAddress == 0x808000);
     }
+    SECTION("Set page correctly")
+    {
+        sample.str("@page 1");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 0));
+        REQUIRE(settings.page == 1);
+    }
 }
 
 TEST_CASE("Multiline scenarios", "[parser]")

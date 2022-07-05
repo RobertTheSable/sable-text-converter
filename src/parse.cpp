@@ -68,8 +68,8 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                             printNewLine = !activeFont.isCommandNewline(temp);
                         } catch (CodeNotFound &e) {
                             try {
-                                std::tie(code, std::ignore) = activeFont.getTextCode(temp);
-                                length += activeFont.getWidth(temp);
+                                std::tie(code, std::ignore) = activeFont.getTextCode(settings.page, temp);
+                                length += activeFont.getWidth(settings.page, temp);
                             } catch (CodeNotFound &e) {
                                 try {
                                     code = activeFont.getExtraValue(temp);
@@ -122,16 +122,16 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                         }
                         unsigned int code;
                         bool advance;
-                        std::tie<>(code, advance) = activeFont.getTextCode(currentChar, nextChar);
+                        std::tie<>(code, advance) = activeFont.getTextCode(settings.page, currentChar, nextChar);
                         if (advance) {
                             if (peek == char_map.end()) {
                                 it++;
                             } else {
                                 charIt++;
                             }
-                            length += activeFont.getWidth(currentChar + nextChar);
+                            length += activeFont.getWidth(settings.page, currentChar + nextChar);
                         } else {
-                            length += activeFont.getWidth(currentChar);
+                            length += activeFont.getWidth(settings.page, currentChar);
                         }
                         insertData(code, activeFont.getByteWidth(), insert);
                     }
@@ -181,6 +181,7 @@ sable::ParseSettings TextParser::updateSettings(const ParseSettings &settings, s
         {"width", 2},
         {"label", 2},
         {"autoend", 2},
+        {"page", 2},
     };
     ParseSettings retVal = settings;
     if (it != end) {
@@ -247,6 +248,13 @@ sable::ParseSettings TextParser::updateSettings(const ParseSettings &settings, s
                         } else {
                             throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for autoend: must be on or off.");
                         }
+                    } else if (name == "page") {
+                        try {
+                            int page = std::stoi(option);
+                            retVal.page = page;
+                        } catch (std::invalid_argument &e) {
+                            throw std::runtime_error(option.insert(0, "Page \"") + "\" is not a decimal integer.");
+                        }
                     } else {
                         throw std::runtime_error(name.insert(0, "Unrecognized option \"") + '\"');
                     }
@@ -263,6 +271,6 @@ sable::ParseSettings TextParser::updateSettings(const ParseSettings &settings, s
 
 ParseSettings TextParser::getDefaultSetting(int address)
 {
-    return {true, false, defaultFont, "", m_Fonts[defaultFont].getMaxWidth(), address};
+    return {true, false, defaultFont, "", m_Fonts[defaultFont].getMaxWidth(), address, 0};
 }
 
