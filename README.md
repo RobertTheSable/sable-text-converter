@@ -10,8 +10,9 @@ Originally developed for the updated FE3 English patch: https://www.romhacking.n
 * Text mapping is fully user customizeable.
 * Supports multiple formats of text conversion.
 * Text files can be converted individually or as part of a table.
-* Integrates Asar assembler so your text and other customizations can be inserted at the same time
+* Integrates the Asar assembler so your text and other customizations can be inserted at the same time.
 * UTF-8 support.
+* Code page switching.
 
 ## Usage
 

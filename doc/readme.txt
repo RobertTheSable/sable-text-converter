@@ -5,6 +5,7 @@
 
 A text parser/inserter targeting Fire Emblem: Monshou no Nazo, featuring:
 * UTF-8 support.
+* Code page switching.
 * Support for multiple user-defined encoding types.
 * Automatic error/format checking.
 * A built-in assembler so you can compile your script and assembly changes at the same time.

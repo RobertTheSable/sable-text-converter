@@ -263,6 +263,12 @@ The following characters are reserved for special use:
     * @printpc - adds the `print pc` command to the text ASM file after the node is
     included. This will cause Asar to print the current address after the binary file.
     Useful for debugging purposes.
+    * @page - causes the parser to switch to the specified code page. May be useful if
+    a particular piece of text starts being read in something other than the default page.
+      * The argument should be a decinal number and be within the number of defined pages.
+      Examples:
+        * `@page 0` - OK! Switches back to the default page.
+        * `@page 1` - OK! Switches to the first page defined in the "Pages" setting.
 * `[]` - Brackets can be used to enclose:
     * Commands
     * Extras
