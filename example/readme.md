@@ -43,7 +43,16 @@ configuration. The "main" asm file for each rom
 * config
   * directory - the subdirectory that contains the text conversion 
     configuration file.
-  * inMapping - the name of the file that holds the text configuration.
+  * inMapping - the name of the file(s) that holds the text configuration.
+    * All files must be located in the config directory.
+    * If there are more than one files that should be used, this field must be a sequence.
+    Example:
+    ```
+    inMapping:
+      - default.yml
+      - menu.yml
+      - somethingelse.yml
+    ```
   * defaultMode - the default mode for text conversion. If no value is given, 
     the default is `normal`.
   * outputSize: the size of the output roms. Can be given as number of bytes, or 
