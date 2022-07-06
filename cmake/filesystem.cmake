@@ -23,22 +23,22 @@ if (NOT (SABLE_USE_STD_FS OR SABLE_USE_EXPERIMENTAL_FS OR SABLE_USE_BOOST_FS))
             HAS_STD_FILESYSTEM)
             
     if(NOT HAS_STD_FILESYSTEM)
-        if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        if (SABLE_USING_LIBC)
+            message(STATUS "Checking for filesystem with libc++fs...")
             set(CMAKE_REQUIRED_LIBRARIES c++fs)
             check_cxx_source_compiles(
                 "${STD_FILESYSTEM_TEST_PROGRAM}"
                 HAS_STD_FILESYSTEM_WITH_CXXFS)
             set(HAS_STD_FILESYSTEM ${HAS_STD_FILESYSTEM_WITH_CXXFS})
             set(CMAKE_REQUIRED_LIBRARIES "")
-        elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        else()
+            message(STATUS "Checking for filesystem with stdc++fs...")
             set(CMAKE_REQUIRED_LIBRARIES stdc++fs)
             check_cxx_source_compiles(
                 "${STD_FILESYSTEM_TEST_PROGRAM}"
                 HAS_STD_FILESYSTEM_WITH_STDCXXFS)
             set(HAS_STD_FILESYSTEM ${HAS_STD_FILESYSTEM_WITH_STDCXXFS})
             set(CMAKE_REQUIRED_LIBRARIES "")
-        else()
-
         endif()
     endif()
 

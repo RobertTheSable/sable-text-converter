@@ -10,8 +10,8 @@ DataStore::DataStore() : dirIndex(0), nextAddress(0), isSorted(false)
 
 }
 
-DataStore::DataStore(FontList&& list, const std::string& defaultMode, const std::string& localeName)
-    : m_Parser(std::move(list), defaultMode, localeName), dirIndex(0), nextAddress(0), isSorted(false)
+DataStore::DataStore(TextParser&& p)
+    : m_Parser(std::move(p)), dirIndex(0), nextAddress(0), isSorted(false)
 {
 }
 

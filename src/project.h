@@ -35,7 +35,6 @@ typedef std::vector<std::string> StringVector;
 class Project
 {
 public:
-    Project()=default;
     Project(const YAML::Node &config, const std::string &projectDir);
     Project(const std::string& projectDir);
     void init(const YAML::Node &config, const std::string &projectDir);

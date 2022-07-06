@@ -112,7 +112,7 @@ void Project::init(const YAML::Node &config, const std::string &projectDir)
             m_MappingPaths.push_back(fontLocation.string());
         } else if (config[CONFIG_SECTION][IN_MAP].IsSequence()) {
             for (auto&& path: config[CONFIG_SECTION][IN_MAP]) {
-                m_MappingPaths.push_back(fontLocation / path.as<std::string>());
+                m_MappingPaths.push_back((fontLocation / path.as<std::string>()).string());
             }
         }
     }
@@ -144,7 +144,7 @@ bool Project::parseText()
             fl.AddFont(fontIt->first.Scalar(), Font(fontIt->second, fontIt->first.Scalar()));
         }
     }
-    DataStore m_DataStore = DataStore(std::move(fl), m_DefaultMode, m_LocaleString);
+    DataStore m_DataStore = DataStore(TextParser(std::move(fl), m_DefaultMode, m_LocaleString));
     {
         fs::path input = fs::path(m_MainDir) / m_InputDir;
         std::vector<std::string> allFiles;
@@ -229,9 +229,12 @@ bool Project::parseText()
             mainFile.close();
         }
         fs::path fontFilePath = fs::path(m_MainDir) / m_OutputDir / m_BinsDir / m_FontDir / (m_FontDir + ".asm");
+        if (!fs::exists(fontFilePath.parent_path())) {
+            fs::create_directories(fontFilePath.parent_path());
+        }
         std::ofstream output(fontFilePath.string());
         if (!output) {
-            throw ASMError("Could not open " + fontFilePath.string() + "for writing.\n");
+            throw ASMError("Could not open " + fontFilePath.string() + " for writing.\n");
         }
         r.writeIncludes(m_FontIncludes.begin(), m_FontIncludes.end(), output);
         r.writeFontData(m_DataStore, output);

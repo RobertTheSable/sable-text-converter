@@ -276,16 +276,17 @@ void sable::RomPatcher::writeIncludes(sable::ConstStringIterator start, sable::C
 
 void sable::RomPatcher::writeFontData(const sable::DataStore &data, std::ostream &output)
 {
-    for (auto& fontIt: data.getFonts()) {
-        if (!fontIt.getFontWidthLocation().empty()) {
+    for (auto& font: data.getFonts()) {
+        if (!font.getFontWidthLocation().empty()) {
             output << "\n"
-                      "ORG " + fontIt.getFontWidthLocation();
+                      "ORG " + font.getFontWidthLocation();
             std::vector<int> widths;
-            widths.reserve(fontIt.getMaxEncodedValue());
-            int pIdx = 0;
-//            for (int pIdx = 0; pIdx < fontIt.second.getNumberOfPages(); pIdx++) {
-                fontIt.getFontWidths(pIdx, std::back_insert_iterator(widths));
-//            }
+
+            for (int pIdx = 0; pIdx < font.getNumberOfPages(); pIdx++) {
+                            widths.reserve(font.getMaxEncodedValue(pIdx));
+                font.getFontWidths(pIdx, std::back_insert_iterator(widths));
+            }
+
             int column = 0;
             int skipCount = 0;
             for (auto it = widths.begin(); it != widths.end(); ++it) {

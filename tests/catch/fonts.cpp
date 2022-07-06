@@ -37,10 +37,10 @@ TEST_CASE("Test 1-byte fonts.")
         REQUIRE(f.getWidth(0, "la") == normalNode[Font::ENCODING]["la"][Font::TEXT_LENGTH_VAL].as<int>());
         REQUIRE(f.getWidth(0, "❤") == normalNode[Font::ENCODING]["❤"][Font::TEXT_LENGTH_VAL].as<int>());
         REQUIRE(!std::get<1>(f.getTextCode(0, "l", "d")));
-        REQUIRE(f.getMaxEncodedValue() == 255);
-        v.reserve(f.getMaxEncodedValue());
+        REQUIRE(f.getMaxEncodedValue(0) == 255);
+        v.reserve(f.getMaxEncodedValue(0));
         f.getFontWidths(0, std::back_inserter(v));
-        REQUIRE(v.size() == f.getMaxEncodedValue());
+        REQUIRE(v.size() == f.getMaxEncodedValue(0));
         REQUIRE(v[0] == normalNode[Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL].as<int>());
         REQUIRE(v[74] == normalNode[Font::DEFAULT_WIDTH].as<int>());
         REQUIRE(f.getCommandValue() == 0);
@@ -57,7 +57,7 @@ TEST_CASE("Test 1-byte fonts.")
         normalNode.remove(Font::DEFAULT_WIDTH);
         Font f(normalNode, "normal");
         std::vector<int> v;
-        v.reserve(f.getMaxEncodedValue());
+        v.reserve(f.getMaxEncodedValue(0));
         f.getFontWidths(0, std::back_inserter(v));
         REQUIRE(v[74] == 0);
     }
@@ -90,7 +90,7 @@ TEST_CASE("Test 1-byte fonts.")
         REQUIRE(f.getWidth(0, "A") == 8);
         REQUIRE(f.getWidth(0, "A") == f.getWidth(0, "%"));
         std::vector<int> v;
-        v.reserve(f.getMaxEncodedValue());
+        v.reserve(f.getMaxEncodedValue(0));
         f.getFontWidths(0, std::back_inserter(v));
         REQUIRE(v.front() == v.back());
     }
@@ -159,10 +159,22 @@ TEST_CASE("Test 1-byte fonts.")
             {"A", {"0x05", "10"}},
         };
         bool usenouns = false;
+        int expectedSize = 255 * 2;
         SECTION("Pages without nouns")
         {
             normalNode[Font::PAGES] = std::vector{encNode};
             Font f(normalNode, "normal");
+        }
+        SECTION("Pages with different max encodec characters")
+        {
+            normalNode[Font::PAGES].push_back(
+                std::map<std::string, decltype(encNode)> {
+                    {Font::ENCODING, encNode}
+                }
+            );
+            normalNode[Font::PAGES][0][Font::MAX_CHAR] = 5;
+            Font f(normalNode, "normal");
+            expectedSize = 255 + 5;
         }
         SECTION("Pages with nouns")
         {
@@ -210,9 +222,10 @@ TEST_CASE("Test 1-byte fonts.")
         }
         std::vector<int> widths;
         f.getFontWidths(0, std::back_inserter(widths));
-        REQUIRE(widths.size() == f.getMaxEncodedValue());
+        REQUIRE(widths.size() == f.getMaxEncodedValue(0));
         f.getFontWidths(1, std::back_inserter(widths));
-        REQUIRE(widths.size() == (f.getMaxEncodedValue() * 2));
+        REQUIRE(widths.size() == (f.getMaxEncodedValue(0) + f.getMaxEncodedValue(1)));
+        REQUIRE(widths.size() == expectedSize);
         REQUIRE(widths[255] == 13);
         REQUIRE(widths[257] == 8);
         REQUIRE(widths[258] == 12);

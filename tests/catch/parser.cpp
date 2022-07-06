@@ -108,10 +108,10 @@ TEST_CASE("Single lines", "[parser]")
     SECTION("Check that a Noun is recognized")
     {
         node["normal"][Font::NOUNS]["Noun"][Font::CODE_VAL] = std::vector<int>{1,1,1};
-        p = TextParser(node.as<sable::FontList>(), "normal", "en_US.UTF-8");
+        TextParser p2(node.as<sable::FontList>(), "normal", "en_US.UTF-8");
         sample.str("Noun");
         std::pair<bool, int> result;
-        REQUIRE_NOTHROW(result = p.parseLine(sample, settings, std::back_inserter(v), m));
+        REQUIRE_NOTHROW(result = p2.parseLine(sample, settings, std::back_inserter(v), m));
         REQUIRE(v.size() == 5);
         REQUIRE(v.front() == 1);
         REQUIRE(v[1] == 1);

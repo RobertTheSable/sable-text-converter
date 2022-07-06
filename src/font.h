@@ -34,12 +34,13 @@ namespace sable {
         static constexpr const char* PAGES = "Pages";
         Font()=default;
         Font(const YAML::Node &config, const std::string& name);
-        Font(Font&&) =default;
-        Font(Font&) =default;
+        Font(Font&&)=default;
+        Font(Font&)=default;
+        Font(const Font&)=default;
+        Font& operator=(const Font&)=default;
         int getByteWidth() const;
         int getCommandValue() const;
         int getMaxWidth() const;
-        int getMaxEncodedValue() const;
         bool getHasDigraphs() const;
         const std::string& getFontWidthLocation() const;
 
@@ -55,6 +56,10 @@ namespace sable {
 
         unsigned int getCommandCode(const std::string& id) const;
         bool isCommandNewline(const std::string& id) const;
+
+        int getMaxEncodedValue(int page) const;
+        [[deprecated ("Use getMaxEncodedValue(int page) instead.")]]
+        int getMaxEncodedValue() const;
 
         [[deprecated("Use getTextCode(int page, const std::string& id, ...) instead.")]]
         std::tuple<unsigned int, bool> getTextCode(const std::string& id, const std::string& next = "") const;
@@ -88,6 +93,7 @@ namespace sable {
         struct Page {
             std::unordered_map<std::string, TextNode> glyphs;
             std::unordered_map<std::string, NounNode> nouns;
+            int maxValue;
         };
 
         Page buildPage(
@@ -97,7 +103,7 @@ namespace sable {
         YAML::Mark m_YamlNodeMark;
         std::string m_Name;
         bool m_IsValid, m_HasDigraphs, m_IsFixedWidth;
-        int m_ByteWidth, m_CommandValue, m_MaxWidth, m_MaxEncodedValue, m_DefaultWidth;
+        int m_ByteWidth, m_CommandValue, m_MaxWidth, m_DefaultWidth;
         unsigned int endValue;
         std::string m_FontWidthLocation;
         std::vector<Page> m_Pages;

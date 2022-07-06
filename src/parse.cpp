@@ -9,9 +9,8 @@
 using sable::TextParser, sable::Font;
 
 TextParser::TextParser(FontList&& list, const std::string& defaultMode, const std::string& localeName) :
-    defaultFont(defaultMode)
+    m_FontList(list), defaultFont(defaultMode)
 {
-    m_FontList = std::move(list);
     m_Locale =  boost::locale::generator().generate(localeName);
 }
 

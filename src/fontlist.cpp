@@ -5,7 +5,6 @@ FontList::FontList()
 {
 
 }
-
 void FontList::AddFont(const std::string& name, Font&& font)
 {
     if (m_List.find(name) == m_List.end()) {

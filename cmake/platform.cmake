@@ -1,4 +1,5 @@
 set(SABLE_PLATFORM_LIBRARIES "")
+set(SABLE_USING_LIBC FALSE)
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -11,8 +12,11 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
         )
     endif()
 else()
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+    if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+            set(SABLE_USING_LIBC TRUE)
+        endif()
     endif()
     # Need ldl on *nix for Asar loading.
     list(

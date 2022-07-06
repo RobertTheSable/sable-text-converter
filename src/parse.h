@@ -28,6 +28,7 @@ namespace sable {
     public:
         TextParser()=default;
         TextParser(FontList&& list, const std::string& defaultMode, const std::string& localeName);
+        TextParser& opterator();
         struct lineNode{
             bool hasNewLines;
             int length;

@@ -58,18 +58,7 @@ namespace sable {
             }
             m_MaxWidth = config[MAX_WIDTH].IsDefined() ? validate<int>(config[MAX_WIDTH], MAX_WIDTH) : 0;
             m_FontWidthLocation = config[FONT_ADDR].IsDefined() ? validate<std::string>(config[FONT_ADDR], FONT_ADDR) : "";
-            if (config[MAX_CHAR].IsDefined()) {
-                m_MaxEncodedValue = validate<int>(config[MAX_CHAR], MAX_CHAR);
-            } else {
-                m_MaxEncodedValue = 0;
-                if (m_ByteWidth == 1) {
-                    m_MaxEncodedValue = 0xFF;
-                } else if (m_ByteWidth == 2) {
-                    m_MaxEncodedValue = 0xFFFF;
-                } else {
-                    throw std::logic_error("Only fonts of width 1 or 2 are allowed.");
-                }
-            }
+
             m_IsValid = true;
             try {
                  endValue = m_CommandConvertMap.at("End").code;
@@ -93,7 +82,7 @@ namespace sable {
 
     bool Font::isCommandNewline(const std::string &id) const
     {
-         return getCommandData(id).isNewLine;
+        return getCommandData(id).isNewLine;
     }
 
     unsigned int Font::getCommandCode(const std::string &id) const
@@ -201,7 +190,7 @@ namespace sable {
         }
         auto t = v.begin();
         if (m_IsFixedWidth) {
-            while (index <= m_MaxEncodedValue) {
+            while (index <= m_Pages[page].maxValue) {
                 *(inserter++) = m_DefaultWidth;
                 index++;
                 ++t;
@@ -210,7 +199,7 @@ namespace sable {
             // never ran into an issue with this until I started testing pages
             // my best guess is that adding those cases somehow messed with emory enough
             // to trigger the infinite loop condition.
-            unsigned int lastCode = m_MaxEncodedValue+1;
+            unsigned int lastCode = m_Pages[page].maxValue+1;
             while (t != v.end()) {
                 if (lastCode != t->second.code ) {
                     if (index == t->second.code) {
@@ -229,7 +218,7 @@ namespace sable {
                     t++;
                 }
             }
-            for ( ; index <= m_MaxEncodedValue; index++) {
+            for ( ; index <= m_Pages[page].maxValue; index++) {
                 *(inserter++) = m_DefaultWidth;
             }
         }
@@ -290,6 +279,18 @@ namespace sable {
         } else {
             throw FontError(node.Mark(), m_Name, PAGES, "a sequence of maps.");
         }
+        if (node[MAX_CHAR].IsDefined()) {
+            page.maxValue = validate<int>(node[MAX_CHAR], MAX_CHAR);
+        } else {
+            page.maxValue = 0;
+            if (m_ByteWidth == 1) {
+                page.maxValue = 0xFF;
+            } else if (m_ByteWidth == 2) {
+                page.maxValue = 0xFFFF;
+            } else {
+                throw std::logic_error("Only fonts of width 1 or 2 are allowed.");
+            }
+        }
         return page;
     }
 
@@ -308,10 +309,16 @@ namespace sable {
         return m_MaxWidth;
     }
 
+
+    int Font::getMaxEncodedValue(int page) const
+    {
+        return m_Pages[page].maxValue;
+    }
+
     int Font::getMaxEncodedValue() const
     {
         // TODO: needs to be done on a per-page basis, since the final page may have less items
-        return m_MaxEncodedValue;
+        return getMaxEncodedValue(0);
     }
 
     bool Font::getHasDigraphs() const

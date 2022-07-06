@@ -17,7 +17,7 @@ class DataStore
 {
 public:
     DataStore();
-    DataStore(FontList&& list, const std::string& defaultMode, const std::string& localeName);
+    DataStore(TextParser&& p);
     struct TextNode {
         std::string files;
         size_t size;
