@@ -129,6 +129,7 @@ Each font entry must have the following tags defined:
         fixed width, this can be omitted.
     * Helpful tip: You can use YAML anchors & aliases if you have multiple fonts
     that use the same encoding but have different properties.
+    * If the Pages field is defined (
 * Commands: Used for special non-character encodings - newlines, showing
 portraits, closing windows, and the like. 
     * Each has the following fields:
@@ -136,35 +137,75 @@ portraits, closing windows, and the like.
         * newline: Optional. If defined(the value does not matter), Sable will 
         not automatically add a newline if a line break is reached after this
         command is read.
+        * page: Optional. If set, sable will switch to the specified text page
+        when this command is parsed. 
+        Should be a number 0 or higher, but not higher than the number of pages + 1. 
     * Certain tags will be used by Sable for specific purposes:
         * End: The code defined for this command will automatically be defined 
         at the end of a text node, unless the "autoend" setting is disabled.
         * NewLine: Sable will insert the code for this command every time it
         reaches a line break in the text file it is parsing.
-* Extras: Simple encodings that can be used in brackets. Useful for arguments to commands.
-* Nouns: Multi-character strings that use a fixed encoding rather than parsing each character individually.
-    * Most useful for faking variable width text in fixed width fonts.
-    * For example, if you addd the following to a font:
-    ```
-    Nouns:
-        text:
-            code:
-                - 0x70
-                - 0x72
-                - 0x61
-                - 0x6E
-                - 0x6B
-    ```
-    Then any instance of `text` will be parsed as `0x70,0x72,0x61,0x6E,0x6B` rather than whatever each individual character would be parse as otherwise.
-        * in this case, the resulting string is 5 instead of 4 bytes, but this is more useful for cases where you want a smaller number of bytes.
 * HasDigraphs
     * Accepted values: `true` or `false`
     * Whether or not the current font has any multi-character encoding bytes.
 * ByteWidth:
     * Accepted values: `1` or `2`
     * The number of bytes each character in the current font is encoded with.
+    Then any instance of `text` will be parsed as `0x70,0x72,0x61,0x6E,0x6B` rather than whatever each individual character would be parse as otherwise.
+        * in this case, the resulting string is 5 instead of 4 bytes, but this is more useful for cases where you want a smaller number of bytes.
 
 Each text type entry may have the following additional tags:
+* Extras
+    * Simple encodings that can be used in brackets. Useful for arguments to commands.
+* Nouns 
+    * Multi-character strings that use a fixed encoding rather than parsing each character individually.
+      * Most useful for faking variable width text in fixed width fonts.
+      * For example, if you addd the following to a font:
+      ```
+      Nouns:
+          text:
+              code:
+                  - 0x70
+                  - 0x72
+                  - 0x61
+                  - 0x6E
+                  - 0x6B
+      ```
+* Pages
+    * A list of additional code pages which may be used during parsing.
+      * This field must be a seuqence. There are two valid formats for each entry:
+        * Each entry may be a map definig character encodings. In other words, 
+        the same format as the "Encoding" field. An example:
+        ```
+        Pages:
+          - A:
+              code: 0x01
+            B:
+              code: 0x02
+        ```
+        * Each entry may also be a map with:
+          * These required fields: 
+            * An "Encoding" field, matching the same format used for the top-level Encoding field.
+          * These optional fields:
+            * A "Nouns" field matching the top-level Nouns field.
+            * A "MaxEncodedValue" field, which has the same effect as the top-level 
+            MaxEncodedValue field on a per-page basis.
+          An example:
+        ```
+        Pages:
+          - Encoding:
+              A:
+                code: 0x01
+              B:
+                code: 0x02
+            MaxEncodedValue: 0x10
+            Nouns:
+              text:
+                  code:
+                      - 0x06
+                      - 0x07
+                      - 0x08
+        ```
 * CommandValue
     * If defined, this value will be inserted into the encoded text before 
     every command.
@@ -183,10 +224,10 @@ Each text type entry may have the following additional tags:
         * Otherwise FixedWidth must be a numeric value, which 
         will be used as the width for all characters.
 * MaxEncodedValue:
-    * Used when writing font widths. This will be defined as the upper limit to write
-    widths for. If this value is not defined, the maximum value will be calculated 
-    based on the given byte width.
-
+    * Used when writing font widths. If set, this will limit the number of font widths 
+    which are written to the fotn file for the first page. 
+    If this value is not defined, the maximum value will be calculated based on the 
+    given byte width.
 ## Text file format
 
 Text files should be grouped into subdirectories and placed inside the 
