@@ -10,8 +10,8 @@ DataStore::DataStore() : dirIndex(0), nextAddress(0), isSorted(false)
 
 }
 
-DataStore::DataStore(const YAML::Node &config, const std::string& defaultMode, const std::string& localeName)
-    : m_Parser(config, defaultMode, localeName), dirIndex(0), nextAddress(0), isSorted(false)
+DataStore::DataStore(FontList&& list, const std::string& defaultMode, const std::string& localeName)
+    : m_Parser(std::move(list), defaultMode, localeName), dirIndex(0), nextAddress(0), isSorted(false)
 {
 }
 
@@ -53,7 +53,7 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
                            std::to_string(settings.maxWidth) + " pixels.\n";
         }
         if (done && !tempFileData.empty()) {
-            if (m_Parser.getFonts().at(settings.mode)) {
+            if (m_Parser.getFonts()[settings.mode]) {
                 if (settings.label.empty()) {
                     settings.label = dir + '_' + std::to_string(dirIndex++);
                 }
@@ -187,7 +187,7 @@ void DataStore::setNextAddress(int value)
     nextAddress = value;
 }
 
-const std::map<std::string, Font> &DataStore::getFonts() const
+const FontList &DataStore::getFonts() const
 {
     return m_Parser.getFonts();
 }

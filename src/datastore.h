@@ -17,7 +17,7 @@ class DataStore
 {
 public:
     DataStore();
-    DataStore(const YAML::Node& config, const std::string& defaultMode, const std::string& localeName);
+    DataStore(FontList&& list, const std::string& defaultMode, const std::string& localeName);
     struct TextNode {
         std::string files;
         size_t size;
@@ -40,7 +40,7 @@ public:
     void sort();
     int getNextAddress() const;
     void setNextAddress(int value);
-    const std::map<std::string, Font>& getFonts() const;
+    const FontList& getFonts() const;
     bool getIsSorted() const;
 
 private:

@@ -8,6 +8,7 @@
 #include <yaml-cpp/yaml.h>
 #include <boost/locale.hpp>
 #include "font.h"
+#include "fontlist.h"
 #include "util.h"
 
 using boost::locale::boundary::ssegment_index;
@@ -26,27 +27,27 @@ namespace sable {
     {
     public:
         TextParser()=default;
-        TextParser(const YAML::Node& node, const std::string& defaultMode, const std::string& localeName);
+        TextParser(FontList&& list, const std::string& defaultMode, const std::string& localeName);
         struct lineNode{
             bool hasNewLines;
             int length;
             std::vector<unsigned char> data;
         };
         std::pair<bool, int> parseLine(std::istream &input, ParseSettings &settings, back_inserter insert, const util::Mapper& mapper);
-        const std::map<std::string, Font>& getFonts() const;
+        const FontList& getFonts() const;
         ParseSettings getDefaultSetting(int address);
     private:
         std::locale m_Locale;
         bool useDigraphs;
         int maxWidth;
-        std::map<std::string, Font> m_Fonts;
+        FontList m_FontList;
         std::string defaultFont;
         ParseSettings updateSettings(
-                const ParseSettings &settings,
-                ssegment_index::iterator& it,
-                const ssegment_index::const_iterator& end,
-                const util::Mapper& mapper
-                );
+            const ParseSettings &settings,
+            ssegment_index::iterator& it,
+            const ssegment_index::const_iterator& end,
+            const util::Mapper& mapper
+        );
         static void insertData(unsigned int code, int size, back_inserter bi);
     };
 }

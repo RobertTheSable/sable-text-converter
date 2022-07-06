@@ -98,15 +98,23 @@ void Project::init(const YAML::Node &config, const std::string &projectDir)
             m_Includes = outputConfig[INCLUDE_VAL].as<vector<string>>();
         }
         m_Roms = config[ROMS].as<vector<Rom>>();
+
         fs::path fontLocation = mainDir
-                / config[CONFIG_SECTION][DIR_VAL].as<string>()
-                / config[CONFIG_SECTION][IN_MAP].as<string>();
+                / config[CONFIG_SECTION][DIR_VAL].as<string>();
+
         m_DefaultMode = config[CONFIG_SECTION][DEFAULT_MODE].IsDefined()
                 ? config[CONFIG_SECTION][DEFAULT_MODE].as<string>() : "normal";
-        if (!fs::exists(fontLocation)) {
-            throw ConfigError(fontLocation.string() + " not found.");
+        if (config[CONFIG_SECTION][IN_MAP].IsScalar()) {
+            fontLocation = fontLocation / config[CONFIG_SECTION][IN_MAP].as<std::string>();
+            if (!fs::exists(fontLocation)) {
+                throw ConfigError(fontLocation.string() + " not found.");
+            }
+            m_MappingPaths.push_back(fontLocation.string());
+        } else if (config[CONFIG_SECTION][IN_MAP].IsSequence()) {
+            for (auto&& path: config[CONFIG_SECTION][IN_MAP]) {
+                m_MappingPaths.push_back(fontLocation / path.as<std::string>());
+            }
         }
-        m_FontConfigPath = fontLocation.string();
     }
 }
 
@@ -129,7 +137,14 @@ bool Project::parseText()
 
 //    auto mapperType = m_OutputSize > util::NORMAL_ROM_MAX_SIZE ? util::MapperType::EXLOROM : util::MapperType::LOROM;
 //    util::Mapper mapper(mapperType, false, true, m_OutputSize);
-    DataStore m_DataStore = DataStore(YAML::LoadFile(m_FontConfigPath), m_DefaultMode, m_LocaleString);
+    FontList fl;
+    for (auto &path: this->m_MappingPaths) {
+        auto inFile = YAML::LoadFile(path);
+        for (auto fontIt = inFile.begin(); fontIt != inFile.end(); ++fontIt) {
+            fl.AddFont(fontIt->first.Scalar(), Font(fontIt->second, fontIt->first.Scalar()));
+        }
+    }
+    DataStore m_DataStore = DataStore(std::move(fl), m_DefaultMode, m_LocaleString);
     {
         fs::path input = fs::path(m_MainDir) / m_InputDir;
         std::vector<std::string> allFiles;
@@ -418,9 +433,12 @@ bool Project::validateConfig(const YAML::Node &configYML)
             isValid = false;
             errorString << "directory for config section is missing or is not a scalar.\n";
         }
-        if (!configYML[CONFIG_SECTION][IN_MAP].IsDefined() || !configYML[CONFIG_SECTION][IN_MAP].IsScalar()) {
+        if (!configYML[CONFIG_SECTION][IN_MAP].IsDefined() ) {
             isValid = false;
-            errorString << "inMapping for config section is missing or is not a scalar.\n";
+            errorString << "inMapping for config section is missing.\n";
+        } else if (configYML[CONFIG_SECTION][IN_MAP].IsMap()) {
+            isValid = false;
+            errorString << "inMapping for config section must be a filename or sequence of filenames.\n";
         }
 //        if (configYML[CONFIG_SECTION][MAP_TYPE].IsDefined() && !configYML[CONFIG_SECTION][MAP_TYPE].IsScalar()) {;
 //            isValid = false;

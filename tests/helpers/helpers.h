@@ -3,6 +3,7 @@
 #include <yaml-cpp/yaml.h>
 #include <string>
 #include <vector>
+#include "fontlist.h"
 
 namespace sable_tests {
 YAML::Node createSampleNode(
@@ -44,6 +45,12 @@ struct convert<sable_tests::EncNode> {
 template <>
 struct convert<sable_tests::NounNode> {
     static Node encode(const sable_tests::NounNode& rhs);
+};
+
+
+template <>
+struct convert<sable::FontList> {
+     static bool decode(const Node& node, sable::FontList& rhs);
 };
 };
 #endif

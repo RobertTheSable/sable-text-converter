@@ -12,15 +12,15 @@ TEST_CASE("Class properties", "[parser]")
 {
     using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal", "en_US.UTF-8");
+    TextParser p(node.as<sable::FontList>(), "normal", "en_US.UTF-8");
     SECTION("Iterate over fonts.")
     {
         auto& fonts = p.getFonts();
         REQUIRE(fonts.size() == 3);
-        REQUIRE(fonts.find("normal") != fonts.end());
-        REQUIRE(fonts.find("menu") != fonts.end());
-        REQUIRE(fonts.find("nodigraph") != fonts.end());
-        REQUIRE(fonts.find("test") == fonts.end());
+        REQUIRE(fonts.contains("normal"));
+        REQUIRE(fonts.contains("menu"));
+        REQUIRE(fonts.contains("nodigraph"));
+        REQUIRE(!fonts.contains("test"));
     }
 }
 
@@ -28,7 +28,7 @@ TEST_CASE("Single lines", "[parser]")
 {
     using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal", "en_US.UTF-8");
+    TextParser p(node.as<sable::FontList>(), "normal", "en_US.UTF-8");
     auto settings = p.getDefaultSetting(0x808000);
     std::istringstream sample;
     ByteVector v = {};
@@ -108,7 +108,7 @@ TEST_CASE("Single lines", "[parser]")
     SECTION("Check that a Noun is recognized")
     {
         node["normal"][Font::NOUNS]["Noun"][Font::CODE_VAL] = std::vector<int>{1,1,1};
-        p = TextParser(node, "normal", "en_US.UTF-8");
+        p = TextParser(node.as<sable::FontList>(), "normal", "en_US.UTF-8");
         sample.str("Noun");
         std::pair<bool, int> result;
         REQUIRE_NOTHROW(result = p.parseLine(sample, settings, std::back_inserter(v), m));
@@ -208,7 +208,7 @@ TEST_CASE("Single lines", "[parser]")
             {"page", "1"},
         };
         node["normal"][Font::PAGES].push_back(pageNodeYaml2);
-        TextParser pwp(node, "normal", "ja_JP.UTF-8");
+        TextParser pwp(node.as<sable::FontList>(), "normal", "ja_JP.UTF-8");
         SECTION("Switch from page 0 > 1")
         {
             sample.str("ABC[Page1]シーダ");
@@ -234,7 +234,7 @@ TEST_CASE("Test ending behavior", "[parser]")
 {
     using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal", "en_US.UTF-8");
+    TextParser p(node.as<sable::FontList>(), "normal", "en_US.UTF-8");
     auto settings = p.getDefaultSetting(0x808000);
     std::istringstream sample;
     ByteVector v = {};
@@ -258,7 +258,7 @@ TEST_CASE("Default settings", "[parser]")
     auto node = sable_tests::getSampleNode();
     SECTION("Normal Settings")
     {
-        TextParser p(node, "normal", "en_US.UTF-8");
+        TextParser p(node.as<sable::FontList>(), "normal", "en_US.UTF-8");
         auto settings = p.getDefaultSetting(0x808000);
         REQUIRE(settings.mode == "normal");
         REQUIRE(settings.label.empty());
@@ -269,7 +269,7 @@ TEST_CASE("Default settings", "[parser]")
     }
     SECTION("Menu Settings")
     {
-        TextParser p(node, "menu", "en_US.UTF-8");
+        TextParser p(node.as<sable::FontList>(), "menu", "en_US.UTF-8");
         auto settings = p.getDefaultSetting(0x908000);
         REQUIRE(settings.mode == "menu");
         REQUIRE(settings.label.empty());
@@ -284,7 +284,7 @@ TEST_CASE("Change parser settings", "[parser]")
 {
     using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal", "en_US.UTF-8");
+    TextParser p(node.as<sable::FontList>(), "normal", "en_US.UTF-8");
     auto settings = p.getDefaultSetting(0x808000);
     std::istringstream sample;
     ByteVector v = {};
@@ -368,7 +368,7 @@ TEST_CASE("Change parser settings", "[parser]")
             {"シ", {"0x5c", "11"}},
         };
         node["normal"][Font::PAGES].push_back(pageNodeYaml2);
-        TextParser pwp(node, "normal", "ja_JP.UTF-8");
+        TextParser pwp(node.as<sable::FontList>(), "normal", "ja_JP.UTF-8");
         sample.str("@page 1");
         REQUIRE(pwp.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 0));
         REQUIRE(settings.page == 1);
@@ -379,7 +379,7 @@ TEST_CASE("Multiline scenarios", "[parser]")
 {
     using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal", "en_US.UTF-8");
+    TextParser p(node.as<sable::FontList>(), "normal", "en_US.UTF-8");
     auto settings = p.getDefaultSetting(0x808000);
     std::istringstream sample;
     ByteVector v = {};
@@ -399,7 +399,7 @@ TEST_CASE("Parser error checking", "[parser]")
 {
     using sable::Font, sable::TextParser, Catch::Matchers::Contains;
     auto node = sable_tests::getSampleNode();
-    TextParser p(node, "normal", "en_US.UTF-8");
+    TextParser p(node.as<sable::FontList>(), "normal", "en_US.UTF-8");
     auto settings = p.getDefaultSetting(0x80800);
     std::istringstream sample;
     ByteVector v = {};
@@ -488,7 +488,7 @@ TEST_CASE("Parser error checking", "[parser]")
         {
             sample.str("[Page2]");
         }
-        TextParser pwp(node, "normal", "ja_JP.UTF-8");
+        TextParser pwp(node.as<sable::FontList>(), "normal", "ja_JP.UTF-8");
         REQUIRE_THROWS_WITH(
             pwp.parseLine(sample, settings, std::back_inserter(v), m),
             "Page 2 not found in font normal"

@@ -24,6 +24,8 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/project.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/datastore.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/datastore.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.cpp"
 )
 
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})

@@ -34,9 +34,8 @@ namespace sable {
         static constexpr const char* PAGES = "Pages";
         Font()=default;
         Font(const YAML::Node &config, const std::string& name);
-        Font& operator=(Font&&) =default;
-        Font& operator=(Font&) =default;
-
+        Font(Font&&) =default;
+        Font(Font&) =default;
         int getByteWidth() const;
         int getCommandValue() const;
         int getMaxWidth() const;
@@ -66,8 +65,8 @@ namespace sable {
         int getWidth(int page, const std::string& id) const;
 
         [[deprecated("Use getNounData(int page, const std::string& id) instead.")]]
-        CharacterIterator getNounData(const std::string& id);
-        CharacterIterator getNounData(int page, const std::string& id);
+        CharacterIterator getNounData(const std::string& id) const;
+        CharacterIterator getNounData(int page, const std::string& id) const;
 
         int getExtraValue(const std::string& id) const;
 

@@ -79,11 +79,12 @@ private:
 
     int nextAddress;
     std::string m_MainDir, m_InputDir, m_OutputDir, m_BinsDir,
-    m_TextOutDir, m_RomsDir, m_FontDir, m_FontConfigPath,
+    m_TextOutDir, m_RomsDir, m_FontDir,
     m_DefaultMode, m_ConfigPath, m_LocaleString;
     size_t m_OutputSize;
     StringVector m_Includes, m_Extras, m_FontIncludes;
     std::vector<Rom> m_Roms;
+    std::vector<std::string> m_MappingPaths;
     util::MapperType m_BaseType;
     util::Mapper m_Mapper;
     //TextParser m_Parser;

@@ -150,4 +150,13 @@ Node convert<NounNode>::encode(const NounNode& rhs)
     node[Font::TEXT_LENGTH_VAL] = rhs.length;
     return node;
 }
+
+bool YAML::convert<sable::FontList>::decode(const Node &node, sable::FontList &rhs)
+{
+    for (auto it = node.begin(); it != node.end(); ++it) {
+        rhs.AddFont(it->first.Scalar(), sable::Font(it->second, it->first.Scalar()));
+    }
+    return true;
+}
+
 }

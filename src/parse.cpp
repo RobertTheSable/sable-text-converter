@@ -8,13 +8,11 @@
 
 using sable::TextParser, sable::Font;
 
-TextParser::TextParser(const YAML::Node& node, const std::string& defaultMode, const std::string& localeName) :
+TextParser::TextParser(FontList&& list, const std::string& defaultMode, const std::string& localeName) :
     defaultFont(defaultMode)
 {
+    m_FontList = std::move(list);
     m_Locale =  boost::locale::generator().generate(localeName);
-    for (auto it = node.begin(); it != node.end(); ++it) {
-        m_Fonts[it->first.as<std::string>()] = Font(it->second, it->first.as<std::string>());
-    }
 }
 
 std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & settings, back_inserter insert, const util::Mapper& mapper)
@@ -23,7 +21,7 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
     int length = 0;
     bool finished = false;
     std::string line;
-    Font& activeFont = m_Fonts.at(settings.mode);
+    //const Font& m_FontList[settings.mode] = m_FontList[settings.mode];
     std::istream& state = getline(input, line, '\n');
     if (!state.fail()) {
         if (line.find('\r') != std::string::npos) {
@@ -58,16 +56,16 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                     int bytes;
                     std::tie(code, bytes) = util::strToHex(temp);
                     if (bytes < 0) {
-                        bytes = activeFont.getByteWidth();
+                        bytes = m_FontList[settings.mode].getByteWidth();
                         try {
-                            const auto& codeStruct = activeFont.getCommandData(temp);
+                            const auto& codeStruct = m_FontList[settings.mode].getCommandData(temp);
                             code = codeStruct.code;
-                            finished = (settings.autoend && code == activeFont.getEndValue());
-                            if (activeFont.getCommandValue() != -1 && !finished) {
-                                insertData(activeFont.getCommandValue(), activeFont.getByteWidth(), insert);
+                            finished = (settings.autoend && code == m_FontList[settings.mode].getEndValue());
+                            if (m_FontList[settings.mode].getCommandValue() != -1 && !finished) {
+                                insertData(m_FontList[settings.mode].getCommandValue(), m_FontList[settings.mode].getByteWidth(), insert);
                             }
                             if (codeStruct.page >= 0) {
-                                if (!(codeStruct.page < activeFont.getNumberOfPages())) {
+                                if (!(codeStruct.page < m_FontList[settings.mode].getNumberOfPages())) {
                                     throw std::runtime_error(
                                         std::string("Page ") + std::to_string(codeStruct.page) + " not found in font " + settings.mode
                                     );
@@ -77,16 +75,16 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                             printNewLine = !codeStruct.isNewLine;
                         } catch (CodeNotFound &e) {
                             try {
-                                std::tie(code, std::ignore) = activeFont.getTextCode(settings.page, temp);
-                                length += activeFont.getWidth(settings.page, temp);
+                                std::tie(code, std::ignore) = m_FontList[settings.mode].getTextCode(settings.page, temp);
+                                length += m_FontList[settings.mode].getWidth(settings.page, temp);
                             } catch (CodeNotFound &e) {
                                 try {
-                                    code = activeFont.getExtraValue(temp);
+                                    code = m_FontList[settings.mode].getExtraValue(temp);
                                 } catch (CodeNotFound &e) {
                                     throw CodeNotFound(temp + " not found in font " + settings.mode);
                                 }
                             }
-                            finished = settings.autoend && (activeFont.getCommandValue() == -1) && (code == activeFont.getEndValue());
+                            finished = settings.autoend && (m_FontList[settings.mode].getCommandValue() == -1) && (code == m_FontList[settings.mode].getEndValue());
                         }
                     }
                     if (!finished) {
@@ -96,7 +94,7 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
             } else if (*it == "@") {
                 auto startPoint = it;
                 settings = updateSettings(settings, it, map.end(), mapper);
-                if (!(settings.page < activeFont.getNumberOfPages())) {
+                if (!(settings.page < m_FontList[settings.mode].getNumberOfPages())) {
                     throw std::runtime_error(
                         std::string("Page ") + std::to_string(settings.page) + " not found in font " + settings.mode
                     );
@@ -111,16 +109,16 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                 }
                 std::string contents = (it++)->str();
                 try {
-                    auto noun = activeFont.getNounData(settings.page, contents);
+                    auto noun = m_FontList[settings.mode].getNounData(settings.page, contents);
                     while (noun) {
-                        insertData(*(noun++), activeFont.getByteWidth(), insert);
+                        insertData(*(noun++), m_FontList[settings.mode].getByteWidth(), insert);
                     }
                 } catch (CodeNotFound &e) {
                     ssegment_index char_map(character, contents.begin(), contents.end(), m_Locale);
                     for (auto charIt = char_map.begin(); charIt != char_map.end(); charIt++) {
                         std::string currentChar = *charIt, nextChar = "";
                         auto peek = charIt;
-                        if (activeFont.getHasDigraphs()) {
+                        if (m_FontList[settings.mode].getHasDigraphs()) {
                             if (++peek != char_map.end()) {
                                 nextChar = *peek;
                             } else if (it != map.end() && it->rule() & boost::locale::boundary::word_none) {
@@ -136,34 +134,34 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                         }
                         unsigned int code;
                         bool advance;
-                        std::tie<>(code, advance) = activeFont.getTextCode(settings.page, currentChar, nextChar);
+                        std::tie<>(code, advance) = m_FontList[settings.mode].getTextCode(settings.page, currentChar, nextChar);
                         if (advance) {
                             if (peek == char_map.end()) {
                                 it++;
                             } else {
                                 charIt++;
                             }
-                            length += activeFont.getWidth(settings.page, currentChar + nextChar);
+                            length += m_FontList[settings.mode].getWidth(settings.page, currentChar + nextChar);
                         } else {
-                            length += activeFont.getWidth(settings.page, currentChar);
+                            length += m_FontList[settings.mode].getWidth(settings.page, currentChar);
                         }
-                        insertData(code, activeFont.getByteWidth(), insert);
+                        insertData(code, m_FontList[settings.mode].getByteWidth(), insert);
                     }
                 }
             }
         }
         finished |= (state.peek() == std::char_traits<char>::eof());
         if (printNewLine && !finished && !state.eof() && input.peek() != '#'  && input.peek() != '@') {
-            if (activeFont.getCommandValue() != -1) {
-                insertData(activeFont.getCommandValue(), activeFont.getByteWidth(), insert);
+            if (m_FontList[settings.mode].getCommandValue() != -1) {
+                insertData(m_FontList[settings.mode].getCommandValue(), m_FontList[settings.mode].getByteWidth(), insert);
             }
-            insertData(activeFont.getCommandCode("NewLine"), activeFont.getByteWidth(), insert);
+            insertData(m_FontList[settings.mode].getCommandCode("NewLine"), m_FontList[settings.mode].getByteWidth(), insert);
         }
         if (settings.autoend && finished) {
-            if (activeFont.getCommandValue() != -1) {
-                insertData(activeFont.getCommandValue(), activeFont.getByteWidth(), insert);
+            if (m_FontList[settings.mode].getCommandValue() != -1) {
+                insertData(m_FontList[settings.mode].getCommandValue(), m_FontList[settings.mode].getByteWidth(), insert);
             }
-            insertData(activeFont.getEndValue(), activeFont.getByteWidth(), insert);
+            insertData(m_FontList[settings.mode].getEndValue(), m_FontList[settings.mode].getByteWidth(), insert);
         }
     } else {
         finished = true;
@@ -171,9 +169,9 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
     return std::make_pair(finished, length);
 }
 
-const std::map<std::string, Font> &TextParser::getFonts() const
+const sable::FontList &TextParser::getFonts() const
 {
-    return m_Fonts;
+    return m_FontList;
 }
 
 void TextParser::insertData(unsigned int code, int size, back_inserter bi)
@@ -221,13 +219,13 @@ sable::ParseSettings TextParser::updateSettings(const ParseSettings &settings, s
                     if (name == "type") {
                         if (option == "default") {
                             retVal.mode = defaultFont;
-                        } else if (m_Fonts.find(option) == m_Fonts.end()) {
+                        } else if (!m_FontList.contains(option)) {
                             throw std::runtime_error(option.insert(0, "Font \"") + "\" was not defined");
                         } else {
                             retVal.mode = option;
                         }
                         if (retVal.maxWidth >= 0) {
-                            retVal.maxWidth = m_Fonts[retVal.mode].getMaxWidth();
+                            retVal.maxWidth = m_FontList[retVal.mode].getMaxWidth();
                         }
                     } else if (name == "address") {
                         if (option != "auto") {
@@ -285,6 +283,6 @@ sable::ParseSettings TextParser::updateSettings(const ParseSettings &settings, s
 
 ParseSettings TextParser::getDefaultSetting(int address)
 {
-    return {true, false, defaultFont, "", m_Fonts[defaultFont].getMaxWidth(), address, 0};
+    return {true, false, defaultFont, "", m_FontList[defaultFont].getMaxWidth(), address, 0};
 }
 

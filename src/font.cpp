@@ -120,12 +120,12 @@ namespace sable {
         return std::make_tuple(m_TextConvertMap.at(id).code, false);
     }
 
-    CharacterIterator Font::getNounData(const std::string &id)
+    CharacterIterator Font::getNounData(const std::string &id) const
     {
         return getNounData(0, id);
     }
 
-    CharacterIterator Font::getNounData(int page, const std::string &id)
+    CharacterIterator Font::getNounData(int page, const std::string &id) const
     {
         if (!(page < m_Pages.size())) {
             throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
@@ -134,7 +134,7 @@ namespace sable {
         if (nounItr == m_Pages[page].nouns.end()) {
             throw CodeNotFound(id + " not found in " + NOUNS + " of font " + m_Name);
         }
-        NounNode& noun = nounItr->second;
+        const NounNode& noun = nounItr->second;
         int width = noun.width;
         if  (m_IsFixedWidth || width <= 0) {
             width = m_DefaultWidth * noun.codes.size();
