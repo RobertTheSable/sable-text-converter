@@ -44,7 +44,7 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
             std::tie(done, length) = m_Parser.parseLine(input, settings, std::back_inserter(tempFileData), mapper);
             line++;
         } catch (std::runtime_error &e) {
-            throw ParseError("Error in text file " + path.string() + ": " + e.what());
+            throw ParseError("Error in text file " + path.string() + ", line " + std::to_string(line+1) + ": " + e.what());
         }
         if (settings.maxWidth > 0 && length > settings.maxWidth) {
             errorStream <<
