@@ -31,24 +31,25 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
         auto it = map.begin();
         bool printNewLine = true;
         bool finishedByComment = false;
-        while (it != map.end() && !finished && !finishedByComment) {
-            if (*it == "#") {
+        std::string ref = *it;
+        while (it++ != map.end() && !finished && !finishedByComment) {
+            if (ref == "#") {
                 finishedByComment = true;
                 if (input.peek() == std::char_traits<char>::eof()) {
                      printNewLine = false;
                 }
-            } else if (*it == "[") {
+            } else if (ref == "[") {
                 std::string temp;
                 {
                     std::string bracketContents = "";
-                    for (it++ ; *it != "]" && it != map.end(); it++) {
+                    for ( ; *it != "]" && it != map.end(); ++it) {
                         bracketContents += *it;
                     }
                     if (it == map.end()) {
                         throw std::runtime_error("Closing bracket not found.");
                     }
                     temp = bracketContents;
-                    it++;
+                    ref = *(++it);
                 }
                 {
                     unsigned int code;
@@ -90,8 +91,8 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                         insertData(code, bytes, insert);
                     }
                 }
-            } else if (*it == "@") {
-                auto startPoint = it;
+            } else if (ref == "@") {
+                auto startPoint = --it;
                 settings = updateSettings(settings, it, map.end(), mapper);
                 if (!(settings.page < m_FontList[settings.mode].getNumberOfPages())) {
                     throw std::runtime_error(
@@ -106,45 +107,59 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                 if (settings.currentAddress == 0) {
                     throw std::runtime_error("Attempted to parse text before address was set.");
                 }
-                std::string contents = (it++)->str();
+                std::string contents = ref;
                 try {
                     auto noun = m_FontList[settings.mode].getNounData(settings.page, contents);
                     while (noun) {
                         insertData(*(noun++), m_FontList[settings.mode].getByteWidth(), insert);
                     }
                 } catch (CodeNotFound &e) {
+                    auto checkDigraphs = m_FontList[settings.mode].getHasDigraphs();
+                    std::string tmpStr = it->str();
                     ssegment_index char_map(character, contents.begin(), contents.end(), m_Locale);
+
+
+                    ssegment_index next_char_map(character, tmpStr.begin(), tmpStr.end(), m_Locale);
+                    std::optional<ssegment_index::iterator> nextCharItr = std::nullopt;
+                    std::optional<ssegment_index::iterator> nextCharEnd = std::nullopt;
+                    if (tmpStr != "") {
+                        nextCharItr = next_char_map.begin();
+                        nextCharEnd = next_char_map.end();
+                    }
                     for (auto charIt = char_map.begin(); charIt != char_map.end(); charIt++) {
                         std::string currentChar = *charIt, nextChar = "";
                         auto peek = charIt;
-                        if (m_FontList[settings.mode].getHasDigraphs()) {
+                        if (checkDigraphs) {
                             if (++peek != char_map.end()) {
                                 nextChar = *peek;
-                            } else if (it != map.end() && it->rule() & boost::locale::boundary::word_none) {
-                                // we've reached the end of a word, so we need to grab the character from the next word.
-                                // can't just grab one character because of unicode
-
-                                // for some reason, using it->str without copying it on windows makes ICU throw an error
-                                // who knows why :v
-                                std::string tmpStr = it->str();
-                                nextChar = ssegment_index(character, tmpStr.begin(), tmpStr.end(), m_Locale).begin()->str();
-
+                            } else if (nextCharItr != std::nullopt &&
+                                (**nextCharItr != "[" && **nextCharItr != "@" && **nextCharItr != "#")) {
+                                nextChar = **nextCharItr;
                             }
                         }
                         unsigned int code;
                         bool advance;
                         std::tie<>(code, advance) = m_FontList[settings.mode].getTextCode(settings.page, currentChar, nextChar);
                         if (advance) {
-                            if (peek == char_map.end()) {
-                                it++;
-                            } else {
+                            if (peek != char_map.end()) {
                                 charIt++;
+                            } else {
+                                if (nextCharItr != std::nullopt && *nextCharItr != *nextCharEnd) {
+                                    ++*nextCharItr;
+                                }
                             }
                             length += m_FontList[settings.mode].getWidth(settings.page, currentChar + nextChar);
                         } else {
                             length += m_FontList[settings.mode].getWidth(settings.page, currentChar);
                         }
                         insertData(code, m_FontList[settings.mode].getByteWidth(), insert);
+                    }
+                    if (nextCharItr != std::nullopt) {
+                        ref = "";
+                        while (*nextCharItr != *nextCharEnd) {
+                            ref += (*nextCharItr)->str();
+                            ++(*nextCharItr);
+                        }
                     }
                 }
             }

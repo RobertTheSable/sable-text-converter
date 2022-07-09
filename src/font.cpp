@@ -104,7 +104,7 @@ namespace sable {
         if (!next.empty() && m_TextConvertMap.find(id + next) != m_TextConvertMap.end()) {
             return std::make_tuple(m_TextConvertMap.at(id + next).code, true);
         } else if (m_TextConvertMap.find(id) == m_TextConvertMap.end()) {
-            throw CodeNotFound(id + " not found in " + ENCODING + " of font " + m_Name);
+            throw CodeNotFound(std::string("\"") + id + "\" not found in " + ENCODING + " of font " + m_Name);
         }
         return std::make_tuple(m_TextConvertMap.at(id).code, false);
     }

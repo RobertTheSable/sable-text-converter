@@ -105,6 +105,34 @@ TEST_CASE("Single lines", "[parser]")
         REQUIRE(result.second == expected);
         REQUIRE(v.size() == 5);
     }
+    SECTION("Check digraphs starting with a space")
+    {
+        sample.str("al h");
+        node["normal"][Font::ENCODING] = std::map<std::string, int>{
+            { " h", 1},
+            { "al", 2}
+        };
+        TextParser pAlt(node.as<sable::FontList>(), "normal", "en_US.utf-8");
+        std::pair<bool, int> result;
+        REQUIRE_NOTHROW(result = pAlt.parseLine(sample, settings, std::back_inserter(v), m));
+        REQUIRE(v.front() == 2);
+        REQUIRE(v[1] == 1);
+        REQUIRE(v.size() == 4);
+    }
+    SECTION("Check digraphs starting and ending with a space")
+    {
+        sample.str("a  h");
+        node["normal"][Font::ENCODING] = std::map<std::string, int>{
+            { " h", 1},
+            { "a ", 2}
+        };
+        TextParser pAlt(node.as<sable::FontList>(), "normal", "en_US.utf-8");
+        std::pair<bool, int> result;
+        REQUIRE_NOTHROW(result = pAlt.parseLine(sample, settings, std::back_inserter(v), m));
+        REQUIRE(v.front() == 2);
+        REQUIRE(v[1] == 1);
+        REQUIRE(v.size() == 4);
+    }
     SECTION("Check that a Noun is recognized")
     {
         node["normal"][Font::NOUNS]["Noun"][Font::CODE_VAL] = std::vector<int>{1,1,1};
