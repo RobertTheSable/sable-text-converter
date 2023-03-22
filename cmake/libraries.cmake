@@ -1,45 +1,19 @@
-if (NOT SABLE_REBUILD_YAML)
-    find_library(YAML yaml-cpp)
-endif()
+set(SABLE_LIBRARIES "")
 
-if(NOT YAML)
-    message("-- yaml-cpp library not found, using git.")
+find_library(YAML yaml-cpp REQUIRED)
 
-    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/yaml-cpp
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-    
-    set (YAML_CPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set (YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
-    set (YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "" FORCE)
-    add_subdirectory(external/yaml-cpp)
-    set_target_properties(yaml-cpp PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}/yaml-cpp"
-        LIBRARY_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}"
-    )
-    include_directories(external/yaml-cpp/include)
-else()
-    message(STATUS "Using system yaml-cpp library.")
-endif()
-
-execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/cxxopts
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-                
-if (SABLE_BUILD_TESTS)
-    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- external/Catch2
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+if(SABLE_BUILD_TESTS)
+    find_package(Catch2 REQUIRED)
 endif()
 
 find_package(Boost 1.71.0 REQUIRED COMPONENTS locale)
 find_package(ICU 66.1 REQUIRED COMPONENTS in uc dt)
-
-set(SABLE_LIBRARIES "")
+message(STATUS ${YAML})
 
 list(
     APPEND SABLE_LIBRARIES
 
-    yaml-cpp
+    ${YAML}
     Boost::locale
-    ICU::in
-    ICU::uc
-    ICU::dt
+    ${ICU_LIBRARIES}
 )

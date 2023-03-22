@@ -31,7 +31,7 @@ list(
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})
 
 target_link_libraries(sable_lib PUBLIC coverage_config ${SABLE_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
-
+message(STATUS "${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES}")
 if (SABLE_BUILD_MAIN)
     add_executable(
         sable
@@ -42,6 +42,7 @@ if (SABLE_BUILD_MAIN)
     set_target_properties(sable PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}"
     )
+    set(CMAKE_EXE_LINKER_FLAGS "")
 
     target_link_libraries(
         sable sable_lib

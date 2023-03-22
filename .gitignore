@@ -88,3 +88,11 @@ CTestTestfile.cmake
 _deps
 
 *asar-tests*
+
+*.profile
+
+# conan stuff
+CMakeUserPresets.json
+conan*
+graph_info.json
+!/conanfile.py

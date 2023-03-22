@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "Boolean describing whether the va
 set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Boolean specifying whether compiler specific extensions are requested.")
 
 option(SABLE_BUILD_TESTS "Build tests." OFF)
-option(SABLE_BUILD_MAIN "Build tests." ON)
+option(SABLE_BUILD_MAIN "Build main interface." ON)
 
 add_library(coverage_config INTERFACE)
 
