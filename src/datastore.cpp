@@ -59,7 +59,21 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
                 }
 
                 m_Addresses.push_back({settings.currentAddress, settings.label, false});
+                // check for collisions
                 {
+                    int blockLocation = mapper.ToPC(settings.currentAddress);
+                    if (auto result = textRanges.addBlock(
+                            blockLocation,
+                            blockLocation + (tempFileData.size() - lastSize),
+                            settings.label,
+                            fs::absolute(path).string()
+                        ); result != Blocks::Collision::None) {
+                        errorStream <<"Warning in " + fs::absolute(path).string() + ": block \"" + settings.label +"\" collides with block \"" +
+                                      result->label + "\" from file \"" + result->file + "\".\n";
+                    }
+                } // collision check end
+
+                { // add bianry file name and check for back crosses
                     int tmpAddress = settings.currentAddress + tempFileData.size();
                     size_t dataLength;
                     bool printpc = settings.printpc;
@@ -90,11 +104,13 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
                         dataLength = tempFileData.size() - lastSize;
                         settings.currentAddress += dataLength;
                         binaryOutputStack.push({settings.label + ".bin", dataLength});
+
                     }
                     m_TextNodeList[settings.label] = {
                         settings.label + ".bin", dataLength, printpc
                     };
-                }
+                } // binary file add end
+
                 settings.label = "";
                 settings.printpc = false;
             }

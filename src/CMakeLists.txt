@@ -26,6 +26,8 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/datastore.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/textblockrange.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/textblockrange.cpp"
 )
 
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})

@@ -7,6 +7,7 @@
 #include <queue>
 #include "parse.h"
 #include "table.h"
+#include "textblockrange.h"
 #include "wrapper/filesystem.h"
 
 namespace sable {
@@ -43,6 +44,7 @@ public:
     const FontList& getFonts() const;
     bool getIsSorted() const;
 
+
 private:
     TextParser m_Parser;
     std::vector<AddressNode> m_Addresses;
@@ -54,6 +56,7 @@ private:
     int dirIndex;
     int nextAddress;
     bool isSorted;
+    Blocks textRanges;
 };
 }
 

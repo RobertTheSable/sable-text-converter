@@ -16,20 +16,25 @@ class SableTextConverterConan(ConanFile):
     
     def layout(self):    
         cmake_layout(self)
+        
+    def requirements(self):
+        if self.options.build_tests:
+            self.requires("catch2/2.13.9")
+        if not self.options.system_icu:
+            self.requires("boost/1.71.0")
+            self.requires("icu/66.1")
 
     def generate(self):
         cmake = CMakeDeps(self)
         cmake.generate()
         tc = CMakeToolchain(self)
         if self.options.build_tests:
-            self.requires = "catch2/2.13.9"
             tc.variables["SABLE_BUILD_TESTS"] = "ON"
             tc.variables["SABLE_BUILD_MAIN"] = "OFF"
         else:
             tc.variables["SABLE_BUILD_TESTS"] = "OFF"
             tc.variables["SABLE_BUILD_MAIN"] = "ON"
-        if self.options.system_icu:
-            self.requires = {"boost/1.71.0", "icu/66.1"}
+        
         tc.variables["QT_CREATOR_SKIP_PACKAGE_MANAGER_SETUP"] = "Off"
         tc.generate()
 
