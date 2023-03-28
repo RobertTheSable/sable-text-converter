@@ -5,6 +5,8 @@ list(
     APPEND SABLE_SOURCE_FILES
 
     "${PROJECT_SOURCE_DIR}/include/asar/asardll.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/unicode.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/unicode.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/characteriterator.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/characteriterator.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/font.cpp"
@@ -32,8 +34,15 @@ list(
 
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})
 
-target_link_libraries(sable_lib PUBLIC coverage_config ${SABLE_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
-message(STATUS "${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES}")
+check_codecov(SABLE_LIBRARIES)
+
+target_link_libraries(sable_lib ${SABLE_LIBRARIES} ${ICU_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
+
+message(STATUS "ICU libraries: ${ICU_LIBRARIES}")
+
+target_include_directories(sable_lib PUBLIC ${Boost_INCLUDE_DIRS} ${ICU_INCLUDE_DIRS} ${YAML_INCLUDE_DIR} ${SABLE_INC_DIR})
+
+message(STATUS "Filesystem libraries: ${SABLE_FS_LIBRARIES}, Platform-specific libraries: ${SABLE_PLATFORM_LIBRARIES}")
 if (SABLE_BUILD_MAIN)
     add_executable(
         sable
@@ -44,11 +53,11 @@ if (SABLE_BUILD_MAIN)
     set_target_properties(sable PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${SABLE_BINARY_PATH}"
     )
-    set(CMAKE_EXE_LINKER_FLAGS "")
 
     target_link_libraries(
         sable sable_lib
     )
+    find_cxxopts_includes(sable)
 endif()
 
 if(SABLE_ALT_FILESYSTEM)

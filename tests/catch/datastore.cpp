@@ -9,7 +9,7 @@ sable::TextParser getParser(const std::string& defaultMode)
     return sable::TextParser(
         sable_tests::getSampleNode().as<sable::FontList>(),
         defaultMode,
-        sable_tests::getTestLocale()
+        "en_US.utf-8"
     );
 }
 

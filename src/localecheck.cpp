@@ -1,9 +1,11 @@
 #include "localecheck.h"
 #include "unicode/locid.h"
+#include <unicode/unistr.h>
 #include <boost/locale.hpp>
 #include <cstring>
 #include <optional>
 #include <stdexcept>
+#include <iostream>
 
 // Boost doesn't have a good way to validate user-provided locales easily
 // Neither does ICU, but it has a less bad way.
@@ -31,7 +33,7 @@ std::locale getLocale(const std::string &locale)
         if (locale == "") {
             throw std::runtime_error("Locale was not set before trying to retieve it.");
         }
-        lc = boost::locale::generator().generate(locale);
+        lc = boost::locale::generator().generate(locale.c_str());
     }
-    return *lc;
+    return lc.value_or(boost::locale::generator().generate(locale.c_str()));
 }

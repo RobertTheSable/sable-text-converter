@@ -11,8 +11,8 @@ class SableTextConverterConan(ConanFile):
     description = "Confiugrable text converter for SNES games."
     settings = "os", "compiler", "build_type", "arch"
     requires = "yaml-cpp/0.6.3", "cxxopts/2.2.0"
-    options = {"build_tests": [True, False], "build_asar": [True, False], "system_icu": [True, False]}
-    default_options = {"build_tests": False, "build_asar": True}
+    options = {"build_tests": [True, False], "build_asar": [True, False], "use_system_icu": [True, False], "use_system_boost": [True, False]}
+    default_options = {"build_tests": False, "build_asar": True, "use_system_icu": False, "use_system_boost": False}
     
     def layout(self):    
         cmake_layout(self)
@@ -20,8 +20,9 @@ class SableTextConverterConan(ConanFile):
     def requirements(self):
         if self.options.build_tests:
             self.requires("catch2/2.13.9")
-        if not self.options.system_icu:
+        if not self.options.use_system_boost:
             self.requires("boost/1.71.0")
+        if not self.options.use_system_icu:
             self.requires("icu/66.1")
 
     def generate(self):

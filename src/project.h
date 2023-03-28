@@ -6,7 +6,6 @@
 #include <string>
 #include <yaml-cpp/yaml.h>
 #include "util.h"
-#include "parse.h"
 #include "font.h"
 #include "datastore.h"
 #include "table.h"

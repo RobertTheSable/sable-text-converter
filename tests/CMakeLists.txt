@@ -8,13 +8,16 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/helpers/helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/parser.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/table.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/catch/mapping.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/catch/fonts.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/project.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/datastore.cpp"
+
+    "${CMAKE_CURRENT_SOURCE_DIR}/catch/mapping.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/catch/fonts.cpp"
+
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/rompatcher.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/characteriterator.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/catch/collisions.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/catch/unicode.cpp"
 )
 
 include_directories(helpers)

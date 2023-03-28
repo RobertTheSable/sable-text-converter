@@ -20,7 +20,12 @@ sable::CharacterIterator CharacterIterator::operator++(int)
     CharacterIterator cItr = *this;
     if (haveNext()) {
         ++m_Current;
-        m_CharEncoding = *m_Current;
+        if (!haveNext()) {
+            m_CharEncoding = 0;
+        } else {
+            m_CharEncoding = *m_Current;
+        }
+
     }
     return cItr;
 }

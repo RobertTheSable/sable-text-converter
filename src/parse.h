@@ -5,13 +5,9 @@
 #include <map>
 #include <string>
 #include <tuple>
-#include <yaml-cpp/yaml.h>
-#include <boost/locale.hpp>
-#include "font.h"
+#include <memory>
 #include "fontlist.h"
 #include "util.h"
-
-using boost::locale::boundary::ssegment_index;
 
 namespace sable {
     typedef std::back_insert_iterator<std::vector<unsigned char>> back_inserter;
@@ -25,9 +21,14 @@ namespace sable {
 
     class TextParser
     {
+        struct Impl;
+        std::unique_ptr<Impl> _pImpl;
     public:
-        TextParser()=default;
-        TextParser(FontList&& list, const std::string& defaultMode, const std::locale& locale);
+        // these need to be defaulted externally for the pImpl idiom to work
+        TextParser();
+        TextParser(TextParser&&);
+        ~TextParser();
+        TextParser(FontList&& list, const std::string& defaultMode, const std::string& locale);
         TextParser& opterator();
         struct lineNode{
             bool hasNewLines;
@@ -37,19 +38,6 @@ namespace sable {
         std::pair<bool, int> parseLine(std::istream &input, ParseSettings &settings, back_inserter insert, const util::Mapper& mapper);
         const FontList& getFonts() const;
         ParseSettings getDefaultSetting(int address);
-    private:
-        std::locale m_Locale;
-        bool useDigraphs;
-        int maxWidth;
-        FontList m_FontList;
-        std::string defaultFont;
-        ParseSettings updateSettings(
-            const ParseSettings &settings,
-            ssegment_index::iterator& it,
-            const ssegment_index::const_iterator& end,
-            const util::Mapper& mapper
-        );
-        static void insertData(unsigned int code, int size, back_inserter bi);
     };
 }
 

@@ -7,7 +7,7 @@
 TEST_CASE("Test uninititalized font.")
 {
     using sable::Font;
-    Font f;
+    Font f{};
     REQUIRE(!f);
     REQUIRE_THROWS(f.getTextCode(0, "A"));
 }

@@ -9,6 +9,7 @@
 #include "rompatcher.h"
 #include "exceptions.h"
 #include "localecheck.h"
+#include "parse.h"
 
 namespace sable {
 
@@ -145,7 +146,7 @@ bool Project::parseText()
             fl.AddFont(fontIt->first.Scalar(), Font(fontIt->second, fontIt->first.Scalar(), locale));
         }
     }
-    DataStore m_DataStore = DataStore(TextParser(std::move(fl), m_DefaultMode, locale));
+    DataStore m_DataStore = DataStore(TextParser(std::move(fl), m_DefaultMode, m_LocaleString));
     {
         fs::path input = fs::path(m_MainDir) / m_InputDir;
         std::vector<std::string> allFiles;

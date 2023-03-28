@@ -48,9 +48,17 @@ bool istringcompare(const std::string& a, const std::string& b) {
     return true;
 }
 
-sable::RomPatcher::RomPatcher(const util::MapperType& mapper) : m_MapType(mapper), m_AState(AsarState::NotRun)
+sable::RomPatcher::RomPatcher(const util::MapperType& mapper)
+    : m_MapType(mapper), m_AState(AsarState::NotRun)
 {
 
+}
+
+sable::RomPatcher::~RomPatcher()
+{
+    if (m_AState != AsarState::NotRun) {
+        asar_close();
+    }
 }
 
 bool sable::RomPatcher::loadRom(const std::string &file, const std::string &name, int header)
@@ -180,7 +188,6 @@ bool sable::RomPatcher::applyPatchFile(const std::string &path, const std::strin
     }
 #ifndef _WIN32
     fflush(stdout);
-
     //auto size = read(buffer.out_pipe[0], buffer.buffer, 100);
     reopenPuts(buffer);
     if (m_AState == AsarState::Error) {

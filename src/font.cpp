@@ -2,6 +2,8 @@
 #include "exceptions.h"
 #include "localecheck.h"
 #include <exception>
+#include <algorithm>
+#include <iostream>
 
 //TODO: Throw an error here if an encoding has a code or width of 0
 
@@ -101,6 +103,7 @@ namespace sable {
         if (!(page < m_Pages.size())) {
             throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
         }
+
         auto realId = normalize(m_NormLocale, id);
 
         const auto &m_TextConvertMap = m_Pages[page].glyphs;

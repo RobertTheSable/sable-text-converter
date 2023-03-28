@@ -16,6 +16,7 @@ class RomPatcher
 {
 public:
     RomPatcher(const util::MapperType& mapper = util::MapperType::LOROM);
+    ~RomPatcher();
     bool loadRom(const std::string& file, const std::string& name, int header = 0);
     void clear();
     //~RomPatcher();
