@@ -19,6 +19,7 @@ list(
 
 include_directories(helpers)
 
+message(STATUS ${Catch2_INCLUDE_DIRS})
 
 add_executable(tests ${SABLE_TEST_FILES})
 target_link_libraries(tests sable_lib Catch2::Catch2)
@@ -34,5 +35,5 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.sfc" "sample.sfc" COPY
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.asm" "sample.asm" COPYONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/bad_test.asm" "bad_test.asm" COPYONLY)
 
-include(ParseAndAddCatchTests)
-ParseAndAddCatchTests(tests)
+include(Catch)
+catch_discover_tests(tests)

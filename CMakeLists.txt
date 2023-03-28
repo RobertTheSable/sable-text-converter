@@ -38,15 +38,15 @@ include(cmake/platform.cmake)
 include(cmake/libraries.cmake)
 include(cmake/filesystem.cmake)
 
-include_directories(include external/cxxopts/include)
+find_package(cxxopts REQUIRED)
+include_directories(include ${cxxopts_INCLUDE_DIRS})
 
 add_subdirectory(src)
 
 if (SABLE_BUILD_TESTS)
+    cmake_policy(SET CMP0110 OLD)
     include(CTest)
     enable_testing()
-    add_subdirectory(external/Catch2/)
-    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/external/Catch2/contrib")
     include_directories(src)
     add_subdirectory(tests)
 endif()
