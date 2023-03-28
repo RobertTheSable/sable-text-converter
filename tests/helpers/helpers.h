@@ -19,6 +19,7 @@ YAML::Node createSampleNode(
         bool fixedWidth = false
 );
 YAML::Node getSampleNode();
+std::locale getTestLocale();
 
 
 

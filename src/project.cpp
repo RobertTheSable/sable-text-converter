@@ -137,14 +137,15 @@ bool Project::parseText()
 
 //    auto mapperType = m_OutputSize > util::NORMAL_ROM_MAX_SIZE ? util::MapperType::EXLOROM : util::MapperType::LOROM;
 //    util::Mapper mapper(mapperType, false, true, m_OutputSize);
+    auto locale = getLocale(m_LocaleString);
     FontList fl;
     for (auto &path: this->m_MappingPaths) {
         auto inFile = YAML::LoadFile(path);
         for (auto fontIt = inFile.begin(); fontIt != inFile.end(); ++fontIt) {
-            fl.AddFont(fontIt->first.Scalar(), Font(fontIt->second, fontIt->first.Scalar()));
+            fl.AddFont(fontIt->first.Scalar(), Font(fontIt->second, fontIt->first.Scalar(), locale));
         }
     }
-    DataStore m_DataStore = DataStore(TextParser(std::move(fl), m_DefaultMode, m_LocaleString));
+    DataStore m_DataStore = DataStore(TextParser(std::move(fl), m_DefaultMode, locale));
     {
         fs::path input = fs::path(m_MainDir) / m_InputDir;
         std::vector<std::string> allFiles;

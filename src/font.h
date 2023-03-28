@@ -8,6 +8,7 @@
 #include <functional>
 #include <optional>
 #include <cctype>
+#include <locale>
 #include "characteriterator.h"
 
 namespace sable {
@@ -33,7 +34,7 @@ namespace sable {
         static constexpr const char* CMD_PAGE = "page";
         static constexpr const char* PAGES = "Pages";
         Font()=default;
-        Font(const YAML::Node &config, const std::string& name);
+        Font(const YAML::Node &config, const std::string& name, const std::locale& normalizationLocale);
         Font(Font&&)=default;
         Font(Font&)=default;
         Font(const Font&)=default;
@@ -82,6 +83,7 @@ namespace sable {
         explicit operator bool() const;
 
     private:
+        //TODO use pImpl to hide most if this
         struct TextNode {
             unsigned int code;
             int width = 0;
@@ -100,6 +102,7 @@ namespace sable {
             const YAML::Node& n
         );
 
+        std::locale m_NormLocale;
         YAML::Mark m_YamlNodeMark;
         std::string m_Name;
         bool m_IsValid, m_HasDigraphs, m_IsFixedWidth;
@@ -126,6 +129,7 @@ namespace sable {
             const YAML::Node&& node,
             const std::string& field
         );
+        std::optional<TextNode> lookupTextNode(int page, const std::string& id, bool throwsIfCodeMissing) const;
     public:
         friend YAML::convert<sable::Font::TextNode>;
         friend YAML::convert<sable::Font::CommandNode>;

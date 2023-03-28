@@ -8,10 +8,10 @@
 
 using sable::TextParser, sable::Font;
 
-TextParser::TextParser(FontList&& list, const std::string& defaultMode, const std::string& localeName) :
+TextParser::TextParser(FontList&& list, const std::string& defaultMode, const std::locale& locale) :
     m_FontList(list), defaultFont(defaultMode)
 {
-    m_Locale =  boost::locale::generator().generate(localeName);
+    m_Locale = locale;
 }
 
 std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & settings, back_inserter insert, const util::Mapper& mapper)
@@ -139,6 +139,7 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                         }
                         unsigned int code;
                         bool advance;
+                        // TODO: Canonicalize before checking
                         std::tie<>(code, advance) = m_FontList[settings.mode].getTextCode(settings.page, currentChar, nextChar);
                         if (advance) {
                             if (peek != char_map.end()) {

@@ -1,83 +1,89 @@
 #include "font.h"
 #include "exceptions.h"
+#include "localecheck.h"
 #include <exception>
+
+//TODO: Throw an error here if an encoding has a code or width of 0
 
 namespace sable {
 
-    Font::Font(const YAML::Node &config, const std::string& name) : m_YamlNodeMark(config.Mark()), m_Name(name), m_IsValid(false)
-        {
-            m_ByteWidth = validate<int>(config[BYTE_WIDTH], BYTE_WIDTH, [] (const int& val) {
-                if (val != 1 && val != 2) {
-                    throw std::runtime_error("1 or 2.");
-                }
-                return val;
-            });
-
-            if (!config[ENCODING].IsDefined()) {
-                throw FontError(config.Mark(), m_Name, ENCODING, "is missing.");
+    Font::Font(const YAML::Node &config, const std::string& name, const std::locale& normalizationLocale)
+        : m_YamlNodeMark(config.Mark()), m_Name(name), m_IsValid(false) {
+        m_ByteWidth = validate<int>(config[BYTE_WIDTH], BYTE_WIDTH, [] (const int& val) {
+            if (val != 1 && val != 2) {
+                throw std::runtime_error("1 or 2.");
             }
-            m_Pages.push_back(buildPage(config));
+            return val;
+        });
+        m_NormLocale = normalizationLocale;
 
-            if (config[PAGES].IsDefined()) {
-                if (!config[PAGES].IsSequence()) {
-                    throw FontError(config[PAGES].Mark(), m_Name, PAGES, "a seuqence of maps.");
-                }
-                for (YAML::Node page: config[PAGES]) {
-                    m_Pages.push_back(buildPage(page));
-                }
+        if (!config[ENCODING].IsDefined()) {
+            throw FontError(config.Mark(), m_Name, ENCODING, "is missing.");
+        }
+        m_Pages.push_back(buildPage(config));
+
+        if (config[PAGES].IsDefined()) {
+            if (!config[PAGES].IsSequence()) {
+                throw FontError(config[PAGES].Mark(), m_Name, PAGES, "a seuqence of maps.");
             }
+            for (YAML::Node page: config[PAGES]) {
+                m_Pages.push_back(buildPage(page));
+            }
+        }
 
+        try {
+            // I'd like to validate page command configs here
+            // but there's no way to do that and allow commands to be mirrored.
+            m_CommandConvertMap = generateMap<CommandNode>(config[COMMANDS], COMMANDS);
+        } catch (ConvertError &e) {
+            throw FontError(e.mark, m_Name, e.field, e.type);
+        }
+        if (config[EXTRAS].IsDefined()) {
             try {
-                // I'd like to validate page command configs here
-                // but there's no way to do that and allow commands to be mirrored.
-                m_CommandConvertMap = generateMap<CommandNode>(config[COMMANDS], COMMANDS);
-            } catch (ConvertError &e) {
-                throw FontError(e.mark, m_Name, e.field, e.type);
+                m_Extras = generateMap<int>(config[EXTRAS], EXTRAS);
+            } catch (YAML::TypedBadConversion<int> &e) {
+                throw FontError(e.mark, m_Name, EXTRAS, "scalar integers.");
             }
-            if (config[EXTRAS].IsDefined()) {
-                try {
-                    m_Extras = generateMap<int>(config[EXTRAS], EXTRAS);
-                } catch (YAML::TypedBadConversion<int> &e) {
-                    throw FontError(e.mark, m_Name, EXTRAS, "scalar integers.");
-                }
+        }
+        m_HasDigraphs = config[USE_DIGRAPHS].IsDefined() ? (validate<std::string>(config[USE_DIGRAPHS], USE_DIGRAPHS, [] (const std::string& val) {
+            if (val != "true" && val != "false") {
+                throw std::runtime_error("true or false.");
             }
-            m_HasDigraphs = config[USE_DIGRAPHS].IsDefined() ? (validate<std::string>(config[USE_DIGRAPHS], USE_DIGRAPHS, [] (const std::string& val) {
-                if (val != "true" && val != "false") {
-                    throw std::runtime_error("true or false.");
-                }
-                return val;
-            }) == "true") : false;
-            m_CommandValue = config[CMD_CHAR].IsDefined() ? validate<int>(config[CMD_CHAR], CMD_CHAR) : -1;
-            m_IsFixedWidth = config[FIXED_WIDTH].IsDefined();
-            if (config[DEFAULT_WIDTH].IsDefined()) {
-                m_DefaultWidth = validate<int>(config[DEFAULT_WIDTH], DEFAULT_WIDTH);
-            } else if (m_IsFixedWidth) {
-                m_DefaultWidth = validate<int>(config[FIXED_WIDTH], FIXED_WIDTH);
-            } else {
-                m_DefaultWidth = 0;
-            }
-            m_MaxWidth = config[MAX_WIDTH].IsDefined() ? validate<int>(config[MAX_WIDTH], MAX_WIDTH) : 0;
-            m_FontWidthLocation = config[FONT_ADDR].IsDefined() ? validate<std::string>(config[FONT_ADDR], FONT_ADDR) : "";
+            return val;
+        }) == "true") : false;
+        m_CommandValue = config[CMD_CHAR].IsDefined() ? validate<int>(config[CMD_CHAR], CMD_CHAR) : -1;
+        m_IsFixedWidth = config[FIXED_WIDTH].IsDefined();
+        if (config[DEFAULT_WIDTH].IsDefined()) {
+            m_DefaultWidth = validate<int>(config[DEFAULT_WIDTH], DEFAULT_WIDTH);
+        } else if (m_IsFixedWidth) {
+            m_DefaultWidth = validate<int>(config[FIXED_WIDTH], FIXED_WIDTH);
+        } else {
+            m_DefaultWidth = 0;
+        }
+        m_MaxWidth = config[MAX_WIDTH].IsDefined() ? validate<int>(config[MAX_WIDTH], MAX_WIDTH) : 0;
+        m_FontWidthLocation = config[FONT_ADDR].IsDefined() ? validate<std::string>(config[FONT_ADDR], FONT_ADDR) : "";
 
-            m_IsValid = true;
-            try {
-                 endValue = m_CommandConvertMap.at("End").code;
-            } catch (std::out_of_range &e) {
-                throw FontError(config[COMMANDS].Mark(), m_Name, "End", "defined in the Commands section.");
-            }
-            if (m_CommandConvertMap.find("NewLine") == m_CommandConvertMap.end()) {
-                throw FontError(config[COMMANDS].Mark(), m_Name, "NewLine", "defined in the Commands section.");
-            }
-
+        m_IsValid = true;
+        try {
+             endValue = m_CommandConvertMap.at("End").code;
+        } catch (std::out_of_range &e) {
+            throw FontError(config[COMMANDS].Mark(), m_Name, "End", "defined in the Commands section.");
+        }
+        if (m_CommandConvertMap.find("NewLine") == m_CommandConvertMap.end()) {
+            throw FontError(config[COMMANDS].Mark(), m_Name, "NewLine", "defined in the Commands section.");
+        }
     }
 
 
     const Font::CommandNode &Font::getCommandData(const std::string &id) const
     {
-        if (m_CommandConvertMap.find(id) == m_CommandConvertMap.end()) {
-            throw CodeNotFound("");
+        if (auto cIt = m_CommandConvertMap.find(normalize(m_NormLocale, id));
+                cIt == m_CommandConvertMap.end()
+        ) {
+            throw CodeNotFound("Command not found.");
+        } else {
+            return cIt->second;
         }
-        return m_CommandConvertMap.at(id);
     }
 
     bool Font::isCommandNewline(const std::string &id) const
@@ -90,6 +96,40 @@ namespace sable {
         return getCommandData(id).code;
     }
 
+    std::optional<Font::TextNode> Font::lookupTextNode(int page, const std::string &id, bool throws) const
+    {
+        if (!(page < m_Pages.size())) {
+            throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
+        }
+        auto realId = normalize(m_NormLocale, id);
+
+        const auto &m_TextConvertMap = m_Pages[page].glyphs;
+        if (auto it = m_TextConvertMap.find(realId); it == m_TextConvertMap.end()) {
+            if (!throws) {
+                return std::nullopt;
+            }
+            throw CodeNotFound(std::string("\"") + id + "\" not found in " + ENCODING + " of font " + m_Name);
+        } else {
+            auto tmp = it->second;
+            return tmp;
+        }
+    }
+
+    int Font::getWidth(const std::string &id) const
+    {
+        return getWidth(0, id);
+    }
+
+    int Font::getWidth(int page, const std::string &id) const
+    {
+       auto wVal = lookupTextNode(page, id, true)->width;
+       if (m_IsFixedWidth || wVal <= 0) {
+           return m_DefaultWidth;
+       } else {
+           return wVal;
+       }
+    }
+
     std::tuple<unsigned int, bool> Font::getTextCode(const std::string &id, const std::string& next) const
     {
         return getTextCode(0, id, next);
@@ -97,16 +137,12 @@ namespace sable {
 
     std::tuple<unsigned int, bool> Font::getTextCode(int page, const std::string &id, const std::string& next) const
     {
-        if (!(page < m_Pages.size())) {
-            throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
+        if (!next.empty()) {
+            if (auto dg = lookupTextNode(page, id + next, false); (bool)dg) {
+                return std::make_tuple(dg->code, true);
+            }
         }
-        const auto &m_TextConvertMap = m_Pages[page].glyphs;
-        if (!next.empty() && m_TextConvertMap.find(id + next) != m_TextConvertMap.end()) {
-            return std::make_tuple(m_TextConvertMap.at(id + next).code, true);
-        } else if (m_TextConvertMap.find(id) == m_TextConvertMap.end()) {
-            throw CodeNotFound(std::string("\"") + id + "\" not found in " + ENCODING + " of font " + m_Name);
-        }
-        return std::make_tuple(m_TextConvertMap.at(id).code, false);
+        return std::make_tuple(lookupTextNode(page, id, true)->code, false);
     }
 
     CharacterIterator Font::getNounData(const std::string &id) const
@@ -119,7 +155,7 @@ namespace sable {
         if (!(page < m_Pages.size())) {
             throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
         }
-        auto nounItr = m_Pages[page].nouns.find(id);
+        auto nounItr = m_Pages[page].nouns.find(normalize(m_NormLocale, id));
         if (nounItr == m_Pages[page].nouns.end()) {
             throw CodeNotFound(id + " not found in " + NOUNS + " of font " + m_Name);
         }
@@ -137,29 +173,10 @@ namespace sable {
 
     int Font::getExtraValue(const std::string &id) const
     {
-        if (m_Extras.find(id) == m_Extras.end()) {
+        if (auto eIt = m_Extras.find(normalize(m_NormLocale, id)); eIt == m_Extras.end()) {
             throw CodeNotFound(id + " not found in font " + m_Name);
-        }
-        return m_Extras.at(id);
-    }
-
-    int Font::getWidth(const std::string &id) const
-    {
-        return getWidth(0, id);
-    }
-
-    int Font::getWidth(int page, const std::string &id) const
-    {
-        if (!(page < m_Pages.size())) {
-            throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
-        }
-        const auto &m_TextConvertMap = m_Pages[page].glyphs;
-        if (m_TextConvertMap.find(id) == m_TextConvertMap.end()) {
-            throw CodeNotFound(id + " not found in " + ENCODING + " of font " + m_Name);
-        } else if (m_IsFixedWidth || m_TextConvertMap.at(id).width <= 0) {
-            return m_DefaultWidth;
         } else {
-            return m_TextConvertMap.at(id).width;
+            return eIt->second;
         }
     }
 
@@ -247,7 +264,7 @@ namespace sable {
 
     Font::Page Font::buildPage(const YAML::Node &node)
     {
-        auto formatTextMap = [](std::string& str) {
+        auto formatTextMap = [&locale=m_NormLocale](std::string& str) {
             if (str.front() == '[') {
                 str.erase(0,1);
             }
@@ -414,9 +431,9 @@ namespace sable {
                     }
                     try {
                         if (validator != std::nullopt) {
-                            map[str] = (*validator)(it->second.as<T>());
+                            map[normalize(m_NormLocale, str)] = (*validator)(it->second.as<T>());
                         } else {
-                            map[str] = it->second.as<T>();
+                            map[normalize(m_NormLocale, str)] = it->second.as<T>();
                         }
                     } catch (YAML::TypedBadConversion<T>) {
                         throw FontError(node.Mark(), m_Name, field, str, "must define a numeric code.");
@@ -441,7 +458,7 @@ namespace sable {
                 throw FontError(node.Mark(), m_Name, field, "a map.");
             } else {
                 for (auto it = node.begin(); it != node.end(); ++it) {
-                    std::string str = it->first.as<std::string>();
+                    std::string str = normalize(m_NormLocale, it->first.as<std::string>());
                     try {
                         for (auto it = node.begin(); it != node.end(); ++it) {
                             if (!it->second.IsMap()) {

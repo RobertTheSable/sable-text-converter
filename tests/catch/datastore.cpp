@@ -4,18 +4,18 @@
 
 using Catch::Matchers::Contains;
 
-sable::TextParser getParser(const std::string& defaultMode, const std::string& locale)
+sable::TextParser getParser(const std::string& defaultMode)
 {;
     return sable::TextParser(
         sable_tests::getSampleNode().as<sable::FontList>(),
         defaultMode,
-        locale
+        sable_tests::getTestLocale()
     );
 }
 
 TEST_CASE("Loading script data from files")
 {
-    sable::DataStore dataTester(getParser("normal", "en_US.UTF-8"));
+    sable::DataStore dataTester(getParser("normal"));
     std::istringstream input;
     std::ostringstream errors;
     std::vector<unsigned char> v;
@@ -123,7 +123,7 @@ TEST_CASE("Loading script data from files")
 
 TEST_CASE("Parse with an alternate default mode")
 {
-    sable::DataStore tester(getParser("menu", "en_US.UTF-8"));
+    sable::DataStore tester(getParser("menu"));
     sable::util::Mapper m(sable::util::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
     std::istringstream input;
     std::ostringstream errors;
@@ -141,7 +141,7 @@ TEST_CASE("Parse with an alternate default mode")
 TEST_CASE("Add files that are part of a table")
 {
     sable::util::Mapper m(sable::util::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
-    sable::DataStore tester(getParser("menu", "en_US.UTF-8"));
+    sable::DataStore tester(getParser("menu"));
     std::istringstream input;
     std::ostringstream error;
     SECTION("Table with data immediatley after")
@@ -197,7 +197,7 @@ TEST_CASE("Add files that are part of a table")
 
 TEST_CASE("Table adding")
 {
-    sable::DataStore tester(getParser("normal", "en_US.UTF-8"));
+    sable::DataStore tester(getParser("normal"));
     std::istringstream input;
     std::ostringstream errors;
     std::vector<unsigned char> v;
@@ -219,7 +219,7 @@ TEST_CASE("Table adding")
 
 TEST_CASE("Sorting addresses")
 {
-    sable::DataStore tester(getParser("normal", "en_US.UTF-8"));
+    sable::DataStore tester(getParser("normal"));
     std::istringstream input;
     std::ostringstream errors;
     std::vector<unsigned char> v;
@@ -252,7 +252,7 @@ TEST_CASE("Sorting addresses")
 
 TEST_CASE("Data store error handling")
 {
-    sable::DataStore tester(getParser("normal", "en_US.UTF-8"));
+    sable::DataStore tester(getParser("normal"));
     sable::util::Mapper m(sable::util::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
     std::istringstream input;
     std::vector<unsigned char> v = {};
