@@ -59,12 +59,14 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
                 }
 
                 m_Addresses.push_back({settings.currentAddress, settings.label, false});
+
+                std::size_t blockLength = (tempFileData.size() - lastSize);
                 // check for collisions
                 {
                     int blockLocation = mapper.ToPC(settings.currentAddress);
                     if (auto result = textRanges.addBlock(
                             blockLocation,
-                            blockLocation + (tempFileData.size() - lastSize),
+                            blockLocation + blockLength,
                             settings.label,
                             fs::absolute(path).string()
                         ); result != Blocks::Collision::None) {
@@ -74,7 +76,7 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
                 } // collision check end
 
                 { // add bianry file name and check for back crosses
-                    int tmpAddress = settings.currentAddress + tempFileData.size();
+                    int tmpAddress = settings.currentAddress + blockLength;
                     size_t dataLength;
                     bool printpc = settings.printpc;
                     int bankDifference = ((tmpAddress & 0xFF0000) - (settings.currentAddress & 0xFF0000)) >>16;
@@ -82,8 +84,8 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
                         if (bankDifference > 1) {
                             throw ParseError(path.string() + ", line " + std::to_string(line) +": read data that would cross two banks, aborting.");
                         }
-                        size_t bankLength = ((settings.currentAddress + tempFileData.size()) & 0xFFFF);
-                        dataLength = (tempFileData.size() - lastSize) - bankLength;
+                        size_t bankLength = ((settings.currentAddress + blockLength) & 0xFFFF);
+                        dataLength = blockLength - bankLength;
                         binaryOutputStack.push({settings.label + ".bin", dataLength});
                         binaryOutputStack.push({settings.label + "bank.bin", bankLength});
 
@@ -101,7 +103,7 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
                         };
                         printpc = false;
                     } else {
-                        dataLength = tempFileData.size() - lastSize;
+                        dataLength = blockLength;
                         settings.currentAddress += dataLength;
                         binaryOutputStack.push({settings.label + ".bin", dataLength});
 
