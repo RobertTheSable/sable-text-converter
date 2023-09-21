@@ -1,7 +1,7 @@
 #include "unicode.h"
 
 
-BreakIterator::BreakIterator(bool word, const std::string &data, const icu_70::Locale &locale)
+BreakIterator::BreakIterator(bool word, const std::string &data, const icu::Locale &locale)
 {
     // needs to be explicitly initialized as utf8 on MSVC
     _u16Data = icu::UnicodeString::fromUTF8(data);

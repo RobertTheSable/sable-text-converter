@@ -23,7 +23,7 @@ class SableTextConverterConan(ConanFile):
         if not self.options.use_system_boost:
             self.requires("boost/1.71.0")
         if not self.options.use_system_icu:
-            self.requires("icu/66.1")
+            self.requires("icu/70.1")
 
     def generate(self):
         cmake = CMakeDeps(self)
