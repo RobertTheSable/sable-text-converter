@@ -27,7 +27,7 @@ void DataStore::addFile(std::istream &input, const fs::path& path, std::ostream&
     }
     tempFileData.clear();
     std::string dir = path.parent_path().filename().string();
-    if (dir != lastDir.string()) {
+    if (dir != lastDir.filename().string()) {
         if (m_TableList.find(dir) != m_TableList.end()) {
             nextAddress = m_TableList.at(dir).getDataAddress();
         }
