@@ -1,5 +1,5 @@
 #include "localecheck.h"
-#include "unicode/locid.h"
+#include <unicode/locid.h>
 #include <unicode/unistr.h>
 #include <boost/locale.hpp>
 #include <cstring>

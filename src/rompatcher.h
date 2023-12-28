@@ -6,7 +6,7 @@
 #include <string>
 #include <functional>
 #include "wrapper/filesystem.h"
-#include "datastore.h"
+#include "data/datastore.h"
 
 namespace sable {
 

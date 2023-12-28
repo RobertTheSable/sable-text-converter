@@ -1,5 +1,5 @@
 #include <catch2/catch.hpp>
-#include "datastore.h"
+#include "data/datastore.h"
 #include "helpers.h"
 
 using Catch::Matchers::Contains;

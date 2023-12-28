@@ -1,6 +1,6 @@
 #include "datastore.h"
 #include "exceptions.h"
-#include "parse.h"
+#include "parse/parse.h"
 #include "util.h"
 
 namespace sable {

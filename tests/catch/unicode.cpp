@@ -3,7 +3,7 @@
 #include <string>
 #include <iostream>
 #include <cstring>
-#include "unicode.h"
+#include "parse/unicode.h"
 
 TEST_CASE("Word boundary analysis tests")
 {

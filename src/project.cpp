@@ -9,7 +9,8 @@
 #include "rompatcher.h"
 #include "exceptions.h"
 #include "localecheck.h"
-#include "parse.h"
+#include "parse/parse.h"
+#include "serialize/yamlfontserializer.h"
 
 namespace sable {
 
@@ -140,10 +141,18 @@ bool Project::parseText()
 //    util::Mapper mapper(mapperType, false, true, m_OutputSize);
     auto locale = getLocale(m_LocaleString);
     FontList fl;
+    YamlFontSerializer sz;
     for (auto &path: this->m_MappingPaths) {
         auto inFile = YAML::LoadFile(path);
         for (auto fontIt = inFile.begin(); fontIt != inFile.end(); ++fontIt) {
-            fl.AddFont(fontIt->first.Scalar(), Font(fontIt->second, fontIt->first.Scalar(), locale));
+            fl.AddFont(
+                fontIt->first.Scalar(),
+                sz.generateFont(
+                    fontIt->second,
+                    fontIt->first.Scalar(),
+                    locale
+                )
+            );
         }
     }
     DataStore m_DataStore = DataStore(TextParser(std::move(fl), m_DefaultMode, m_LocaleString));

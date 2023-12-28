@@ -5,7 +5,8 @@
 #include <iostream>
 #include <stack>
 #include <queue>
-#include "parse.h"
+#include "parse/parse.h"
+#include "parse/fontlist.h"
 #include "table.h"
 #include "textblockrange.h"
 #include "wrapper/filesystem.h"

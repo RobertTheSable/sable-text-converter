@@ -1,0 +1,16 @@
+set(SABLE_PARSING_SOURCE_FILES "")
+
+list(
+    APPEND SABLE_PARSING_SOURCE_FILES
+
+    "${CMAKE_CURRENT_SOURCE_DIR}/unicode.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/unicode.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/parse.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/parse.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.cpp"
+)
+
+add_library(sable_parsing STATIC ${SABLE_PARSING_SOURCE_FILES})
+target_include_directories(sable_parsing PUBLIC ${SABLE_INCLUDE_DIR})
+

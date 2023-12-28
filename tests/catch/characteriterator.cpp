@@ -1,7 +1,7 @@
 #include <catch2/catch.hpp>
 #include <chrono>
 #include <random>
-#include "characteriterator.h"
+#include "font/characteriterator.h"
 
 using sable::CharacterIterator;
 

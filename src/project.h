@@ -6,8 +6,8 @@
 #include <string>
 #include <yaml-cpp/yaml.h>
 #include "util.h"
-#include "font.h"
-#include "datastore.h"
+#include "font/font.h"
+#include "data/datastore.h"
 #include "table.h"
 
 namespace sable {

@@ -14,6 +14,9 @@ endif()
 find_package(Boost 1.71.0 REQUIRED COMPONENTS locale)
 find_package(ICU 66.1 REQUIRED COMPONENTS in uc dt)
 
+# icu is sometimes in unicode or unicode2 subfolder, but cmake doesn't say which
+
+
 list(
     APPEND SABLE_LIBRARIES
 

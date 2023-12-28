@@ -1,19 +1,13 @@
 
 set(SABLE_SOURCE_FILES "")
 
+set(SABLE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
 list(
     APPEND SABLE_SOURCE_FILES
 
     "${PROJECT_SOURCE_DIR}/include/asar/asardll.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/unicode.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/unicode.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/characteriterator.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/characteriterator.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/font.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/font.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/exceptions.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/parse.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/parse.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/localecheck.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/localecheck.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/util.cpp"
@@ -24,19 +18,20 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/rompatcher.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/project.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/project.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/datastore.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/datastore.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/textblockrange.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/textblockrange.cpp"
 )
+
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/parse")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/font")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/serialize")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/data")
 
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})
 
 check_codecov(SABLE_LIBRARIES)
 
-target_link_libraries(sable_lib ${SABLE_LIBRARIES} ${ICU_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
+target_link_libraries(sable_lib sable_font sable_serialize sable_parsing sable_data ${SABLE_LIBRARIES} ${ICU_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
 
 message(STATUS "ICU libraries: ${ICU_LIBRARIES}")
 

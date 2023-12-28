@@ -1,7 +1,7 @@
 #ifndef FONTLIST_H
 #define FONTLIST_H
 
-#include "font.h"
+#include "font/font.h"
 #include <map>
 
 namespace sable {

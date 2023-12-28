@@ -3,7 +3,7 @@
 #include <yaml-cpp/yaml.h>
 #include <string>
 #include <vector>
-#include "fontlist.h"
+#include "parse/fontlist.h"
 
 namespace sable_tests {
 YAML::Node createSampleNode(
