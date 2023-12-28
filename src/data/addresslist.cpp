@@ -5,7 +5,7 @@
 
 namespace sable {
 
-AddressList::AddressList() : dirIndex(0), nextAddress(0), isSorted(false)
+AddressList::AddressList() : nextAddress(0), isSorted(false)
 {
 
 }
@@ -72,9 +72,7 @@ int AddressList::getNextAddress(const std::string& key) const
         return nextAddress;
     } else if (auto result = m_TableList.find(key); result != m_TableList.end()) {
         auto res = result->second.getDataAddress();
-        if (key == "savetitles") {
-            int test = 1;
-        }
+
         return res;
     }
     return nextAddress;
@@ -88,15 +86,5 @@ void AddressList::setNextAddress(int value)
 void AddressList::addAddress(AddressNode n)
 {
     m_Addresses.push_back(n);
-}
-
-FontList AddressList::getFonts() const
-{
-    return FontList{};
-}
-
-bool AddressList::getIsSorted() const
-{
-    return isSorted;
 }
 }

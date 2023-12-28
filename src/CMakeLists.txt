@@ -17,6 +17,7 @@ file(GLOB SABLE_SOURCE_FILES
     settings.h
     settings.h
     settings.cpp
+
     errorhandling.h
 )
 

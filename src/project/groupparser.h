@@ -4,33 +4,28 @@
 #include <iostream>
 #include <fstream>
 #include <utility>
-
-#include "parse/fileparser.h"
-#include "exceptions.h"
-#include "errorhandling.h"
+#include <optional>
 
 #include "group.h"
+#include "folder.h"
+#include "handler.h"
 
 namespace sable {
 
-template<class FP = FileParser>
-struct GroupParser {
-    FP fp;
-    template<typename ...Args>
-    GroupParser(FontList&& fl, Args ...args): fp(std::move(fl), args...) {}
+template<typename Hl = Handler>
+class GroupParser {
+    Hl& handler;
+public:
+    GroupParser(Hl& handler_): handler{handler_} {}
 
-    const FontList& getFonts() const {
-        return fp.bp.m_Parser.getFonts();
-    }
-    template<class Writer>
     auto processGroup(
         files::Group group,
         const util::Mapper& mapper,
         const std::string& currentDir,
-        int nextAddress,
-        int dirIndex,
-        Writer writer
+        int dirIndex
     ) {
+        int nextAddtess = handler.getNextAddress(currentDir);
+
         for (auto file: group) {
             if (!fs::exists(file)) {
                 throw ParseError(
@@ -40,28 +35,15 @@ struct GroupParser {
                 );
             }
             std::ifstream input(file.string());
-            // probably this can be replaced with std::format whenever I get reliable access to it
-            auto handler = [file] (error::Levels l, std::string msg, int line) {
-                switch (l) {
-                case error::Levels::Error:
-                    throw ParseError("Error in text file " + fs::absolute(file).string() + ", line " + std::to_string(line+1) + ": " + msg);
-                    break;
-                case error::Levels::Warning:
-                    std::cerr <<
-                        "Warning in " + fs::absolute(file).string() + " on line " + std::to_string(line) +
-                        ": " << msg << "\n";
-                    break;
-                default:
-                    break;
-                }
-            };
 
-            auto r = fp.processFile(input, mapper, currentDir, fs::absolute(file).string(), nextAddress, dirIndex, handler, writer);
+            auto r = handler.processFile(input, mapper, currentDir, fs::absolute(file).string(), nextAddtess, dirIndex);
+
             dirIndex = r.dirIndex;
-            nextAddress = r.address;
+            nextAddtess = r.address;
             input.close();
         }
-        return nextAddress;
+
+        handler.setNextAddress(nextAddtess);
     }
 };
 }

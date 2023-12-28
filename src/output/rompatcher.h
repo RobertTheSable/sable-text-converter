@@ -32,7 +32,8 @@ public:
     template<class Fl>
     void writeFontData(Fl list, std::ostream& output)
     {
-        for (auto& font: list) {
+        for (auto& fontIt: list) {
+            auto font = fontIt.second;
             if (!font.getFontWidthLocation().empty()) {
                 output << "\n"
                           "ORG " + font.getFontWidthLocation();

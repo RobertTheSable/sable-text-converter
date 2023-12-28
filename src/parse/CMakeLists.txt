@@ -5,14 +5,11 @@ list(
 
     "${CMAKE_CURRENT_SOURCE_DIR}/unicode.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/unicode.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/parse.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/parse.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.cpp"
-    fileparser.h
-    fileparser.cpp
-    blockparser.h
-    blockparser.cpp
+    textparser.h
+    textparser.cpp
+    parse.h
+    block.h
+    block.cpp
     result.h
 )
 

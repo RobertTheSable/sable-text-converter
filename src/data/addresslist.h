@@ -7,14 +7,11 @@
 #include <queue>
 #include <optional>
 #include "parse/parse.h"
-#include "parse/fontlist.h"
 #include "table.h"
 #include "textblockrange.h"
 #include "address.h"
 
 namespace sable {
-
-typedef std::back_insert_iterator<std::vector<unsigned char>> ByteInserter;
 
 class AddressList
 {
@@ -35,16 +32,18 @@ public:
     int getNextAddress(const std::string& key) const;
     void setNextAddress(int value);
     void addAddress(AddressNode n);
-    FontList getFonts() const;
-    bool getIsSorted() const;
 
+    template<class ...Args>
+    void addAddress(int address, Args&& ...args)
+    {
+        addAddress(AddressNode{address, std::forward<Args>(args)...});
+    }
 
 private:
-//    TextParser m_Parser;
+    using ByteInserter = std::back_insert_iterator<std::vector<unsigned char>>;
     std::vector<AddressNode> m_Addresses;
     std::unordered_map<std::string, TextNode> m_TextNodeList;
     std::unordered_map<std::string, Table> m_TableList;
-    int dirIndex;
     int nextAddress;
     bool isSorted;
     Blocks textRanges;

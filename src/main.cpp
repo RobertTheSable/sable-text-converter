@@ -37,7 +37,7 @@ int main(int argc, char * argv[])
              cout << programOptions.help({"", "Group"}) << '\n';
         } else {
             try {
-                sable::Project project = sable::Project::make(starting_path.string());
+                sable::Project project = sable::Project::from(starting_path.string());
                 if (project) {
                     if (!options.count("a")) {
                         project.parseText();

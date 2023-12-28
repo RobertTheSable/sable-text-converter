@@ -15,6 +15,7 @@ struct TextNode {
     size_t size;
     bool printpc;
 };
+
 }
 
 #endif // ADDRESS_H

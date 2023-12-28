@@ -6,6 +6,7 @@
 #include <iostream>
 #include <algorithm>
 #include <locale>
+#include <map>
 #include <unicode/uchar.h>
 #include <boost/locale.hpp>
 
@@ -13,11 +14,11 @@ using sable::TextParser, sable::Font;
 
 struct TextParser::Impl {
     std::string defaultFont;
-    FontList fontList;
+    std::map<std::string, sable::Font> fontList;
     icu::Locale m_Locale;
     bool useDigraphs;
     int maxWidth;
-    Impl(const std::string& defFont, FontList&& fList, icu::Locale&& locale)
+    Impl(const std::string& defFont, std::map<std::string, sable::Font>&& fList, icu::Locale&& locale)
         : defaultFont{defFont}, fontList{fList}, m_Locale{locale} {}
     ~Impl() {
 
@@ -60,7 +61,7 @@ struct TextParser::Impl {
                         if (name == "type") {
                             if (option == "default") {
                                 retVal.mode = defaultFont;
-                            } else if (!fontList.contains(option)) {
+                            } else if (fontList.find(option) == fontList.end()) {
                                 throw std::runtime_error(option.insert(0, "Font \"") + "\" was not defined");
                             } else {
                                 retVal.mode = option;
@@ -130,13 +131,11 @@ struct TextParser::Impl {
     }
 };
 
-TextParser::TextParser(FontList&& list, const std::string& defaultMode, const std::string& locale)
+TextParser::TextParser(std::map<std::string, sable::Font>&& list, const std::string& defaultMode, const std::string& locale)
 {
     _pImpl = std::make_unique<Impl>(defaultMode, std::move(list), icu::Locale::createCanonical(locale.c_str()));
 }
 
-TextParser::TextParser()=default;
-TextParser::TextParser(TextParser&&)=default;
 TextParser::~TextParser()=default;
 
 std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & settings, back_inserter insert, const util::Mapper& mapper)
@@ -169,7 +168,7 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                     for ( ; *it != "]" && !it.done(); ++it) {
                         bracketContents += *it;
                     }
-                    if (it .done()) {
+                    if (it.done()) {
                         throw std::runtime_error("Closing bracket not found.");
                     }
                     temp = bracketContents;
@@ -232,6 +231,10 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
             } else {
                 if (settings.currentAddress == 0) {
                     throw std::runtime_error("Attempted to parse text before address was set.");
+                } else if (mapper.ToPC(settings.currentAddress) == -1) {
+                    std::ostringstream err;
+                    err << "Attempted to begin parsing with invalid ROM address $" << std::hex << settings.currentAddress;
+                    throw std::runtime_error(err.str());
                 }
                 std::string contents = ref;
                 try {
@@ -306,7 +309,7 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
     return std::make_pair(finished, length);
 }
 
-const sable::FontList &TextParser::getFonts() const
+const std::map<std::string, sable::Font> &TextParser::getFonts() const
 {
     return _pImpl->fontList;
 }

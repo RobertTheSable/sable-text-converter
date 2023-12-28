@@ -11,6 +11,10 @@ struct Result {
     int line;
 };
 
+struct FileResult {
+    int dirIndex, address;
+};
+
 }
 
 }

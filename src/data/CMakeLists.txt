@@ -3,12 +3,12 @@ set(SABLE_DATA_SOURCE_FILES "")
 list(
     APPEND SABLE_DATA_SOURCE_FILES
 
-    "${CMAKE_CURRENT_SOURCE_DIR}/addresslist.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/addresslist.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/table.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/table.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/textblockrange.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/textblockrange.h"
+    addresslist.cpp
+    addresslist.h
+    table.cpp
+    table.h
+    textblockrange.cpp
+    textblockrange.h
     address.h
 #    "${CMAKE_CURRENT_SOURCE_DIR}/textblock.h"
 )

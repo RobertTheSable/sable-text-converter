@@ -20,24 +20,11 @@
 
 #include "wrapper/filesystem.h"
 #include "project/helpers.h"
+#include "project/folder.h"
 
 namespace sable {
 
-
-void outputFile(const std::string &file, const std::vector<unsigned char>& data, size_t length, size_t start)
-{
-    std::ofstream output(
-                file,
-                std::ios::binary | std::ios::out
-                );
-    if (!output) {
-        throw ASMError("Could not open " + file + " for writing");
-    }
-    output.write(reinterpret_cast<const char*>(&data[start]), length);
-    output.close();
-}
-
-Project Project::make(const std::string &projectDir)
+Project Project::from(const std::string &projectDir)
 {
     if (!fs::exists(fs::path(projectDir) / "config.yml")) {
         throw ConfigError((fs::path(projectDir) / "config.yml").string() + " not found.");
@@ -49,14 +36,12 @@ Project Project::make(const std::string &projectDir)
     for (auto &path: self.m_MappingPaths) {
         auto inFile = YAML::LoadFile(path);
         for (auto fontIt = inFile.begin(); fontIt != inFile.end(); ++fontIt) {
-         self.fl.AddFont(
-             fontIt->first.Scalar(),
-             FontBuilder::make(
-                 fontIt->second,
-                 fontIt->first.Scalar(),
-                 locale
-             )
-         );
+            self.fl[fontIt->first.Scalar()] =
+                FontBuilder::make(
+                    fontIt->second,
+                    fontIt->first.Scalar(),
+                    locale
+                );
         }
     }
     return self;
@@ -64,7 +49,6 @@ Project Project::make(const std::string &projectDir)
 
 bool Project::parseText()
 {
-
     fs::path mainDir(m_MainDir);
     {
         if (!fs::exists(mainDir / m_OutputDir / m_BinsDir)) {
@@ -80,82 +64,33 @@ bool Project::parseText()
         fs::create_directory(mainDir / m_OutputDir / m_BinsDir / m_TextOutDir);
     }
 
-    GroupParser gp(std::move(fl), m_DefaultMode, m_LocaleString);
+    auto baseDir = mainDir / m_OutputDir / m_BinsDir / m_TextOutDir;
+    Handler handler(baseDir, std::cerr, std::move(fl), m_DefaultMode, m_LocaleString);
+    GroupParser gp{handler};
 
-    AddressList addresses;
     {
         fs::path input = fs::path(m_MainDir) / m_InputDir;
 
         std::vector<fs::path> dirs;
         std::copy(fs::directory_iterator(input), fs::directory_iterator(), std::back_inserter(dirs));
         std::sort(dirs.begin(), dirs.end());
-        std::vector<Table> tables;
-        std::vector<files::Group> fileGroups;
 
         for (auto& dir: dirs) {
             if (!fs::is_directory(dir)) {
                 continue;
             }
 
-            auto name = dir.filename().string();
-            if (isFile(dir / "table.txt")) {
-                std::ifstream tableFile((dir / "table.txt").string());
-                if (!tableFile) {
-                    throw ParseError(fs::absolute(dir).string() + " could not be opened.");
-                }
-                auto g = files::Group(
-                    name,
-                    fs::absolute(dir),
-                    isFile,
-                    tableFile,
-                    m_Mapper,
-                    addresses.getNextAddress("")
-                );
-                Table cp = g.getTable().value();
-                addresses.addTable(name, std::move(cp));
-                fileGroups.push_back(g);
-            } else {
-                auto beg = fs::directory_iterator(dir);
-                fileGroups.emplace_back(
-                    name,
-                    fs::absolute(dir),
-                    getPathIfFile,
-                    fs::directory_iterator(dir),
-                    fs::directory_iterator()
-                );
+            files::Folder f(dir, m_Mapper);
+            if (f.table) {
+                handler.addresses.addTable(f.group.getName(), f.releaseTable());
             }
-        }
 
-        int nextAddress = 0;
-
-        auto baseDir = mainDir / m_OutputDir / m_BinsDir / m_TextOutDir;
-        auto writer = [baseDir, &addresses] (
-                std::string fileName,
-                std::string label,
-                const std::vector<unsigned char>& data,
-                int address,
-                size_t start,
-                size_t length,
-                bool printpc
-            ) {
-            addresses.addAddress({address, label, false});
-            addresses.addFile(label, fileName, length, printpc);
-            outputFile((baseDir / fileName).string(), data, length, start);
-        };
-
-        for (auto& group: fileGroups) {
             int dirIndex = 0;
 
-            auto currentDir = group.getName();
-
-            nextAddress = addresses.getNextAddress(currentDir);
-
-            nextAddress = gp.processGroup(group, m_Mapper, currentDir, nextAddress, dirIndex, writer);
-
-            addresses.setNextAddress(nextAddress);
+            gp.processGroup(f.group, m_Mapper, f.group.getName(), dirIndex);
         }
     }
-    addresses.sort();
+    AddressList addresses = handler.done();
 
     {
         std::ofstream mainText((mainDir / m_OutputDir / "text.asm").string());
@@ -189,7 +124,7 @@ bool Project::parseText()
             throw ASMError("Could not open " + fontFilePath.string() + " for writing.\n");
         }
         r.writeIncludes(m_FontIncludes.begin(), m_FontIncludes.end(), output);
-        r.writeFontData(gp.getFonts(), output);
+        r.writeFontData(handler.getFonts(), output);
         output.close();
     }
     maxAddress = (addresses.end()-1)->address;
@@ -229,9 +164,9 @@ void Project::writePatchData()
                     std::cout << msg << std::endl;
                 }
                 std::ofstream output(
-                            (fs::path(m_RomsDir) / (romData.name + extension)).string(),
-                            std::ios::out|std::ios::binary
-                            );
+                    (fs::path(m_RomsDir) / (romData.name + extension)).string(),
+                    std::ios::out|std::ios::binary
+                );
                 output.write(reinterpret_cast<char*>(&r.at(0)), r.getRealSize());
                 output.close();
                 r.clear();

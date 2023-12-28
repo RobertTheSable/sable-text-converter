@@ -51,7 +51,10 @@ size_t Table::getEntryCount() const
     return entries.size();
 }
 
-std::vector<std::string> Table::getDataFromFile(std::istream &tableFile, const util::Mapper& mapper)
+std::vector<std::string> Table::getDataFromFile(
+    std::istream &tableFile,
+    const util::Mapper& mapper
+)
 {
     std::vector<std::string> v;
     std::string line, input;
@@ -203,9 +206,9 @@ std::vector<std::string> Table::getDataFromFile(std::istream &tableFile, const u
                 setStoreWidths(true);
             } else {
                 throw std::runtime_error(
-                            "line " + std::to_string(tableLine)
-                            + ": unrecognized setting \"" + input + "\""
-                            );
+                    "line " + std::to_string(tableLine)
+                    + ": unrecognized setting \"" + input + "\""
+                );
             }
         }
         tableLine++;
@@ -261,7 +264,8 @@ bool operator!=(const Table::iterator &lsh, const Table::iterator &rhs)
     return lsh.m_position != rhs.m_position;
 }
 
-Table::iterator::iterator(const std::vector<Table::Entry>::const_iterator &position) : m_position(position)
+Table::iterator::iterator(const std::vector<Table::Entry>::const_iterator &position)
+    : m_position(position)
 {
 
 }
@@ -282,5 +286,5 @@ const Table::Entry& Table::iterator::operator*() const
     return *m_position;
 }
 
-}
+} // namespace sable
 

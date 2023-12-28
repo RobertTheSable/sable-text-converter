@@ -18,52 +18,60 @@ class Group
     std::string name;
     fs::path path;
     std::vector<fs::path> files;
-    std::optional<Table> table = std::nullopt;
+    Group(const std::string& name_, fs::path path_) : name{name_}, path{path_} {}
 public:
-    template<class Check>
-    Group(
-        const std::string& name_,
-        fs::path path_,
-        Check checker,
-        std::istream& tableFile,
-        const util::Mapper& mapper,
-        int nextAddress
-    ) {
-        name = name_;
-        path = path_;
-        table = Table{};
-        table->setAddress(nextAddress);
-        auto res = table->getDataFromFile(tableFile, mapper);
-        files.reserve(res.size());
-        for (auto f: res) {
-            files.push_back(path / f);
-        }
-    }
+    Group(const Group&)=default;
+    Group(Group&&)=default;
+    Group& operator=(const Group&)=default;
+    Group& operator=(Group&&)=default;
 
-    template<class Itr, class Filter>
-    Group(const std::string& name_, fs::path path_, Filter filter, Itr begin, Itr end) {
-        name = name_;
-        path = path_;
+    template<class Itr>
+    static auto fromList(
+        const std::string& name,
+        fs::path path,
+        Itr begin,
+        Itr end
+    )
+    {
+        Group g(name, path);
         for (auto it = begin; it != end; ++it) {
-            auto res = filter(*it);
-            if (!res) {
+            if (!it->is_regular_file()) {
                 continue;
             }
-            files.push_back(*res);
+            g.files.push_back(it->path());
         }
-        sort();
+        g.sort();
+        return std::move(g);
     }
-    void sort() {
+    template<class Itr>
+    static auto fromTable(
+        const std::string& name,
+        fs::path path,
+        Itr begin,
+        Itr end
+    )
+    {
+        Group g(name, path);
+        g.files.reserve(end - begin);
+        for (auto it = begin; it != end; ++it) {
+            g.files.push_back(path / *it);
+        }
+        return std::move(g);
+    }
+    void sort()
+    {
         std::sort(files.begin(), files.end());
     }
 
     auto begin() {
         return files.begin();
     }
-    auto begin() const {
+    auto begin() const
+    {
         return files.cbegin();
     }
-    auto end() {
+    auto end()
+    {
         return files.end();
     }
     auto end() const {
@@ -75,9 +83,6 @@ public:
 
     fs::path getPath() const {
         return path;
-    }
-    std::optional<Table> getTable() const {
-        return table;
     }
 };
 

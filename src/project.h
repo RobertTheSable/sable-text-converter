@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "util.h"
-#include "parse/fontlist.h"
 #include "data/table.h"
 #include "font/font.h"
 
@@ -24,7 +23,7 @@ class Project
         std::vector<std::string> includes;
     };
 
-    FontList fl;
+    std::map<std::string, sable::Font> fl;
     std::string m_MainDir, m_InputDir, m_OutputDir, m_BinsDir,
     m_TextOutDir, m_RomsDir, m_FontDir,
     m_DefaultMode, m_ConfigPath, m_LocaleString;
@@ -58,7 +57,7 @@ public:
     static constexpr const char* OUT_SIZE = "outputSize";
     static constexpr const char* LOCALE = "locale";
 
-    static Project make(const std::string &projectDir);
+    static Project from(const std::string &projectDir);
     bool parseText();
     void writePatchData();
     std::string MainDir() const;
