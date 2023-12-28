@@ -227,7 +227,7 @@ int sable::RomPatcher::getRealSize() const
     return m_data.size();
 }
 
-void sable::RomPatcher::writeParsedData(const sable::DataStore &m_DataStore, const fs::path& includePath, std::ostream &mainText, std::ostream &textDefines)
+void sable::RomPatcher::writeParsedData(const sable::AddressList &m_DataStore, const fs::path& includePath, std::ostream &mainText, std::ostream &textDefines)
 {
     for (auto& node: m_DataStore) {
         if (node.isTable) {
@@ -279,49 +279,6 @@ void sable::RomPatcher::writeIncludes(sable::ConstStringIterator start, sable::C
 {
     for (auto it = start; it != end; ++it) {
         mainFile << generateInclude(includePath / *it, fs::path(), false) << '\n';
-    }
-}
-
-void sable::RomPatcher::writeFontData(const sable::DataStore &data, std::ostream &output)
-{
-    for (auto& font: data.getFonts()) {
-        if (!font.getFontWidthLocation().empty()) {
-            output << "\n"
-                      "ORG " + font.getFontWidthLocation();
-            std::vector<int> widths;
-
-            for (int pIdx = 0; pIdx < font.getNumberOfPages(); pIdx++) {
-                            widths.reserve(font.getMaxEncodedValue(pIdx));
-                font.getFontWidths(pIdx, std::back_insert_iterator(widths));
-            }
-
-            int column = 0;
-            int skipCount = 0;
-            for (auto it = widths.begin(); it != widths.end(); ++it) {
-                int width = *it;
-                if (width == 0) {
-                    skipCount++;
-                    column = 0;
-                } else {
-                    if (skipCount > 0) {
-                        output << "\n"
-                                  "skip " << std::dec << skipCount;
-                        skipCount = 0;
-                    }
-                    if (column == 0) {
-                        output << "\ndb ";
-                    } else {
-                        output << ", ";
-                    }
-                    output << "$" << std::hex << std::setw(2) << std::setfill('0') << width;
-                    column++;
-                    if (column ==16) {
-                        column = 0;
-                    }
-                }
-            }
-            output << '\n' ;
-        }
     }
 }
 

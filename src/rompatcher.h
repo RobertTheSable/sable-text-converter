@@ -1,12 +1,13 @@
 #ifndef ROMPATCHER_H
 #define ROMPATCHER_H
 #include "util.h"
-#include "table.h"
 #include <vector>
 #include <string>
 #include <functional>
 #include "wrapper/filesystem.h"
-#include "data/datastore.h"
+#include "data/addresslist.h"
+#include "font/font.h"
+#include "data/table.h"
 
 namespace sable {
 
@@ -26,9 +27,51 @@ public:
     bool getMessages(std::back_insert_iterator<std::vector<std::string>> v);
     int getRealSize() const;
 
-    void writeParsedData(const DataStore& data, const fs::path& includePath, std::ostream& mainText, std::ostream& textDefines);
+    void writeParsedData(const AddressList& data, const fs::path& includePath, std::ostream& mainText, std::ostream& textDefines);
     void writeIncludes(ConstStringIterator start, ConstStringIterator end, std::ostream& mainFile, const fs::path& includePath = fs::path());
-    void writeFontData(const DataStore& data, std::ostream& output);
+    template<class Fl>
+    void writeFontData(Fl list, std::ostream& output)
+    {
+        for (auto& font: list) {
+            if (!font.getFontWidthLocation().empty()) {
+                output << "\n"
+                          "ORG " + font.getFontWidthLocation();
+                std::vector<int> widths;
+
+                for (int pIdx = 0; pIdx < font.getNumberOfPages(); pIdx++) {
+                                widths.reserve(font.getMaxEncodedValue(pIdx));
+                    font.getFontWidths(pIdx, std::back_insert_iterator(widths));
+                }
+
+                int column = 0;
+                int skipCount = 0;
+                for (auto it = widths.begin(); it != widths.end(); ++it) {
+                    int width = *it;
+                    if (width == 0) {
+                        skipCount++;
+                        column = 0;
+                    } else {
+                        if (skipCount > 0) {
+                            output << "\n"
+                                      "skip " << std::dec << skipCount;
+                            skipCount = 0;
+                        }
+                        if (column == 0) {
+                            output << "\ndb ";
+                        } else {
+                            output << ", ";
+                        }
+                        output << "$" << std::hex << std::setw(2) << std::setfill('0') << width;
+                        column++;
+                        if (column ==16) {
+                            column = 0;
+                        }
+                    }
+                }
+                output << '\n' ;
+            }
+        }
+    }
 
     std::string getMapperDirective(const util::MapperType& mapper);
     std::string generateInclude(const fs::path& file, const fs::path& basePath, bool isBin) const;

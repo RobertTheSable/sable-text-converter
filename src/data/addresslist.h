@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stack>
 #include <queue>
+#include <optional>
 #include "parse/parse.h"
 #include "parse/fontlist.h"
 #include "table.h"
@@ -15,11 +16,10 @@ namespace sable {
 
 typedef std::back_insert_iterator<std::vector<unsigned char>> ByteInserter;
 
-class DataStore
+class AddressList
 {
 public:
-    DataStore();
-    DataStore(TextParser&& p);
+    AddressList();
     struct TextNode {
         std::string files;
         size_t size;
@@ -30,29 +30,30 @@ public:
         std::string label;
         bool isTable;
     };
-    void addFile(std::istream& file, const fs::path& path, std::ostream& errorStream, const sable::util::Mapper& mapper);
-    std::pair<std::string, int> getOutputFile();
-    std::vector<std::string> addTable(std::istream& file, const fs::path& path);
     std::vector<AddressNode>::const_iterator begin() const;
     std::vector<AddressNode>::const_iterator end() const;
-    std::vector<unsigned char>::const_iterator data_begin();
-    std::vector<unsigned char>::const_iterator data_end();
+
+    void addFile(const std::string& label, const std::string& file, std::size_t dataLength, bool printPC);
     const TextNode& getFile(const std::string& label) const;
+
+    std::vector<std::string> addTable(std::istream& file, const fs::path& path);
+    void addTable(const std::string& name, Table&& tbl);
     const Table& getTable(const std::string& label) const;
+    std::optional<Table> checkTable(const std::string& label) const;
+
     void sort();
     int getNextAddress() const;
     void setNextAddress(int value);
-    const FontList& getFonts() const;
+    void addAddress(AddressNode n);
+    FontList getFonts() const;
     bool getIsSorted() const;
 
 
 private:
-    TextParser m_Parser;
+//    TextParser m_Parser;
     std::vector<AddressNode> m_Addresses;
     std::unordered_map<std::string, TextNode> m_TextNodeList;
     std::unordered_map<std::string, Table> m_TableList;
-    std::queue <std::pair<std::string, int>> binaryOutputStack;
-    std::vector<unsigned char> tempFileData;
     fs::path lastDir;
     int dirIndex;
     int nextAddress;

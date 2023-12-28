@@ -7,8 +7,7 @@
 #include <yaml-cpp/yaml.h>
 #include "util.h"
 #include "font/font.h"
-#include "data/datastore.h"
-#include "table.h"
+#include "data/table.h"
 
 namespace sable {
 
@@ -86,7 +85,6 @@ private:
     util::MapperType m_BaseType;
     util::Mapper m_Mapper;
     //TextParser m_Parser;
-    void outputFile(const std::string &file, const std::vector<unsigned char>& data, size_t length, int start = 0);
     static bool validateConfig(const YAML::Node& configYML);
     int maxAddress;
     void writeSettings();

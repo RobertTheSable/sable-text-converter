@@ -3,8 +3,13 @@ set(SABLE_DATA_SOURCE_FILES "")
 list(
     APPEND SABLE_DATA_SOURCE_FILES
 
-    "${CMAKE_CURRENT_SOURCE_DIR}/datastore.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/datastore.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/addresslist.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/addresslist.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/table.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/table.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/textblockrange.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/textblockrange.h"
+#    "${CMAKE_CURRENT_SOURCE_DIR}/textblock.h"
 )
 
 add_library(sable_data STATIC ${SABLE_DATA_SOURCE_FILES})

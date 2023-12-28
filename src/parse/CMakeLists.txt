@@ -9,8 +9,11 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/parse.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.cpp"
+    fileparser.h
+    fileparser.cpp
+    result.h
 )
 
 add_library(sable_parsing STATIC ${SABLE_PARSING_SOURCE_FILES})
-target_include_directories(sable_parsing PUBLIC ${SABLE_INCLUDE_DIR})
+target_include_directories(sable_parsing PUBLIC ${SABLE_INCLUDE_DIR} )
 
