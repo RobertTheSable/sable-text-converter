@@ -7,6 +7,10 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/characteriterator.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/font.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/font.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/builder.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/builder.h"
+    error.cpp
+
 )
 
 add_library(sable_font STATIC ${SABLE_FONT_SOURCE_FILES})

@@ -71,7 +71,11 @@ int AddressList::getNextAddress(const std::string& key) const
     if (key == "") {
         return nextAddress;
     } else if (auto result = m_TableList.find(key); result != m_TableList.end()) {
-        return result->second.getAddress();
+        auto res = result->second.getDataAddress();
+        if (key == "savetitles") {
+            int test = 1;
+        }
+        return res;
     }
     return nextAddress;
 }

@@ -15,10 +15,24 @@ namespace sable {
     class Font
     {
     public:
+        friend class FontBuilder;
+        static constexpr const char* USE_DIGRAPHS = "HasDigraphs";
+        static constexpr const char* BYTE_WIDTH = "ByteWidth";
+        static constexpr const char* CMD_CHAR = "CommandValue";
+        static constexpr const char* FIXED_WIDTH = "FixedWidth";
+        static constexpr const char* DEFAULT_WIDTH = "DefaultWidth";
+        static constexpr const char* MAX_CHAR = "MaxEncodedValue";
+        static constexpr const char* MAX_WIDTH = "MaxWidth";
+        static constexpr const char* FONT_ADDR = "FontWidthAddress";
         static constexpr const char* ENCODING = "Encoding";
         static constexpr const char* COMMANDS = "Commands";
         static constexpr const char* NOUNS = "Nouns";
         static constexpr const char* EXTRAS = "Extras";
+        static constexpr const char* CODE_VAL = "code";
+        static constexpr const char* TEXT_LENGTH_VAL = "length";
+        static constexpr const char* CMD_NEWLINE_VAL = "newline";
+        static constexpr const char* CMD_PAGE = "page";
+        static constexpr const char* PAGES = "Pages";
 
 //        enum ReadType {ERROR, TEXT, COMMAND, EXTRA};
         Font(
@@ -31,7 +45,6 @@ namespace sable {
             int maxWidth,
             const std::string& fontWidthLocation,
             int glyphByteLength
-
         );
         Font(const std::string& name, int byteWidth);
         Font()=default;
@@ -125,6 +138,20 @@ namespace sable {
         void addPage(Page&& pg);
         std::locale getLocale() const;
         void validate(bool result);
+    };
+
+    class FontError : public std::runtime_error {
+    public:
+        FontError(int line, const std::string &name, const std::string& field, const std::string& msg = "");
+        FontError(int line, const std::string &name, const std::string& field, const std::string& subField, const std::string& msg);
+        std::string getField() const;
+        std::string getMessage() const;
+        std::string getName() const;
+
+    private:
+        static const std::string buildWhat(const int line, const std::string &name, const std::string &field, const std::string &msg, const std::string& subField = "");
+        int line;
+        std::string m_Name, m_Field, m_Message;
     };
 }
 

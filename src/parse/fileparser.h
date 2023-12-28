@@ -13,14 +13,21 @@ namespace sable {
 //template<class Handler>
 struct FileParser {
     BlockParser bp;
-    util::Mapper mapper;
     Blocks textRanges;
 
+    struct Result {
+        int dirIndex, address;
+    };
+
+    template<typename ...Args>
+    FileParser(FontList&& fl, Args ...args): bp(std::move(fl), args...) {}
+
     template<class Handler, class Writer>
-    int processFile(
+    Result processFile(
         std::istream& input,
-        std::string currentDir,
-        std::string fileKey,
+        const util::Mapper& mapper,
+        const std::string& currentDir,
+        const std::string& fileKey,
         int nextAddress,
         int startingDirIndex,
         Handler handler,
@@ -84,7 +91,7 @@ struct FileParser {
         if (settings.maxWidth < 0) {
             settings.maxWidth = 0;
         }
-        return dirIndex;
+        return Result{ .dirIndex = dirIndex, .address = nextAddress};
     }
 };
 

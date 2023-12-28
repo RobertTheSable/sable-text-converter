@@ -7,7 +7,6 @@
 
 #include "parse/parse.h"
 #include "helpers.h"
-#include "serialize/yamlfontserializer.h"
 
 typedef std::vector<unsigned char> ByteVector;
 
@@ -34,7 +33,7 @@ TEST_CASE("Class properties", "[parser]")
 
 TEST_CASE("Single lines", "[parser]")
 {
-    using sable::Font, sable::TextParser, sable::YamlFontSerializer;
+    using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
     TextParser p(node.as<sable::FontList>(), "normal", defLocale);
     auto settings = p.getDefaultSetting(0x808000);
@@ -69,11 +68,11 @@ TEST_CASE("Single lines", "[parser]")
     {
         sample.str("test ❤");
         auto encNode = node["normal"][Font::ENCODING];
-        int expected = (encNode["t"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() * 2) +
-                encNode["e"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() +
-                encNode["s"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() +
-                encNode[" "][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() +
-                encNode["❤"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>();
+        int expected = (encNode["t"][Font::TEXT_LENGTH_VAL].as<int>() * 2) +
+                encNode["e"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["s"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode[" "][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["❤"][Font::TEXT_LENGTH_VAL].as<int>();
         REQUIRE(p.parseLine(sample, settings, std::back_inserter(v), m).second == expected);
         REQUIRE(v.size() == 8);
     }
@@ -81,12 +80,12 @@ TEST_CASE("Single lines", "[parser]")
     {
         sample.str("ll la ld e?");
         auto&& encNode = node["normal"][Font::ENCODING];
-        int expected = (encNode[" "][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() * 3) +
-                encNode["e?"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() +
-                encNode["ll"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() +
-                encNode["la"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() +
-                encNode["l"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() +
-                encNode["d"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>();
+        int expected = (encNode[" "][Font::TEXT_LENGTH_VAL].as<int>() * 3) +
+                encNode["e?"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["ll"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["la"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["l"][Font::TEXT_LENGTH_VAL].as<int>() +
+                encNode["d"][Font::TEXT_LENGTH_VAL].as<int>();
         REQUIRE(p.parseLine(sample, settings, std::back_inserter(v), m).second == expected);
         REQUIRE(v.size() == 10);
         REQUIRE(v == ByteVector({0x4A, 53, 0x4B, 53, 0x26, 30, 53, 0x4C, 0, 0}));
@@ -106,9 +105,9 @@ TEST_CASE("Single lines", "[parser]")
         sample.str("e† A");
         std::pair<bool, int> result;
         auto expected =
-                node["normal"][Font::ENCODING]["e†"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() +
-                node["normal"][Font::ENCODING][" "][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>() +
-                node["normal"][Font::ENCODING]["A"][YamlFontSerializer::TEXT_LENGTH_VAL].as<int>();
+                node["normal"][Font::ENCODING]["e†"][Font::TEXT_LENGTH_VAL].as<int>() +
+                node["normal"][Font::ENCODING][" "][Font::TEXT_LENGTH_VAL].as<int>() +
+                node["normal"][Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL].as<int>();
         REQUIRE_NOTHROW(result = p.parseLine(sample, settings, std::back_inserter(v), m));
         REQUIRE(result.second == expected);
         REQUIRE(v.size() == 5);
@@ -143,7 +142,7 @@ TEST_CASE("Single lines", "[parser]")
     }
     SECTION("Check that a Noun is recognized")
     {
-        node["normal"][Font::NOUNS]["Noun"][YamlFontSerializer::CODE_VAL] = std::vector<int>{1,1,1};
+        node["normal"][Font::NOUNS]["Noun"][Font::CODE_VAL] = std::vector<int>{1,1,1};
         TextParser p2(node.as<sable::FontList>(), "normal", defLocale);
         sample.str("Noun");
         std::pair<bool, int> result;
@@ -243,7 +242,7 @@ TEST_CASE("Single lines", "[parser]")
             {"code", "0x12"},
             {"page", "1"},
         };
-        node["normal"][YamlFontSerializer::PAGES].push_back(pageNodeYaml2);
+        node["normal"][Font::PAGES].push_back(pageNodeYaml2);
 
         TextParser pwp(node.as<sable::FontList>(), "normal", jpLocale);
         SECTION("Switch from page 0 > 1")
@@ -319,7 +318,7 @@ TEST_CASE("Default settings", "[parser]")
 
 TEST_CASE("Change parser settings", "[parser]")
 {
-    using sable::Font, sable::TextParser, sable::YamlFontSerializer;
+    using sable::Font, sable::TextParser;
     auto node = sable_tests::getSampleNode();
     TextParser p(node.as<sable::FontList>(), "normal", defLocale);
     auto settings = p.getDefaultSetting(0x808000);
@@ -404,7 +403,7 @@ TEST_CASE("Change parser settings", "[parser]")
         pageNodeYaml2[Font::ENCODING] = std::map<std::string, EncNode>{
             {"シ", {"0x5c", "11"}},
         };
-        node["normal"][YamlFontSerializer::PAGES].push_back(pageNodeYaml2);
+        node["normal"][Font::PAGES].push_back(pageNodeYaml2);
         TextParser pwp(node.as<sable::FontList>(), "normal", jpLocale);
         sample.str("@page 1");
         REQUIRE(pwp.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 0));
@@ -434,7 +433,7 @@ TEST_CASE("Multiline scenarios", "[parser]")
 
 TEST_CASE("Parser error checking", "[parser]")
 {
-    using sable::Font, sable::TextParser, sable::YamlFontSerializer, Catch::Matchers::Contains;
+    using sable::Font, sable::TextParser, Catch::Matchers::Contains;
     auto node = sable_tests::getSampleNode();
     TextParser p(node.as<sable::FontList>(), "normal", defLocale);
     auto settings = p.getDefaultSetting(0x80800);
@@ -512,7 +511,7 @@ TEST_CASE("Parser error checking", "[parser]")
         pageNodeYaml2[Font::ENCODING] = std::map<std::string, EncNode>{
             {"シ", {"0x5c", "11"}},
         };
-        node["normal"][YamlFontSerializer::PAGES].push_back(pageNodeYaml2);
+        node["normal"][Font::PAGES].push_back(pageNodeYaml2);
         node["normal"][Font::COMMANDS]["Page2"] = std::map<std::string, std::string>{
             {"code", "0x12"},
             {"page", "2"},

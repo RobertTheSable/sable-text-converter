@@ -1,13 +1,14 @@
 #include <catch2/catch.hpp>
 #include "yaml-cpp/yaml.h"
 #include "project.h"
+#include "project/builder.h"
 #ifdef WIN32
         #define MISSING_FILE_ERROR "sample\\text_map.yml not found."
 #else
         #define MISSING_FILE_ERROR "./sample/text_map.yml not found."
 #endif
 
-using sable::Project;
+using sable::Project, sable::ProjectSerializer;
 
 TEST_CASE("Test project config validation", "[project]")
 {
@@ -35,34 +36,34 @@ TEST_CASE("Test project config validation", "[project]")
     {
         SECTION("Empty Node Fails")
         {
-            REQUIRE_THROWS(Project(YAML::Node(), "."));
+            REQUIRE_THROWS(ProjectSerializer::read(YAML::Node(), "."));
         }
         SECTION("Missing ROMs section")
         {
             testNode.remove(Project::ROMS);
-            REQUIRE_THROWS(Project(testNode, "."));
+            REQUIRE_THROWS(ProjectSerializer::read(testNode, "."));
         }
         SECTION("Missing Config section")
         {
             testNode.remove(Project::CONFIG_SECTION);
-            REQUIRE_THROWS(Project(testNode, "."));
+            REQUIRE_THROWS(ProjectSerializer::read(testNode, "."));
         }
         SECTION("Missing Files section")
         {
             testNode.remove(Project::FILES_SECTION);
-            REQUIRE_THROWS(Project(testNode, "."));
+            REQUIRE_THROWS(ProjectSerializer::read(testNode, "."));
         }
         SECTION("Missing font binaries section")
         {
             testNode[Project::FILES_SECTION]
                     [Project::OUTPUT_SECTION]
                     [Project::OUTPUT_BIN].remove(Project::FONT_SECTION);
-            REQUIRE_THROWS(Project(testNode, "."));
+            REQUIRE_THROWS(ProjectSerializer::read(testNode, "."));
         }
         SECTION("Missing font binaries section")
         {
             testNode[Project::CONFIG_SECTION][Project::LOCALE] = "argleblargleblaaaa";
-            REQUIRE_THROWS_WITH(Project(testNode, "."), "The provided locale is not valid.");
+            REQUIRE_THROWS_WITH(ProjectSerializer::read(testNode, "."), "The provided locale is not valid.");
         }
     }
     SECTION("Valid config file throws only exception for missing file.")
@@ -75,6 +76,6 @@ TEST_CASE("Test project config validation", "[project]")
         {
             testNode[Project::CONFIG_SECTION].remove(Project::LOCALE);
         }
-        REQUIRE_THROWS_WITH(Project(testNode, "."), MISSING_FILE_ERROR);
+        REQUIRE_THROWS_WITH(ProjectSerializer::read(testNode, "."), MISSING_FILE_ERROR);
     }
 }

@@ -1,6 +1,6 @@
 #include <catch2/catch.hpp>
 #include <sstream>
-#include "table.h"
+#include "data/table.h"
 
 using Catch::Matchers::Contains;
 

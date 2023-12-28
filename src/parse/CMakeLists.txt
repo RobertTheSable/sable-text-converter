@@ -17,5 +17,5 @@ list(
 )
 
 add_library(sable_parsing STATIC ${SABLE_PARSING_SOURCE_FILES})
-target_include_directories(sable_parsing PUBLIC ${SABLE_INCLUDE_DIR} )
+target_include_directories(sable_parsing PUBLIC ${SABLE_INCLUDE_DIR})
 

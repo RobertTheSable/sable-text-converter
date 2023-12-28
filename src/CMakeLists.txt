@@ -3,31 +3,33 @@ set(SABLE_SOURCE_FILES "")
 
 set(SABLE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-list(
-    APPEND SABLE_SOURCE_FILES
 
+file(GLOB SABLE_SOURCE_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/project.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/project.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/project/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/project/*.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/exceptions.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/localecheck.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/localecheck.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/util.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/util.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/project.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/project.h"
+    settings.h
+    settings.h
+    settings.cpp
     errorhandling.h
 )
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/parse")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/font")
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/serialize")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/data")
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/files")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/output")
 
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})
 
 check_codecov(SABLE_LIBRARIES)
 
-target_link_libraries(sable_lib sable_font sable_serialize sable_data sable_files sable_parsing sable_output ${SABLE_LIBRARIES} ${ICU_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
+target_link_libraries(sable_lib sable_font sable_data sable_parsing sable_output ${SABLE_LIBRARIES} ${ICU_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
 
 message(STATUS "ICU libraries: ${ICU_LIBRARIES}")
 

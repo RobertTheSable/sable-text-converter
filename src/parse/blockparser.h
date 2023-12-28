@@ -32,6 +32,8 @@ struct BlockParser
     };
 
     TextParser m_Parser;
+    template<typename ...Args>
+    BlockParser(FontList&& fl, Args ...args): m_Parser(std::move(fl), args...) {}
 
     template<class Handler>
     Result parse(

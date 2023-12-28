@@ -3,7 +3,6 @@
 
 #include <string>
 #include <vector>
-#include <yaml-cpp/yaml.h>
 
 namespace sable {
 namespace util {
@@ -49,12 +48,4 @@ public:
 }
 
 }
-
-namespace YAML {
-    template <>
-    struct convert<sable::util::MapperType> {
-        static bool decode(const Node& node, sable::util::MapperType& rhs);
-    };
-}
-
 #endif // UTIL_H

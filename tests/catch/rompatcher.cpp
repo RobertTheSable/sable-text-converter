@@ -1,5 +1,5 @@
 #include <catch2/catch.hpp>
-#include "rompatcher.h"
+#include "output/rompatcher.h"
 #include <cstring>
 #include <fstream>
 

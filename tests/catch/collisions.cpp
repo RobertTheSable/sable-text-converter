@@ -1,7 +1,7 @@
 #include <catch2/catch.hpp>
 #include <tuple>
 #include <array>
-#include "textblockrange.h"
+#include "data/textblockrange.h"
 
 using Block = sable::TextBlockRange;
 
