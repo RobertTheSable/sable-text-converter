@@ -37,7 +37,7 @@ namespace sable {
         };
         std::pair<bool, int> parseLine(std::istream &input, ParseSettings &settings, back_inserter insert, const util::Mapper& mapper);
         const FontList& getFonts() const;
-        ParseSettings getDefaultSetting(int address);
+        ParseSettings getDefaultSetting(int address) const;
     };
 }
 

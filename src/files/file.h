@@ -14,8 +14,10 @@ class File
 {
     fs::path path;
 public:
+    using StreamType = std::ifstream;
     File(fs::path p);
-    std::ifstream open();
+    std::ifstream open() const;
+    void close(std::ifstream&) const;
     explicit operator fs::path() const;
 
     inline bool exists() const
@@ -36,6 +38,10 @@ public:
     inline std::string errorName() const {
         return fs::absolute(path).string();
     }
+    inline fs::path get() const {
+        return path;
+    }
+
     template<class T>
     inline bool contains(T entry) const {
         return fs::exists(path / entry);

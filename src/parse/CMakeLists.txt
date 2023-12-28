@@ -11,6 +11,8 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/fontlist.cpp"
     fileparser.h
     fileparser.cpp
+    blockparser.h
+    blockparser.cpp
     result.h
 )
 

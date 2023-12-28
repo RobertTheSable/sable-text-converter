@@ -44,6 +44,7 @@ public:
     size_t calculateFileSize(int maxAddress) const;
     void setIsHeadered(bool isHeadered);
     int getSize() const;
+    int skipToNextBank(int address) const;
 };
 }
 

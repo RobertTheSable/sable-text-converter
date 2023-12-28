@@ -227,13 +227,13 @@ int sable::RomPatcher::getRealSize() const
     return m_data.size();
 }
 
-void sable::RomPatcher::writeParsedData(const sable::AddressList &m_DataStore, const fs::path& includePath, std::ostream &mainText, std::ostream &textDefines)
+void sable::RomPatcher::writeParsedData(const sable::AddressList &addresses, const fs::path& includePath, std::ostream &mainText, std::ostream &textDefines)
 {
-    for (auto& node: m_DataStore) {
+    for (auto& node: addresses) {
         if (node.isTable) {
             textDefines << generateAssignment("def_table_" + node.label, node.address, 3) << '\n';
             mainText  << "ORG " + generateDefine("def_table_" + node.label) + '\n';
-            const Table& t = m_DataStore.getTable(node.label);
+            const Table& t = addresses.getTable(node.label);
             mainText << "table_" + node.label + ":\n";
             for (auto it : t) {
                 int size;
@@ -250,7 +250,7 @@ void sable::RomPatcher::writeParsedData(const sable::AddressList &m_DataStore, c
                     size = it.size;
                 } else {
                     mainText << dataType + ' ' + it.label;
-                    size = m_DataStore.getFile(it.label).size;
+                    size = addresses.getFile(it.label).size;
                 }
                 if (t.getStoreWidths()) {
                     mainText << ", " << std::dec << size;
@@ -265,9 +265,9 @@ void sable::RomPatcher::writeParsedData(const sable::AddressList &m_DataStore, c
                 mainText  << "ORG " + generateDefine("def_" + node.label) + '\n'
                           << node.label + ":\n";
             }
-            std::string token = m_DataStore.getFile(node.label).files;
+            std::string token = addresses.getFile(node.label).files;
             mainText << generateInclude(includePath / token , fs::path(), true) + '\n';
-            if (m_DataStore.getFile(node.label).printpc) {
+            if (addresses.getFile(node.label).printpc) {
                 mainText << "print pc\n";
             }
         }

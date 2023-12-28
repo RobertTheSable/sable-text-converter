@@ -311,7 +311,7 @@ const sable::FontList &TextParser::getFonts() const
     return _pImpl->fontList;
 }
 
-auto TextParser::getDefaultSetting(int address) -> ParseSettings
+auto TextParser::getDefaultSetting(int address) const -> ParseSettings
 {
     auto def = _pImpl->defaultFont;
     return {true, false, def, "", _pImpl->fontList[def].getMaxWidth(), address, 0};

@@ -6,28 +6,26 @@
 #include <cmath>
 #include <boost/locale.hpp>
 #include "wrapper/filesystem.h"
-#include "rompatcher.h"
+#include "output/rompatcher.h"
 #include "exceptions.h"
 #include "localecheck.h"
-#include "parse/parse.h"
 #include "parse/fileparser.h"
 #include "errorhandling.h"
 #include "serialize/yamlfontserializer.h"
 #include "files/file.h"
 #include "files/group.h"
-#include "data/textblockrange.h"
 #include "data/addresslist.h"
 
 namespace sable {
 
 Project::Project(const YAML::Node &config, const std::string &projectDir)
-    : nextAddress(0), m_Mapper(util::MapperType::INVALID, false, true), maxAddress(0)
+    : m_Mapper(util::MapperType::INVALID, false, true), maxAddress(0)
 {
     init(config, projectDir);
 }
 
 Project::Project(const std::string &projectDir)
-    : nextAddress(0), m_ConfigPath((fs::path(projectDir) / "config.yml").string()), m_Mapper(util::MapperType::INVALID, false, true), maxAddress(0)
+    : m_ConfigPath((fs::path(projectDir) / "config.yml").string()), m_Mapper(util::MapperType::INVALID, false, true), maxAddress(0)
 {
     if (!fs::exists(fs::path(projectDir) / "config.yml")) {
         throw ConfigError((fs::path(projectDir) / "config.yml").string() + " not found.");
@@ -126,7 +124,7 @@ void Project::init(const YAML::Node &config, const std::string &projectDir)
     }
 }
 
-void outputFile(const std::string &file, const std::vector<unsigned char>& data, size_t length, int start)
+void outputFile(const std::string &file, const std::vector<unsigned char>& data, size_t length, size_t start)
 {
     std::ofstream output(
                 file,
@@ -175,52 +173,66 @@ bool Project::parseText()
         }
     }
 
-    BlockParser bp{.m_Parser = TextParser(std::move(fl), m_DefaultMode, m_LocaleString)};
-    AddressList m_DataStore = AddressList();
-    Blocks textRanges;
+    FileParser fp {
+        .bp = BlockParser{.m_Parser = TextParser(std::move(fl), m_DefaultMode, m_LocaleString)},
+        .mapper = m_Mapper
+    };
+    AddressList addresses;
+    //(mainDir / m_OutputDir / m_BinsDir / m_TextOutDir / baseOutputFileName).string()
+
+
+
     {
         fs::path input = fs::path(m_MainDir) / m_InputDir;
 
-        std::vector<std::string> allFiles;
         std::vector<fs::path> dirs;
         std::copy(fs::directory_iterator(input), fs::directory_iterator(), std::back_inserter(dirs));
         std::sort(dirs.begin(), dirs.end());
         std::vector<Table> tables;
+        std::vector<files::Group<fs::path>> fileGroups;
+
         for (auto& dir: dirs) {
             files::File fl{dir};
             if (!fl.isDir()) {
                 continue;
             }
-            auto group = files::Group<fs::path>::buildFromFolder<files::File>(fl, m_Mapper, m_DataStore.getNextAddress());
+            auto group = files::Group<fs::path>::buildFromFolder<files::File>(fl, m_Mapper, addresses.getNextAddress(""));
             if (auto tbl = group.getTable(); bool(tbl)) {
-                m_DataStore.addTable(group.getName(), std::move(tbl.value()));
+                Table cp = tbl.value();
+                addresses.addTable(group.getName(), std::move(cp));
             }
-
-            allFiles.insert(allFiles.end(), group.begin(), group.end());
+            fileGroups.push_back(group);
         }
-        std::string dir = "";
-        int dirIndex = 0;
-        for (auto &file: allFiles) {
-            auto currentDir = fs::path(file).parent_path().filename().string();
 
-            if (dir != currentDir) {
-                if (auto res = m_DataStore.checkTable(currentDir); res) {
-                    nextAddress = res->getDataAddress();
-                } else {
-                    nextAddress = m_DataStore.getNextAddress();
-                }
-                dirIndex = 0;
-            }
-            // todo: get next address from table list
-            auto settings = bp.m_Parser.getDefaultSetting(nextAddress);
+        int nextAddress = 0;
 
-            int line = 0;
-            std::ifstream input(file);
-            while (input) {
+        auto baseDir = mainDir / m_OutputDir / m_BinsDir / m_TextOutDir;
+        auto writer = [baseDir, &addresses] (
+                std::string fileName,
+                std::string label,
+                const std::vector<unsigned char>& data,
+                int address,
+                size_t start,
+                size_t length,
+                bool printpc
+            ) {
+            addresses.addAddress({address, label, false});
+            addresses.addFile(label, fileName, length, printpc);
+            outputFile((baseDir / fileName).string(), data, length, start);
+        };
+        for (auto group: fileGroups) {
+            int dirIndex = 0;
+
+            auto currentDir = group.getName();
+
+            nextAddress = addresses.getNextAddress(currentDir);
+
+            for (auto &file: group) {
+                std::ifstream input(file);
                 auto handler = [file] (error::Levels l, std::string msg, int line) {
                     switch (l) {
-                        case error::Levels::Error:
-                            throw ParseError("Error in text file " + fs::absolute(file).string() + ", line " + std::to_string(line+1) + ": " + msg);
+                    case error::Levels::Error:
+                        throw ParseError("Error in text file " + fs::absolute(file).string() + ", line " + std::to_string(line+1) + ": " + msg);
                         break;
                     case error::Levels::Warning:
                         std::cerr <<
@@ -232,98 +244,15 @@ bool Project::parseText()
                     }
                 };
 
-                if (settings.label == "charnames_28") {
-                    int test = 1;
-                }
+                dirIndex = fp.processFile<decltype (handler), decltype (writer)>(input, currentDir, fs::absolute(file).string(), nextAddress, dirIndex, handler, writer);
 
-                auto parseResult = bp.parse<decltype (handler)>(input, line, settings, m_Mapper, handler);
-                if (parseResult.data.empty() || !bp.m_Parser.getFonts()[settings.mode]) {
-                    continue;
-                }
-                if (settings.label.empty()) {
-                    settings.label = dir + '_' + std::to_string(dirIndex++);
-                }
+                input.close();
+            } // for (auto &file: group)
 
-                auto baseOutputFileName = settings.label + ".bin";
-                m_DataStore.addAddress({settings.currentAddress, settings.label, false});
-
-                auto blockLength = parseResult.data.size();
-                auto blockEndAddress = settings.currentAddress + blockLength;
-                // check for collisions
-                {
-                    int blockLocation = m_Mapper.ToPC(settings.currentAddress);
-                    if (auto result = textRanges.addBlock(
-                            blockLocation,
-                            blockLocation + blockLength,
-                            settings.label,
-                            fs::absolute(file).string()
-                        ); result != Blocks::Collision::None) {
-                        handler(error::Levels::Warning,
-                                std::string{"block \""} + settings.label + "\" collides with block \"" +
-                                result->label + "\" from file \"" + result->file + "\".",
-                               parseResult.line
-                        );
-                    }
-                } // collision check end
-
-                std::size_t dataLength = 0;
-                int bankDifference = ((blockEndAddress & 0xFF0000) - (settings.currentAddress & 0xFF0000)) >>16;
-                int dataStart = 0;
-                if (bankDifference > 0) {
-                    if (bankDifference > 1) {
-                        handler(error::Levels::Error,
-                                "read data that would cross two banks, aborting.",
-                               parseResult.line
-                        );
-                    }
-                    size_t bankLength = ((settings.currentAddress + blockLength) & 0xFFFF);
-                    dataLength = blockLength - bankLength;
-
-                    int mirrorMask = 0;
-
-                    if (m_Mapper.getSize() <= util::NORMAL_ROM_MAX_SIZE) {
-                        mirrorMask = (~settings.currentAddress & 0x800000);
-                    }
-                    std::string bankFileName = settings.label + "bank.bin";
-
-                    m_DataStore.addFile("$" + settings.label, bankFileName, bankLength, settings.printpc);
-                    outputFile(
-                        (mainDir / m_OutputDir / m_BinsDir / m_TextOutDir / bankFileName).string(),
-                        parseResult.data,
-                        bankLength,
-                        dataLength
-                    );
-
-                    settings.currentAddress = m_Mapper.ToRom(m_Mapper.ToPC(settings.currentAddress | 0xFFFF) +1) ^ mirrorMask;
-                    m_DataStore.addAddress({settings.currentAddress, "$" + settings.label, false});
-                    settings.printpc = false;
-                } else {
-                    dataLength = blockLength;
-                }
-
-                m_DataStore.addFile(settings.label, baseOutputFileName, parseResult.data.size(), settings.printpc);
-                outputFile(
-                    (mainDir / m_OutputDir / m_BinsDir / m_TextOutDir / baseOutputFileName).string(),
-                    parseResult.data,
-                    dataLength,
-                    0
-                );
-
-                settings.currentAddress += dataLength;
-            }
-            input.close();
-            dir = currentDir;
-
-            settings.label = "";
-            settings.printpc = false;
-            nextAddress = settings.currentAddress;
-
-            if (settings.maxWidth < 0) {
-                settings.maxWidth = 0;
-            }
+            addresses.setNextAddress(nextAddress);
         }
     }
-    m_DataStore.sort();
+    addresses.sort();
 
     {
         std::ofstream mainText((mainDir / m_OutputDir / "text.asm").string());
@@ -332,7 +261,7 @@ bool Project::parseText()
             throw ASMError("Could not open files in " + (mainDir / m_OutputDir).string() + " for writing.\n");
         }
         RomPatcher r(m_BaseType);
-        r.writeParsedData(m_DataStore, fs::path(m_BinsDir) / m_TextOutDir, mainText, textDefines);
+        r.writeParsedData(addresses, fs::path(m_BinsDir) / m_TextOutDir, mainText, textDefines);
         textDefines.flush();
         textDefines.close();
         mainText.flush();
@@ -357,10 +286,10 @@ bool Project::parseText()
             throw ASMError("Could not open " + fontFilePath.string() + " for writing.\n");
         }
         r.writeIncludes(m_FontIncludes.begin(), m_FontIncludes.end(), output);
-        r.writeFontData(bp.m_Parser.getFonts(), output);
+        r.writeFontData(fp.bp.m_Parser.getFonts(), output);
         output.close();
     }
-    maxAddress = (m_DataStore.end()-1)->address;
+    maxAddress = (addresses.end()-1)->address;
     return true;
 }
 

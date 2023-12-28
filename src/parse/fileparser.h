@@ -1,78 +1,93 @@
 #ifndef FILEPARSER_H
 #define FILEPARSER_H
 
-#include "data/textblockrange.h"
-#include "errorhandling.h"
-#include "util.h"
-#include "parse.h"
-
-#include "exceptions.h"
-#include <iostream>
-#include <string>
 #include <vector>
+#include <istream>
+
+#include "blockparser.h"
+#include "util.h"
+#include "data/addresslist.h"
 
 namespace sable {
 
-struct TextBlock {
-    std::vector<unsigned char> data;
-    TextBlockRange range;
-    std::string label;
-};
+//template<class Handler>
+struct FileParser {
+    BlockParser bp;
+    util::Mapper mapper;
+    Blocks textRanges;
 
-
-
-struct BlockParser
-{
-    struct Result {
-        int line;
-        bool done;
-        std::vector<unsigned char> data;
-    };
-
-    TextParser m_Parser;
-
-    template<class Handler>
-    Result parse(
-            std::istream& input,
-            int line,
-            ParseSettings& settings,
-            const util::Mapper& mapper,
-            Handler errorHandler
+    template<class Handler, class Writer>
+    int processFile(
+        std::istream& input,
+        std::string currentDir,
+        std::string fileKey,
+        int nextAddress,
+        int startingDirIndex,
+        Handler handler,
+        Writer writer
     ) {
-        size_t lastSize = 0;
+        int dirIndex = startingDirIndex;
+        auto settings = bp.m_Parser.getDefaultSetting(nextAddress);
 
-        Result r;
-        while (input.peek() != EOF) {
-            bool done;
-            int length;
-            try {
-                std::tie(done, length) = m_Parser.parseLine(input, settings, std::back_inserter(r.data), mapper);
-                line++;
-            } catch (std::runtime_error &e) {
-                errorHandler(
-                    error::Levels::Error,
-                    std::string(e.what()),
-                    line
+        int line = 0;
+
+        while (input) {
+            auto parseResult = bp.parse<Handler>(input, line, settings, mapper, handler);
+            if (parseResult.data.empty() || !bp.m_Parser.getFonts()[settings.mode]) {
+                continue;
+            }
+            if (settings.label.empty()) {
+                settings.label = currentDir + '_' + std::to_string(dirIndex++);
+            }
+
+            for (auto b: parseResult.bankBounds) {
+                auto baseOutputFileName = settings.label + b.fileSuffix + ".bin";
+
+                // check for collisions
+                {
+                    int blockLocation = mapper.ToPC(b.address);
+                    if (auto result = textRanges.addBlock(
+                            blockLocation,
+                            blockLocation + b.length,
+                            settings.label,
+                            fileKey
+                        ); result != Blocks::Collision::None) {
+                        handler(error::Levels::Warning,
+                                std::string{"block \""} + settings.label + "\" collides with block \"" +
+                                result->label + "\" from file \"" + result->file + "\".",
+                               parseResult.line
+                        );
+                    }
+                } // collision check end
+
+                writer(
+                    baseOutputFileName,
+                    b.labelPrefix + settings.label,
+                    parseResult.data,
+                    b.address,
+                    b.start,
+                    b.length,
+                    settings.printpc
                 );
+
+                settings.printpc = false;
             }
-            if (settings.maxWidth > 0 && length > settings.maxWidth) {
-                errorHandler(
-                    error::Levels::Warning,
-                    std::string{"Line is longer than the specified max width of "} + std::to_string(settings.maxWidth) + " pixels.",
-                    line
-                );
-            }
-            if (done && !r.data.empty()) {
-                r.line = line;
-                r.done = (input.peek() == EOF);
-                return r;
-            }
+            settings.currentAddress = parseResult.bankBounds.back().getNextAddress();
+
         }
-        r.done = true;
-        return r;
+
+        settings.label = "";
+        settings.printpc = false;
+
+        nextAddress = settings.currentAddress;
+
+        if (settings.maxWidth < 0) {
+            settings.maxWidth = 0;
+        }
+        return dirIndex;
     }
 };
 
-} // namespace sable
+}
 
 #endif // FILEPARSER_H

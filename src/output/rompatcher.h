@@ -27,7 +27,7 @@ public:
     bool getMessages(std::back_insert_iterator<std::vector<std::string>> v);
     int getRealSize() const;
 
-    void writeParsedData(const AddressList& data, const fs::path& includePath, std::ostream& mainText, std::ostream& textDefines);
+    void writeParsedData(const AddressList& addresses, const fs::path& includePath, std::ostream& mainText, std::ostream& textDefines);
     void writeIncludes(ConstStringIterator start, ConstStringIterator end, std::ostream& mainFile, const fs::path& includePath = fs::path());
     template<class Fl>
     void writeFontData(Fl list, std::ostream& output)

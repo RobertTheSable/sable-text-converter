@@ -17,7 +17,7 @@ class Group
 {
     std::string name;
     std::vector<SourceType> files;
-    std::optional<sable::Table> table = std::nullopt;
+    std::optional<Table> table = std::nullopt;
 public:
     Group(const std::string& name) {
         this->name = name;
@@ -43,7 +43,7 @@ public:
     std::string getName() const {
         return name;
     }
-    std::optional<sable::Table> getTable() const {
+    std::optional<Table> getTable() const {
         return table;
     }
     template<class Source>

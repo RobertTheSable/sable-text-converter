@@ -9,6 +9,7 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/table.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/textblockrange.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/textblockrange.h"
+    address.h
 #    "${CMAKE_CURRENT_SOURCE_DIR}/textblock.h"
 )
 

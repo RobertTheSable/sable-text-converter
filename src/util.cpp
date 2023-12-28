@@ -255,6 +255,16 @@ int sable::util::Mapper::getSize() const
     return max_size;
 }
 
+int sable::util::Mapper::skipToNextBank(int address) const
+{
+    int mirrorMask = 0;
+
+    if (getSize() <= util::NORMAL_ROM_MAX_SIZE) {
+        mirrorMask = (~address & 0x800000);
+    }
+    return ToRom(ToPC(address| 0xFFFF) +1) ^ mirrorMask;
+}
+
 bool YAML::convert<sable::util::MapperType>::decode(const YAML::Node &node, sable::util::MapperType &rhs)
 {
     using sable::util::MapperType;

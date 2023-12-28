@@ -10,37 +10,12 @@ AddressList::AddressList() : dirIndex(0), nextAddress(0), isSorted(false)
 
 }
 
-std::vector<std::string> AddressList::addTable(std::istream &tablefile, const fs::path &path)
-{
-    std::vector<std::string> files;
-    fs::path dir(fs::path(path).parent_path());
-    std::string label = dir.filename().string();
-    Table table;
-    table.setAddress(nextAddress);
-    util::Mapper m(util::MapperType::LOROM, false, true, 0x400000);
-    try {
-        files = table.getDataFromFile(tablefile, m);
-    } catch (std::runtime_error &e) {
-        throw ParseError("Error in table " + path.string() + ", " + e.what());
-    }
-    m_TableList[label] = table;
-    m_Addresses.push_back({table.getAddress(), label, true});
-
-    return files;
-}
-
-void AddressList::addTable(const std::string& name, Table &&tbl)
-{
-    m_Addresses.push_back({tbl.getAddress(), name, true});
-    m_TableList[name] = tbl;
-}
-
-std::vector<AddressList::AddressNode>::const_iterator AddressList::begin() const
+std::vector<AddressNode>::const_iterator AddressList::begin() const
 {
     return m_Addresses.begin();
 }
 
-std::vector<AddressList::AddressNode>::const_iterator AddressList::end() const
+std::vector<AddressNode>::const_iterator AddressList::end() const
 {
     return m_Addresses.end();
 }
@@ -50,12 +25,23 @@ void AddressList::addFile(const std::string &label, const std::string &file, std
     m_TextNodeList[label] = {file, dataLength, printPC};
 }
 
-const AddressList::TextNode &AddressList::getFile(const std::string &label) const
+void AddressList::addFile(const std::string &label, TextNode &&fileData)
+{
+     m_TextNodeList[label] = fileData;
+}
+
+const TextNode &AddressList::getFile(const std::string &label) const
 {
     if (m_TextNodeList.find(label) == m_TextNodeList.cend()) {
         throw ParseError("Label \"" + label + "\" not found.");
     }
     return m_TextNodeList.find(label)->second;
+}
+
+void AddressList::addTable(const std::string& name, Table &&tbl)
+{
+    m_Addresses.push_back({tbl.getAddress(), name, true});
+    m_TableList[name] = tbl;
 }
 
 const Table &AddressList::getTable(const std::string &label) const
@@ -80,8 +66,13 @@ void AddressList::sort()
     isSorted = true;
 }
 
-int AddressList::getNextAddress() const
+int AddressList::getNextAddress(const std::string& key) const
 {
+    if (key == "") {
+        return nextAddress;
+    } else if (auto result = m_TableList.find(key); result != m_TableList.end()) {
+        return result->second.getAddress();
+    }
     return nextAddress;
 }
 

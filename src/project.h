@@ -74,7 +74,6 @@ private:
     };
     friend YAML::convert<sable::Project::Rom>;
 
-    int nextAddress;
     std::string m_MainDir, m_InputDir, m_OutputDir, m_BinsDir,
     m_TextOutDir, m_RomsDir, m_FontDir,
     m_DefaultMode, m_ConfigPath, m_LocaleString;
@@ -84,7 +83,6 @@ private:
     std::vector<std::string> m_MappingPaths;
     util::MapperType m_BaseType;
     util::Mapper m_Mapper;
-    //TextParser m_Parser;
     static bool validateConfig(const YAML::Node& configYML);
     int maxAddress;
     void writeSettings();
