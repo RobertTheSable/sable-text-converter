@@ -1,9 +1,11 @@
 #ifndef SABLE_TEST_H
 #define SABLE_TEST_H
+
 #include <yaml-cpp/yaml.h>
 #include <string>
 #include <vector>
-#include "fontlist.h"
+
+#include "font/font.h"
 
 namespace sable_tests {
 YAML::Node createSampleNode(
@@ -18,10 +20,11 @@ YAML::Node createSampleNode(
         unsigned int offset = 1,
         bool fixedWidth = false
 );
+
 YAML::Node getSampleNode();
 std::locale getTestLocale();
 
-
+std::map<std::string, sable::Font> getSampleFonts();
 
 struct EncNode {
     std::string code;
@@ -50,8 +53,8 @@ struct convert<sable_tests::NounNode> {
 
 
 template <>
-struct convert<sable::FontList> {
-     static bool decode(const Node& node, sable::FontList& rhs);
+struct convert<std::map<std::string, sable::Font>> {
+     static bool decode(const Node& node, std::map<std::string, sable::Font>& rhs);
 };
 };
 #endif

@@ -21,6 +21,12 @@ endif()
 include(cmake/platform.cmake)
 include(cmake/libraries.cmake)
 include(cmake/filesystem.cmake)
+if (CODE_COVERAGE)
+    include(cmake/CodeCoverage.cmake)
+    append_coverage_compiler_flags()
+    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} --coverage -O0")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage -O0")
+endif()
 
 set(SABLE_INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 

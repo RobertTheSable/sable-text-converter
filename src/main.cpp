@@ -2,6 +2,7 @@
 #include <cxxopts.hpp>
 #include "project.h"
 #include "exceptions.h"
+#include "wrapper/filesystem.h"
 
 int main(int argc, char * argv[])
 {
@@ -36,7 +37,7 @@ int main(int argc, char * argv[])
              cout << programOptions.help({"", "Group"}) << '\n';
         } else {
             try {
-                sable::Project project(starting_path.string());
+                sable::Project project = sable::Project::from(starting_path.string());
                 if (project) {
                     if (!options.count("a")) {
                         project.parseText();

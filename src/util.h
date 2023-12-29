@@ -3,7 +3,6 @@
 
 #include <string>
 #include <vector>
-#include <yaml-cpp/yaml.h>
 
 namespace sable {
 namespace util {
@@ -19,7 +18,7 @@ enum MapperType {
 
 static constexpr const int HEADER_LOCATION = 0x00FFC0;
 static constexpr const int NORMAL_ROM_MAX_SIZE = 0x400000;
-static constexpr const int ROM_MAX_SIZE = 0x7F0000;
+static constexpr const int ROM_MAX_SIZE = 0x007F0000;
 
 static constexpr size_t MAX_ALLOWED_FILESIZE_SHORTCUT = 8388608;
 
@@ -44,16 +43,9 @@ public:
     size_t calculateFileSize(int maxAddress) const;
     void setIsHeadered(bool isHeadered);
     int getSize() const;
+    int skipToNextBank(int address) const;
 };
 }
 
 }
-
-namespace YAML {
-    template <>
-    struct convert<sable::util::MapperType> {
-        static bool decode(const Node& node, sable::util::MapperType& rhs);
-    };
-}
-
 #endif // UTIL_H

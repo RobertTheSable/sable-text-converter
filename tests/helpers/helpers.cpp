@@ -1,7 +1,7 @@
 #include "helpers.h"
-#include "font.h"
+#include "font/font.h"
+#include "font/builder.h"
 #include "localecheck.h"
-
 
 namespace {
     std::locale testLocale = getLocale("en_US.UTF8");
@@ -157,10 +157,14 @@ Node convert<NounNode>::encode(const NounNode& rhs)
     return node;
 }
 
-bool YAML::convert<sable::FontList>::decode(const Node &node, sable::FontList &rhs)
+bool YAML::convert<std::map<std::string, sable::Font>>::decode(const Node &node, std::map<std::string, sable::Font> &rhs)
 {
     for (auto it = node.begin(); it != node.end(); ++it) {
-        rhs.AddFont(it->first.Scalar(), sable::Font(it->second, it->first.Scalar(), sable_tests::getTestLocale()));
+        rhs[it->first.Scalar()] = sable::FontBuilder::make(
+            it->second,
+            it->first.Scalar(),
+            sable_tests::getTestLocale()
+        );
     }
     return true;
 }
@@ -170,4 +174,9 @@ bool YAML::convert<sable::FontList>::decode(const Node &node, sable::FontList &r
 std::locale sable_tests::getTestLocale()
 {
     return testLocale;
+}
+
+std::map<std::string, sable::Font> sable_tests::getSampleFonts()
+{
+    return sable_tests::getSampleNode().as<std::map<std::string, sable::Font>>();
 }
