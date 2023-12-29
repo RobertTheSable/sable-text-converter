@@ -64,9 +64,3 @@ TEST_CASE("Char boundary with odd glyphs.")
     BreakIterator l(false, subject, icu::Locale::createCanonical("en_US"));
     REQUIRE(*l == "┌");
 }
-
-
-//TEST_CASE("Boundary with brackets")
-//{
-
-//}
