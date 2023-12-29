@@ -33,3 +33,21 @@ Simply clone the repo or download the source and run
 * `cd build`
 * `cmake ..`
 * `make` or `cmake --build .`
+
+## Coverage
+
+* Run cmake with CODE_COVERAGE on.
+* Run tests.
+* Run the coverage tool from inside the build folder.
+
+### gcovr
+```bash
+gcovr -r ../src .
+```
+
+### lcov
+```bash
+lcov --directory . -b ../src --capture --output-file coverage.info
+lcov --remove coverage.info '/usr/*' "*${HOME}*" '*/.cache/*' '*tests/*' '*asardll*' --output-file coverage.info
+lcov --list coverage.info
+```
