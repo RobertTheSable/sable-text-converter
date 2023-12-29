@@ -86,8 +86,8 @@ size_t sable::util::calculateFileSize(const std::string &value)
 
 std::string sable::util::getFileSizeString(int value)
 {
-    if (value > MAX_ALLOWED_FILESIZE_SHORTCUT|| value <= 0) {
-        return "";
+    if (value > MAX_ALLOWED_FILESIZE_SHORTCUT || value <= 0) {
+        return ""; // not covered
     } else if (value >= ROM_MAX_SIZE) {
         value = MAX_ALLOWED_FILESIZE_SHORTCUT;
     }
@@ -225,7 +225,7 @@ size_t sable::util::Mapper::calculateFileSize(int maxAddress) const
         errorMsg << "Error: address " << std::hex << address
                  << " is negative.";
         throw std::logic_error(errorMsg.str());
-    } else if (address >= ROM_MAX_SIZE) {
+    } else if (address >= ROM_MAX_SIZE) { // not covered by tests, should be unreachable?
         std::ostringstream errorMsg;
         errorMsg << "Error: address " << std::hex << address
                  << " is too large for an SNES rom.";
@@ -245,7 +245,7 @@ size_t sable::util::Mapper::calculateFileSize(int maxAddress) const
     }
 }
 
-void sable::util::Mapper::setIsHeadered(bool isHeadered)
+void sable::util::Mapper::setIsHeadered(bool isHeadered) // not covered
 {
     offset = isHeadered ? 0x200 : 0;
 }

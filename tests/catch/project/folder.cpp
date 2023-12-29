@@ -51,9 +51,12 @@ TEST_CASE("Folder with table")
     sable::util::Mapper m(sable::util::LOROM, false, false);
     Folder f(cs.folder, m);
     REQUIRE(f.table);
+    auto tbl = f.releaseTable();
+    REQUIRE(!f.table);
+
     REQUIRE((f.group.end() - f.group.begin()) == 3);
-    REQUIRE(f.table->getAddress() == 0x808000);
-    REQUIRE(f.table->getDataAddress() == 0xe08000);
+    REQUIRE(tbl.getAddress() == 0x808000);
+    REQUIRE(tbl.getDataAddress() == 0xe08000);
     std::vector expectedFiles{"samples/02.txt", "samples/01.txt", "samples/03.txt"};
     int index = 0;
     for (auto file: f.group) {

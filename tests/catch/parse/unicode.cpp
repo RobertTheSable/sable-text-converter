@@ -8,8 +8,12 @@
 TEST_CASE("Word boundary analysis tests")
 {
     std::string line = "This is a basic sentence.";
-    BreakIterator l(true, line, icu::Locale::createCanonical("en_US"));
+    BreakIterator l(true, line, icu::Locale::createCanonical("ja_JP"));
 
+    BreakIterator l2(true, line, icu::Locale::createCanonical("en_US"));
+
+    // no idea how else
+    l.operator=(l2);
 
     REQUIRE(l.atStart());
     REQUIRE(*l == "This");
@@ -32,6 +36,7 @@ TEST_CASE("Word boundary analysis tests")
         ++index;
         ++l;
     }
+    REQUIRE(l.front() == "");
 
     --index;
     --l;
@@ -50,6 +55,7 @@ TEST_CASE("Word boundary analysis tests")
     ++l;
     REQUIRE(*cl == " ");
     REQUIRE(*l == "is");
+    REQUIRE(l.front() == "i");
 }
 
 TEST_CASE("Char boundary with odd glyphs.")

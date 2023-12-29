@@ -12,7 +12,6 @@ namespace sable {
 
 struct FontBuilder
 {
-    static Font make(std::istream& source);
     static Font make(const YAML::Node &config, const std::string& name, const std::locale& normalizationLocale);
 }; // namespace Font
 

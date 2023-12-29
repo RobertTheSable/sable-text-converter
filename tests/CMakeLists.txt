@@ -14,8 +14,10 @@ list(
 
     catch/font/fonts.cpp
     catch/font/characteriterator.cpp
+    catch/font/error.cpp
 
     catch/output/rompatcher.cpp
+    catch/output/capture.cpp
 
     catch/parse/textparser.cpp
     catch/parse/unicode.cpp
@@ -26,6 +28,8 @@ list(
     catch/project/groupparser.cpp
     catch/project/folder.cpp
     catch/project/handler.cpp
+    catch/project/mapperconv.cpp
+    catch/project/roms.cpp
 
     catch/project.cpp
     catch/mapping.cpp
@@ -47,6 +51,7 @@ target_include_directories(tests PUBLIC ${Catch2_INCLUDE_DIRS})
 #    )
 #endif()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.sfc" "sample.sfc" COPYONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.smc" "sample.smc" COPYONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.asm" "sample.asm" COPYONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/bad_test.asm" "bad_test.asm" COPYONLY)
 

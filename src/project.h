@@ -66,6 +66,7 @@ public:
     std::string TextOutDir() const;
     int getMaxAddress() const;
     explicit operator bool() const;
+    util::Mapper getMapper() const;
 };
 }
 

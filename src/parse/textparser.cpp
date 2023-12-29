@@ -29,14 +29,14 @@ struct TextParser::Impl {
         BreakIterator it,
         const util::Mapper& mapper
     ) {
-        static const std::map<std::string, int> SUPPORTED_SETTINGS = {
-            {"printpc", 1},
-            {"type", 2},
-            {"address", 2},
-            {"width", 2},
-            {"label", 2},
-            {"autoend", 2},
-            {"page", 2},
+        static const std::array SUPPORTED_SETTINGS{
+            "printpc",
+            "type",
+            "address",
+            "width",
+            "label",
+            "autoend",
+            "page"
         };
         ParseSettings retVal = settings;
         if (!it.done()) {
@@ -45,7 +45,10 @@ struct TextParser::Impl {
             for (++it; !it.done() && !u_isspace(it.ufront()) ; ++it) {
                 name += *it;
             }
-            if (SUPPORTED_SETTINGS.find(name) == SUPPORTED_SETTINGS.end()) {
+            if (name == "") {
+                throw std::runtime_error("@ symbol found, but no setting specified.");
+            }
+            if (std::find(SUPPORTED_SETTINGS.begin(), SUPPORTED_SETTINGS.end(), name) == SUPPORTED_SETTINGS.end()) {
                 throw std::runtime_error(name.insert(0, "Unrecognized option \"") + '\"');
             } else {
                 if (name == "printpc") {
@@ -110,6 +113,7 @@ struct TextParser::Impl {
                                 throw std::runtime_error(option.insert(0, "Page \"") + "\" is not a decimal integer.");
                             }
                         } else {
+                            // should be unreachable
                             throw std::runtime_error(name.insert(0, "Unrecognized option \"") + '\"');
                         }
                     } else {
@@ -118,6 +122,7 @@ struct TextParser::Impl {
                 }
             }
         } else {
+            //probably unreachable
             throw std::runtime_error("@ symbol found, but no setting specified.");
         }
         return retVal;
@@ -140,11 +145,9 @@ TextParser::~TextParser()=default;
 
 std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & settings, back_inserter insert, const util::Mapper& mapper)
 {
-//    using boost::locale::boundary::character, boost::locale::boundary::word;
     int length = 0;
     bool finished = false;
     std::string line;
-    //const Font& m_FontList[settings.mode] = m_FontList[settings.mode];
     std::istream& state = getline(input, line, '\n');
     if (!state.fail()) {
         if (line.find('\r') != std::string::npos) {

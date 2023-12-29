@@ -10,6 +10,7 @@
 #include <locale>
 
 #include "characteriterator.h"
+#include "error.h"
 
 namespace sable {
     class Font
@@ -92,32 +93,30 @@ namespace sable {
 
         const CommandNode& getCommandData(const std::string& id) const;
         void addCommandData(const std::string& id, CommandNode&& data);
-
         unsigned int getCommandCode(const std::string& id) const;
         bool isCommandNewline(const std::string& id) const;
 
+        std::tuple<unsigned int, bool> getTextCode(int page, const std::string& id, const std::string& next = "") const;
         int getMaxEncodedValue(int page) const;
-        [[deprecated ("Use getMaxEncodedValue(int page) instead.")]]
-        int getMaxEncodedValue() const;
+        CharacterIterator getNounData(int page, const std::string& id) const;
+        int getWidth(int page, const std::string& id) const;
+        void getFontWidths(int page, std::back_insert_iterator<std::vector<int>> inserter) const;
 
+#ifdef SABLE_KEEP_DEPRECATED
         [[deprecated("Use getTextCode(int page, const std::string& id, ...) instead.")]]
         std::tuple<unsigned int, bool> getTextCode(const std::string& id, const std::string& next = "") const;
-        std::tuple<unsigned int, bool> getTextCode(int page, const std::string& id, const std::string& next = "") const;
-
-        [[deprecated("Use getWidth(int page, const std::string& id) instead.")]]
-        int getWidth(const std::string& id) const;
-        int getWidth(int page, const std::string& id) const;
-
+        [[deprecated ("Use getMaxEncodedValue(int page) instead.")]]
+        int getMaxEncodedValue() const;
         [[deprecated("Use getNounData(int page, const std::string& id) instead.")]]
         CharacterIterator getNounData(const std::string& id) const;
-        CharacterIterator getNounData(int page, const std::string& id) const;
+        [[deprecated("Use getWidth(int page, const std::string& id) instead.")]]
+        int getWidth(const std::string& id) const;
+        [[deprecated("Use getFontWidths(int page, ...) instead.")]]
+        void getFontWidths(std::back_insert_iterator<std::vector<int>> inserter) const;
+#endif
 
         int getExtraValue(const std::string& id) const;
         void addExtra(const std::string& id, int value);
-
-        [[deprecated("Use getFontWidths(int page, ...) instead.")]]
-        void getFontWidths(std::back_insert_iterator<std::vector<int>> inserter) const;
-        void getFontWidths(int page, std::back_insert_iterator<std::vector<int>> inserter) const;
 
         explicit operator bool() const;
     private:
@@ -136,22 +135,7 @@ namespace sable {
     public:
         unsigned int getEndValue() const;
         void addPage(Page&& pg);
-        std::locale getLocale() const;
         void validate(bool result);
-    };
-
-    class FontError : public std::runtime_error {
-    public:
-        FontError(int line, const std::string &name, const std::string& field, const std::string& msg = "");
-        FontError(int line, const std::string &name, const std::string& field, const std::string& subField, const std::string& msg);
-        std::string getField() const;
-        std::string getMessage() const;
-        std::string getName() const;
-
-    private:
-        static const std::string buildWhat(const int line, const std::string &name, const std::string &field, const std::string &msg, const std::string& subField = "");
-        int line;
-        std::string m_Name, m_Field, m_Message;
     };
 }
 

@@ -58,7 +58,8 @@ public:
                             skipCount = 0;
                         }
                         if (column == 0) {
-                            output << "\ndb ";
+                            output << "\n"
+                                      "db ";
                         } else {
                             output << ", ";
                         }
@@ -87,7 +88,6 @@ public:
 private:
     std::string generateNumber(int number, int width, int base = 16) const;
     std::vector<unsigned char> m_data;
-    std::string m_Name;
     int m_RomSize;
     int m_HeaderSize;
     sable::util::MapperType m_MapType;

@@ -56,7 +56,7 @@ bool sable::ProjectSerializer::validateConfig(const YAML::Node &configYML)
                 }
                 if (outputConfig[Project::OUTPUT_BIN][Project::EXTRAS].IsDefined() && !outputConfig[Project::OUTPUT_BIN][Project::EXTRAS].IsSequence()) {
                     isValid = false;
-                    errorString << "Project::EXTRAS section for output binaries must be a sequence.\n";
+                    errorString << "extras section for output binaries must be a sequence.\n";
                 }
                 if (!outputConfig[Project::OUTPUT_BIN][Project::FONT_SECTION].IsDefined()
                         || !outputConfig[Project::OUTPUT_BIN][Project::FONT_SECTION].IsMap())
@@ -64,7 +64,8 @@ bool sable::ProjectSerializer::validateConfig(const YAML::Node &configYML)
                     isValid = false;
                     errorString << "fonts section for output binaries is missing or not a map.\n";
                 } else {
-                    if (!outputConfig[Project::OUTPUT_BIN][Project::FONT_SECTION][Project::DIR_FONT].IsScalar()) {
+                    if (!outputConfig[Project::OUTPUT_BIN][Project::FONT_SECTION][Project::DIR_FONT].IsDefined() ||
+                        !outputConfig[Project::OUTPUT_BIN][Project::FONT_SECTION][Project::DIR_FONT].IsScalar()) {
                         isValid = false;
                         errorString << "fonts directory must be a scalar.\n";
                     }
@@ -146,6 +147,7 @@ bool sable::ProjectSerializer::validateConfig(const YAML::Node &configYML)
                     errorString << "rom " << romName << " does not have a valid header option - must be \"true\", \"false\", \"auto\", or not defined.\n";
                     isValid = false;
                 }
+                ++romindex;
             }
         }
     }

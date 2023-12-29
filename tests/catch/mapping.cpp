@@ -169,6 +169,16 @@ TEST_CASE("Rom mapper class - ToPC")
         REQUIRE(m.ToPC(0x700000) == -1);
         REQUIRE(m.ToPC(0x708000) == 0x380000);
         REQUIRE(m.ToPC(0xF08000) == 0x380000);
+        SECTION("With header")
+        {
+            m.setIsHeadered(true);
+            REQUIRE(m.ToPC(0xF08000) == 0x380200);
+        }
+        SECTION("Without header")
+        {
+            m.setIsHeadered(false);
+            REQUIRE(m.ToPC(0xF08000) == 0x380000);
+        }
     }
     SECTION("ExLorom")
     {
@@ -291,6 +301,7 @@ TEST_CASE("File size calculation.")
         sable::util::Mapper m2(sable::util::MapperType::EXLOROM, false, true, sable::util::MAX_ALLOWED_FILESIZE_SHORTCUT);
         REQUIRE(m.calculateFileSize(m2.ToRom(0x400000)) == 131072);
         REQUIRE_THROWS(m.calculateFileSize(0x7e0000));
+
     }
     SECTION("Calculated from max address - ExLoROM")
     {
@@ -305,5 +316,6 @@ TEST_CASE("File size calculation.")
         REQUIRE(getFileSizeString(2 * 1024 * 1024) == "2mb");
         REQUIRE(getFileSizeString(((2*1024) + 512) * 1024) == "2.5mb");
         REQUIRE(getFileSizeString(sable::util::ROM_MAX_SIZE) == "8mb");
+        REQUIRE(getFileSizeString(0) == "");
     }
 }

@@ -28,8 +28,6 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/output")
 
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})
 
-check_codecov(SABLE_LIBRARIES)
-
 target_link_libraries(sable_lib sable_font sable_data sable_parsing sable_output ${SABLE_LIBRARIES} ${ICU_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
 
 message(STATUS "ICU libraries: ${ICU_LIBRARIES}")

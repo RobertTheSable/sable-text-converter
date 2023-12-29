@@ -226,6 +226,11 @@ sable::Project::operator bool() const
     return !m_MainDir.empty();
 }
 
+util::Mapper Project::getMapper() const
+{
+    return m_Mapper;
+}
+
 ConfigError::ConfigError(std::string message) : std::runtime_error(message) {}
 ASMError::ASMError(std::string message) : std::runtime_error(message) {}
 ParseError::ParseError(std::string message) : std::runtime_error(message) {}

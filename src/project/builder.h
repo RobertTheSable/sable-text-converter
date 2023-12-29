@@ -10,7 +10,7 @@ namespace sable {
 
 struct ProjectSerializer
 {
-    struct Rom : Project::Rom {};
+    using Rom = Project::Rom;
 
     static bool validateConfig(const YAML::Node &configYML);
     static Project read(

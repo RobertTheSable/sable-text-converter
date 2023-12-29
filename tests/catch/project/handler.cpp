@@ -80,6 +80,16 @@ TEST_CASE("Write files")
     REQUIRE(sink.str() == "");
 }
 
+TEST_CASE("Write files - failed")
+{
+    caseFileList cs("samples");
+    cs.add("samples");
+    std::ostringstream sink;
+    Handler subject(fs::path("samples"), sink, sable_tests::getSampleFonts(), "normal", "en_US.utf-8");
+    std::vector<unsigned char> data{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    REQUIRE_THROWS(subject.write("samples", "test1", data, 0x808000, 0, 10, false));
+}
+
 TEST_CASE("Address setting")
 {
     std::ostringstream sink;

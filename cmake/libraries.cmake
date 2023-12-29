@@ -32,7 +32,7 @@ function(find_cxxopts_includes Target)
     endif()
 endfunction(find_cxxopts_includes)
 
-function(check_codecov Libraries)
+function(check_codecov Target)
     if(CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
       message("-- enabling code coverage.")
       # Add required flags (GCC & LLVM/Clang)

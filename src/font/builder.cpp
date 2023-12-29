@@ -85,11 +85,15 @@ Font::Page buildPage(
     const std::locale normLocale,
     const std::string& name,
     const YAML::Node& node,
+    int commandValue,
     int glyphWidth
 ) {
     Font::Page page;
 
-    auto encodingConv = [&page, &locale=normLocale] (const std::string& id, Font::TextNode&& n) {
+    auto encodingConv = [&page, commandValue, &locale=normLocale] (const std::string& id, Font::TextNode&& n) {
+        if (n.code == commandValue) {
+            throw ConfigError("glyphs cannot have a code that matches the command value.");
+        }
         std::string newId = id;
         if (newId.front() == '[') {
             newId.erase(0,1);
@@ -100,11 +104,21 @@ Font::Page buildPage(
         newId = normalize(locale, newId);
         page.addGlyph(newId, std::move(n));
     };
-    if (node[Font::ENCODING].IsDefined()) {
+    if (node.IsMap() && node[Font::ENCODING].IsDefined()) {
         try {
             generate<Font::TextNode>(name, node[Font::ENCODING], Font::ENCODING, encodingConv);
         } catch (ConvertError &e) {
+            // encoding conversion *should* not throw one of these
+            // but better safe than sorry
             throw generateError(e.mark, name, e.field, e.type);
+        } catch (sable::SubfieldError<Font::TextNode>& e) {
+            throw generateError(
+                node.Mark(),
+                name,
+                Font::ENCODING,
+                e.parentName,
+                std::string("") + "has a \"" + e.fieldName + "\" field that is not "  + e.type
+            );
         }
 
         if (node[Font::NOUNS].IsDefined()) {
@@ -140,6 +154,8 @@ Font::Page buildPage(
                     );
                 }
             } catch (ConvertError &e) {
+                // noun conversion *should* not throw one of these
+                // but better safe than sorry
                 throw generateError(e.mark, name, e.field, e.type);
             }
         }
@@ -148,11 +164,12 @@ Font::Page buildPage(
             generate<Font::TextNode>(
                 name,
                 node,
-                std::string("Each entry in ") + Font::PAGES,
+                Font::PAGES,
                 encodingConv
             );
         } catch (ConvertError &e) {
-            throw generateError(e.mark, name, e.field, e.type);
+            // should not occur
+            throw generateError(e.mark, name, Font::PAGES, e.field, e.type);
         }
     } else {
         throw generateError(node.Mark(), name, Font::PAGES, "a sequence of maps.");
@@ -166,6 +183,7 @@ Font::Page buildPage(
         } else if (glyphWidth == 2) {
             page.setMaxValue(0xFFFF);
         } else {
+            // should be unreachable
             throw std::logic_error("Only fonts of width 1 or 2 are allowed.");
         }
     }
@@ -175,10 +193,6 @@ Font::Page buildPage(
 ConvertError::ConvertError(std::string f, std::string t, YAML::Mark m):
     std::runtime_error(f + " must be " + t), field(f), type(t), mark(m) {};
 
-
-Font Builder::make(std::istream &source)
-{
-}
 
 Font Builder::make(const YAML::Node &config, const std::string &name, const std::locale &normalizationLocale)
 {
@@ -225,14 +239,26 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
     if (!config[Font::ENCODING].IsDefined()) {
         throw generateError(config.Mark(), name, Font::ENCODING, "is missing.");
     }
-    f.addPage(buildPage(normalizationLocale, name, config, byteWidth));
+    f.addPage(buildPage(normalizationLocale, name, config, commandCode, byteWidth));
 
     if (config[Font::PAGES].IsDefined()) {
         if (!config[Font::PAGES].IsSequence()) {
-            throw generateError(config[Font::PAGES].Mark(), name, Font::PAGES, "a seuqence of maps.");
+            throw generateError(config[Font::PAGES].Mark(), name, Font::PAGES, "a sequence of maps.");
         }
+        int pageIdx = 1;
         for (YAML::Node page: config[Font::PAGES]) {
-            f.addPage(buildPage(normalizationLocale, name, page, byteWidth));
+            try {
+                f.addPage(buildPage(normalizationLocale, name, page, commandCode, byteWidth));
+            } catch (sable::SubfieldError<Font::TextNode>& e) {
+                throw generateError(
+                    page.Mark(),
+                    name,
+                    std::string{Font::PAGES} + " #" + std::to_string(pageIdx),
+                    e.parentName,
+                    std::string("") + "has a \"" + e.fieldName + "\" field that is not "  + e.type
+                );
+            }
+            ++pageIdx;
         }
     }
 
@@ -253,6 +279,7 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
             };
             generate<int>(name, config[Font::EXTRAS], Font::EXTRAS, conv);
         } catch (YAML::TypedBadConversion<int> &e) {
+            // probably unreachable
             throw generateError(e.mark, name, Font::EXTRAS, "scalar integers.");
         }
     }
@@ -277,18 +304,19 @@ namespace YAML {
     auto CMD_PAGE = sable::Font::CMD_PAGE;
     bool convert<sable::Font::TextNode>::decode(const Node& node, sable::Font::TextNode& rhs)
     {
+
         using sable::Font;
         if (node.IsMap() && node[CODE_VAL].IsDefined()) {
             try {
                 rhs.code = node[CODE_VAL].as<unsigned int>();
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw sable::ConvertError(CODE_VAL, "an integer.", e.mark);
+                throw sable::SubfieldError<Font::TextNode>(CODE_VAL, "an integer.");
             }
             if (node[TEXT_LENGTH_VAL].IsDefined()) {
                 try {
                     rhs.width = node[TEXT_LENGTH_VAL].as<int>();
                 } catch(YAML::TypedBadConversion<int> &e) {
-                    throw sable::ConvertError(TEXT_LENGTH_VAL, "an integer.", e.mark);
+                    throw sable::SubfieldError<Font::TextNode>(TEXT_LENGTH_VAL, "an integer.");
                 }
             }
             return true;
@@ -296,7 +324,7 @@ namespace YAML {
             try {
                 rhs.code = node.as<unsigned int>();
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw sable::ConvertError(CODE_VAL, "an integer.", e.mark);
+                throw sable::SubfieldError<Font::TextNode>(CODE_VAL, "an integer.");
             }
             return true;
         }

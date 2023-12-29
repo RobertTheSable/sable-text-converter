@@ -11,6 +11,7 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/builder.h"
     fonthelpers.h
     error.cpp
+    error.h
 
 )
 

@@ -139,6 +139,7 @@ TEST_CASE("Adding files")
         REQUIRE(subject.getFile(cs.label) == cs.data);
     }
     REQUIRE(subject.begin() == subject.end());
+    REQUIRE_THROWS(subject.getFile("filewhichdoesnotexist"));
 }
 
 TEST_CASE("next address")
@@ -161,4 +162,7 @@ TEST_CASE("next address")
     REQUIRE(subject.getNextAddress("") == 100);
     REQUIRE(subject.getNextAddress("table which does not exist") == 100);
     REQUIRE(subject.getNextAddress("test table") == 1000);
+
+    auto tbl = subject.getTable("test table");
+    REQUIRE(tbl.getAddress() == 900);
 }

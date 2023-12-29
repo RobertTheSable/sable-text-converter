@@ -3,20 +3,109 @@
 #include <cstring>
 #include <fstream>
 
+#include "helpers.h"
+#include "font/builder.h"
+#include "project.h"
+
 using sable::RomPatcher;
 
-TEST_CASE("Basic generation functions")
+auto getLines(std::string& data)
+{
+    std::vector<std::string> lines;
+    std::size_t lastPos = 0u;
+    for (auto pos = data.find("\n", lastPos); pos != std::string::npos; pos = data.find("\n", lastPos)) {
+        if (pos == lastPos) {
+            ++lastPos;
+            lines.push_back("");
+            continue;
+        }
+        auto tmp = data.substr(lastPos, pos);
+        if (auto npos = tmp.find("\n"); npos != std::string::npos) {
+            tmp.erase(npos);
+        }
+        lines.push_back(tmp);
+        lastPos = pos+1;
+    }
+    return lines;
+}
+
+TEST_CASE("Basic generation functions", "[rompatcher]")
 {
     RomPatcher r;
+    REQUIRE(r.generateDefine("test") == "!test");
     REQUIRE((r.generateInclude(fs::temp_directory_path() / "test" / "test.txt", fs::path(), false)) == "incsrc " + (fs::temp_directory_path() / "test" / "test.txt").generic_string());
     REQUIRE((r.generateInclude(fs::temp_directory_path() / "test" / "test.txt", fs::temp_directory_path(), false)) == "incsrc test/test.txt");
+    REQUIRE(r.generateAssignment("test", 0x8081, 1) == "!test = $81");
     REQUIRE(r.generateAssignment("test", 0x8000, 2) == "!test = $8000");
     REQUIRE(r.generateAssignment("test", 0x8000, 3) == "!test = $008000");
     REQUIRE(r.generateAssignment("test", 0x10, 1, 10) == "!test = 16");
+    REQUIRE(r.generateAssignment("test", 0x10, 4, 2) == "!test = %00000000000000000000000000010000");
+    REQUIRE(r.generateAssignment("test", 0x10, 3, 2) == "!test = %000000000000000000010000");
+    REQUIRE(r.generateAssignment("test", 0x10, 2, 2) == "!test = %0000000000010000");
     REQUIRE(r.generateAssignment("test", 0x10, 1, 2) == "!test = %00010000");
     REQUIRE(r.generateAssignment("test", 0x10, 1, 10, "testBase") == "!test = !testBase+16");
     REQUIRE_THROWS(r.generateAssignment("test", 0x10, 5));
     REQUIRE_THROWS(r.generateAssignment("test", 0x10, 4, 9));
+    REQUIRE_THROWS(r.generateAssignment("test", 0x10, 5, 2));
+}
+
+TEST_CASE("Writing includes", "[rompatcher]")
+{
+    std::vector<std::string> includes = {"something", "something2", "something3"};
+    std::ostringstream sink;
+    RomPatcher r;
+
+    r.writeIncludes(includes.cbegin(), includes.cend(), sink, fs::path("somewhere"));
+
+    std::string data = sink.str();
+    auto lines = getLines(data);
+    REQUIRE(lines.size() == 3);
+    REQUIRE(lines[0] == "incsrc somewhere/something");
+    REQUIRE(lines[1] == "incsrc somewhere/something2");
+    REQUIRE(lines[2] == "incsrc somewhere/something3");
+
+}
+
+TEST_CASE("Mapper decoding.", "[rompatcher]")
+{
+    using sable::util::MapperType;
+    RomPatcher r;
+    REQUIRE(r.getMapperDirective(MapperType::LOROM) == "lorom");
+    REQUIRE(r.getMapperDirective(MapperType::HIROM) == "hirom");
+    REQUIRE(r.getMapperDirective(MapperType::EXLOROM) == "exlorom");
+    REQUIRE(r.getMapperDirective(MapperType::EXHIROM) == "exhirom");
+    REQUIRE_THROWS(r.getMapperDirective(MapperType::INVALID));
+}
+
+TEST_CASE("Rom loading.", "[rompatcher]")
+{
+    RomPatcher r(sable::util::MapperType::LOROM);
+
+    SECTION("Valid ROMS")
+    {
+        SECTION("Rom with no header")
+        {
+            r.loadRom("sample.sfc", "", -1);
+            REQUIRE(r.getRealSize() == 131072);
+        }
+        SECTION("Rom with a header")
+        {
+            r.loadRom("sample.smc", "", 1);
+            REQUIRE(r.getRealSize() == 131584);
+        }
+        SECTION("Rom with no header, autodetection")
+        {
+            r.loadRom("sample.sfc", "", 0);
+            REQUIRE(r.getRealSize() == 131072);
+        }
+        SECTION("Rom with a header, autodetection")
+        {
+            r.loadRom("sample.smc", "", 0);
+            REQUIRE(r.getRealSize() == 131584);
+        }
+        r.clear();
+        REQUIRE(r.getRealSize() == 0);
+    }
 }
 
 TEST_CASE("Expansion Test", "[rompatcher]")
@@ -98,6 +187,19 @@ TEST_CASE("Expansion error checking.", "[rompatcher]")
         sable::util::Mapper m(sable::util::MapperType::EXHIROM, false, true, 0x600000);
         REQUIRE_THROWS_AS(r.expand(0x60000, m), std::logic_error);
     }
+    SECTION("Non-Expanded ROM throws logic error")
+    {
+        RomPatcher r(sable::util::MapperType::LOROM);
+        r.loadRom("sample.sfc", "patch test", -1);
+        sable::util::Mapper m(sable::util::MapperType::LOROM, false, true, 0x400000);
+        REQUIRE_THROWS_AS(r.expand(0x600000, m), std::logic_error);
+    }
+    SECTION("Too large size throws runtime error")
+    {
+        RomPatcher r(sable::util::MapperType::HIROM);
+        sable::util::Mapper m(sable::util::MapperType::EXHIROM, false, true, 0x600000);
+        REQUIRE_THROWS_AS(r.expand(0x60000000, m), std::runtime_error);
+    }
 }
 
 
@@ -121,5 +223,252 @@ TEST_CASE("Asar patch testing", "[rompatcher]")
         std::vector<std::string> msgs;
         REQUIRE(r.getMessages(std::back_inserter(msgs)));
         REQUIRE(!msgs.empty());
+    }
+}
+
+TEST_CASE("Font output", "[rompatcher]")
+{
+    auto fl = sable_tests::getSampleNode();
+
+    fl["normal"][sable::Font::ENCODING] = {};
+    for (int i = 0; i < 26; ++i) {
+        YAML::Node n;
+
+        char c = 'A' + i;
+        n[sable::Font::CODE_VAL] = i+1;
+        n[sable::Font::TEXT_LENGTH_VAL] = 8;
+        fl["normal"][sable::Font::ENCODING][std::string(1, c)] = n;
+    }
+    fl["normal"][sable::Font::MAX_CHAR] = 26;
+    fl["normal"][sable::Font::DEFAULT_WIDTH] = 0;
+    fl["normal"].remove(sable::Font::PAGES);
+
+    std::map<std::string, sable::Font> subject1{};
+
+    std::ostringstream sink;
+    RomPatcher r(sable::util::MapperType::LOROM);
+    SECTION("Font with no location.")
+    {
+        subject1["test"] = sable::FontBuilder::make(
+            fl["normal"],
+            "test",
+            sable_tests::getTestLocale()
+        );
+        r.writeFontData(subject1, sink);
+        REQUIRE(sink.str() == "");
+    }
+    SECTION("Font with a location.")
+    {
+        fl["normal"][sable::Font::FONT_ADDR] = "!somewhere";
+        subject1["test"] = sable::FontBuilder::make(
+            fl["normal"],
+            "test",
+            sable_tests::getTestLocale()
+        );
+        r.writeFontData(subject1, sink);
+        REQUIRE(sink.str() != "");
+
+        std::string data = sink.str();
+        auto lines = getLines(data);
+
+        REQUIRE(lines.size() == 4);
+        REQUIRE(lines[0] == "");
+        REQUIRE(lines[1] == "ORG !somewhere");
+        REQUIRE(lines[2] == "db $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08");
+        REQUIRE(lines[3] == "db $08, $08, $08, $08, $08, $08, $08, $08, $08, $08");
+    }
+    SECTION("Font with skipped data.")
+    {
+        fl["normal"][sable::Font::FONT_ADDR] = "!somewhere";
+        fl["normal"][sable::Font::ENCODING].remove("C");
+        fl["normal"][sable::Font::ENCODING].remove("D");
+
+        subject1["test"] = sable::FontBuilder::make(
+            fl["normal"],
+            "test",
+            sable_tests::getTestLocale()
+        );
+        r.writeFontData(subject1, sink);
+        REQUIRE(sink.str() != "");
+
+        std::string data = sink.str();
+        auto lines = getLines(data);
+
+        REQUIRE(lines.size() == 6);
+        REQUIRE(lines[0] == "");
+        REQUIRE(lines[1] == "ORG !somewhere");
+        REQUIRE(lines[2] == "db $08, $08");
+        REQUIRE(lines[3] == "skip 2");
+        REQUIRE(lines[4] == "db $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08");
+        REQUIRE(lines[5] == "db $08, $08, $08, $08, $08, $08");
+    }
+    SECTION("Font with a glyph alias.")
+    {
+        fl["normal"][sable::Font::FONT_ADDR] = "!somewhere";
+        fl["normal"][sable::Font::ENCODING]["Z"][sable::Font::CODE_VAL] = 25;
+        fl["normal"][sable::Font::MAX_CHAR] = 25;
+        subject1["test"] = sable::FontBuilder::make(
+            fl["normal"],
+            "test",
+            sable_tests::getTestLocale()
+        );
+        r.writeFontData(subject1, sink);
+        REQUIRE(sink.str() != "");
+
+        std::string data = sink.str();
+        auto lines = getLines(data);
+
+        REQUIRE(lines.size() == 4);
+        REQUIRE(lines[0] == "");
+        REQUIRE(lines[1] == "ORG !somewhere");
+        REQUIRE(lines[2] == "db $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08");
+        REQUIRE(lines[3] == "db $08, $08, $08, $08, $08, $08, $08, $08, $08");
+    }
+}
+
+TEST_CASE("Address data output", "[rompatcher]")
+{
+    sable::RomPatcher r;
+    sable::AddressList al;
+    std::ostringstream defineSink, textSink;
+    fs::path writeDir("test");
+    al.addFile("somefile", "file.bin", 16, false);
+    SECTION("File include.")
+    {
+        al.addAddress(0x908000, "somefile", false);
+        r.writeParsedData(al, writeDir, textSink, defineSink);
+        REQUIRE(defineSink.str() == "!def_somefile = $908000\n");
+
+        std::string data = textSink.str();
+        auto lines = getLines(data);
+        REQUIRE(lines.size() == 4);
+        REQUIRE(lines[0] == "ORG !def_somefile");
+        REQUIRE(lines[1] == "somefile:");
+        REQUIRE(lines[2] == "incbin test/file.bin");
+        REQUIRE(lines[3] == "");
+    }
+    SECTION("File include with program counter printed.")
+    {
+        al.addFile("somefile", "file.bin", 16, true);
+        al.addAddress(0x908000, "somefile", false);
+        r.writeParsedData(al, writeDir, textSink, defineSink);
+        REQUIRE(defineSink.str() == "!def_somefile = $908000\n");
+
+        std::string data = textSink.str();
+        auto lines = getLines(data);
+        REQUIRE(lines.size() == 5);
+        REQUIRE(lines[0] == "ORG !def_somefile");
+        REQUIRE(lines[1] == "somefile:");
+        REQUIRE(lines[2] == "incbin test/file.bin");
+        REQUIRE(lines[3] == "print pc");
+    }
+    SECTION("File include with no label.")
+    {
+        al.addFile("$somefile", "file2.bin", 16, false);
+        al.addAddress(0x908000, "somefile", false);
+        al.addAddress(0x90F000, "$somefile", false);
+        r.writeParsedData(al, writeDir, textSink, defineSink);
+        REQUIRE(defineSink.str() == "!def_somefile = $908000\n");
+
+        std::string data = textSink.str();
+        auto lines = getLines(data);
+        REQUIRE(lines.size() == 7);
+        REQUIRE(lines[0] == "ORG !def_somefile");
+        REQUIRE(lines[1] == "somefile:");
+        REQUIRE(lines[2] == "incbin test/file.bin");
+        REQUIRE(lines[3] == "");
+
+        REQUIRE(lines[4] == "ORG $90f000");
+        REQUIRE(lines[5] == "incbin test/file2.bin");
+        REQUIRE(lines[6] == "");
+    }
+    SECTION("Table with 3-byte addresses")
+    {
+        sable::Table tbl;
+        tbl.setAddress(0x808000);
+        tbl.addEntry("somefile");
+        tbl.addEntry(0xe08000, 16);
+        tbl.setAddressSize(3);
+        al.addTable("somewhere", std::move(tbl));
+        r.writeParsedData(al, writeDir, textSink, defineSink);
+        REQUIRE(defineSink.str() == "!def_table_somewhere = $808000\n");
+        std::string data = textSink.str();
+        auto lines = getLines(data);
+        REQUIRE(lines.size() == 5);
+        REQUIRE(lines[0] == "ORG !def_table_somewhere");
+        REQUIRE(lines[1] == "table_somewhere:");
+        REQUIRE(lines[2] == "dl somefile");
+        REQUIRE(lines[3] == "dl $e08000");
+        REQUIRE(lines[4] == "");
+    }
+    SECTION("Table with 3-byte addresses")
+    {
+        sable::Table tbl;
+        tbl.setAddress(0x808000);
+        tbl.addEntry("somefile");
+        tbl.addEntry(0xe08000, 16);
+        tbl.setAddressSize(2);
+        al.addTable("somewhere", std::move(tbl));
+        r.writeParsedData(al, writeDir, textSink, defineSink);
+        REQUIRE(defineSink.str() == "!def_table_somewhere = $808000\n");
+        std::string data = textSink.str();
+        auto lines = getLines(data);
+        REQUIRE(lines.size() == 5);
+        REQUIRE(lines[0] == "ORG !def_table_somewhere");
+        REQUIRE(lines[1] == "table_somewhere:");
+        REQUIRE(lines[2] == "dw somefile");
+        REQUIRE(lines[3] == "dw $8000");
+        REQUIRE(lines[4] == "");
+    }
+    SECTION("Table with 3-byte addresses and sizes")
+    {
+        sable::Table tbl;
+        tbl.setStoreWidths(true);
+        tbl.setAddress(0x808000);
+        tbl.addEntry("somefile");
+        tbl.addEntry(0xe08000, 16);
+        tbl.setAddressSize(3);
+        al.addTable("somewhere", std::move(tbl));
+        r.writeParsedData(al, writeDir, textSink, defineSink);
+        REQUIRE(defineSink.str() == "!def_table_somewhere = $808000\n");
+        std::string data = textSink.str();
+        auto lines = getLines(data);
+        REQUIRE(lines.size() == 5);
+        REQUIRE(lines[0] == "ORG !def_table_somewhere");
+        REQUIRE(lines[1] == "table_somewhere:");
+        REQUIRE(lines[2] == "dl somefile, 16");
+        REQUIRE(lines[3] == "dl $e08000, 16");
+        REQUIRE(lines[4] == "");
+    }
+    SECTION("Table with 3-byte addresses and sizes")
+    {
+        sable::Table tbl;
+        tbl.setStoreWidths(true);
+        tbl.setAddress(0x808000);
+        tbl.addEntry("somefile");
+        tbl.addEntry(0xe08000, 16);
+        tbl.setAddressSize(2);
+        al.addTable("somewhere", std::move(tbl));
+        r.writeParsedData(al, writeDir, textSink, defineSink);
+        REQUIRE(defineSink.str() == "!def_table_somewhere = $808000\n");
+        std::string data = textSink.str();
+        auto lines = getLines(data);
+        REQUIRE(lines.size() == 5);
+        REQUIRE(lines[0] == "ORG !def_table_somewhere");
+        REQUIRE(lines[1] == "table_somewhere:");
+        REQUIRE(lines[2] == "dw somefile, 16");
+        REQUIRE(lines[3] == "dw $8000, 16");
+        REQUIRE(lines[4] == "");
+    }
+    SECTION("Table with invalid address size")
+    {
+        sable::Table tbl;
+        tbl.setStoreWidths(true);
+        tbl.setAddress(0x808000);
+        tbl.addEntry("somefile");
+        tbl.addEntry(0xe08000, 16);
+        tbl.setAddressSize(4);
+        al.addTable("somewhere", std::move(tbl));
+        REQUIRE_THROWS(r.writeParsedData(al, writeDir, textSink, defineSink));
     }
 }

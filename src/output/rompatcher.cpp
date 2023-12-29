@@ -8,46 +8,9 @@
 #include <cmath>
 #include "wrapper/filesystem.h"
 
-#ifndef _WIN32
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <unistd.h>
-#include <fcntl.h>
-struct stdoutBuffer {
-    char buffer[101];
-    int saved_stdout;
-    int out_pipe[2];
-};
-stdoutBuffer capturePuts()
-{
-    stdoutBuffer buffer = {{0}, dup(STDOUT_FILENO)};
-    if( pipe(buffer.out_pipe) != 0 ) {
-        exit(1);
-    }
-    fcntl(buffer.out_pipe[0], F_SETFL, O_NONBLOCK);
-    dup2(buffer.out_pipe[1], STDOUT_FILENO);
-    close(buffer.out_pipe[1]);
-    return buffer;
-}
-void reopenPuts(stdoutBuffer& buffer)
-{
-    dup2(buffer.saved_stdout, STDOUT_FILENO);
-}
-#endif
+#include "data/addresslist.h"
+#include "outputcapture.h"
 
-bool istringcompare(const std::string& a, const std::string& b) {
-    if (a.length() != b.length()) {
-        return false;
-    }
-    for (int i = 0; i < a.length(); i++) {
-        char c = ::tolower(a[i]);
-        if (c != ::tolower(b[i])) {
-            return false;
-        }
-    }
-    return true;
-}
 
 sable::RomPatcher::RomPatcher(const util::MapperType& mapper)
     : m_MapType(mapper), m_AState(AsarState::NotRun)
@@ -69,11 +32,7 @@ bool sable::RomPatcher::loadRom(const std::string &file, const std::string &name
     } else if (file.empty()) {
         throw std::logic_error("Filename is empty.");
     }
-    if (name.empty()) {
-        m_Name = fs::path(file).stem().string();
-    } else {
-        m_Name = name;
-    }
+
     std::ifstream inFile(file, std::ios::in|std::ios::binary|std::ios_base::ate);
     if (!inFile) {
         throw std::runtime_error(fs::absolute(file).string() + " could not be opened.");
@@ -171,30 +130,25 @@ bool sable::RomPatcher::applyPatchFile(const std::string &path, const std::strin
     if (!fs::exists(path)) {
         throw std::logic_error("Could not open " + path + " patch file.");
     }
-#ifndef _WIN32
-    auto buffer = capturePuts();
-#endif
+
+    OutputCapture buffer{std::cerr};
     if (format == "asm") {
         if (asar_init()) {
             if (asar_patch(path.c_str(), (char*)&m_data[m_HeaderSize], m_RomSize, &m_RomSize)) {
                 m_AState = AsarState::Success;
             } else {
                 m_AState = AsarState::Error;
+                return false;
             }
         } else {
             m_AState = AsarState::Error;
+            buffer.write();
         }
     } else {
         m_AState = AsarState::Error;
+        return false;
     }
-#ifndef _WIN32
-    fflush(stdout);
-    //auto size = read(buffer.out_pipe[0], buffer.buffer, 100);
-    reopenPuts(buffer);
-    if (m_AState == AsarState::Error) {
-        std::cerr << buffer.buffer << std::endl;
-    }
-#endif
+
     return m_AState == AsarState::Success;
 }
 
@@ -236,7 +190,7 @@ void sable::RomPatcher::writeParsedData(const sable::AddressList &addresses, con
             const Table& t = addresses.getTable(node.label);
             mainText << "table_" + node.label + ":\n";
             for (auto it : t) {
-                int size;
+                int size = 0;
                 std::string dataType;
                 if (t.getAddressSize() == 3) {
                     dataType = "dl";
@@ -246,7 +200,7 @@ void sable::RomPatcher::writeParsedData(const sable::AddressList &addresses, con
                     throw std::logic_error("Unsupported address size " + std::to_string(t.getAddressSize()));
                 }
                 if (it.address > 0) {
-                    mainText << dataType + ' ' + generateNumber(it.address, 2);
+                    mainText << dataType + ' ' + generateNumber(it.address, t.getAddressSize());
                     size = it.size;
                 } else {
                     mainText << dataType + ' ' + it.label;
@@ -306,12 +260,8 @@ std::string sable::RomPatcher::getMapperDirective(const util::MapperType& mapper
 
 std::string sable::RomPatcher::generateInclude(const fs::path &file, const fs::path &basePath, bool isBin) const
 {
-    std::string includePath;
-    if (isBin) {
-        includePath = "incbin ";
-    } else {
-        includePath = "incsrc ";
-    }
+    std::string includePath = isBin ? "incbin " :"incsrc ";
+
     if (basePath.empty() || file.string().find_first_of(basePath.string()) != 0) {
         includePath += file.generic_string();
     } else {
@@ -337,6 +287,13 @@ std::string sable::RomPatcher::generateNumber(int number, int width, int base) c
         if (width > 4 || width <= 0) {
             // Asar does support 4-byte data even though the SNES doesn't really.
             throw std::runtime_error(std::string("Unsupported width ") +  std::to_string(width));
+        }
+        if (width == 3) {
+            number = (number & 0xFFFFFF);
+        } else if (width == 2) {
+            number = (number & 0xFFFF);
+        } else if (width == 1) {
+            number = (number & 0xFF);
         }
         output << '$' << std::setfill('0') << std::setw(width *2) << std::hex << number;
     } else if (base == 10) {

@@ -89,11 +89,6 @@ Font::Font(
         }
     }
 
-    int Font::getWidth(const std::string &id) const
-    {
-        return getWidth(0, id);
-    }
-
     int Font::getWidth(int page, const std::string &id) const
     {
        auto wVal = lookupTextNode(page, id, true)->width;
@@ -104,11 +99,6 @@ Font::Font(
        }
     }
 
-    std::tuple<unsigned int, bool> Font::getTextCode(const std::string &id, const std::string& next) const
-    {
-        return getTextCode(0, id, next);
-    }
-
     std::tuple<unsigned int, bool> Font::getTextCode(int page, const std::string &id, const std::string& next) const
     {
         if (!next.empty()) {
@@ -117,11 +107,6 @@ Font::Font(
             }
         }
         return std::make_tuple(lookupTextNode(page, id, true)->code, false);
-    }
-
-    CharacterIterator Font::getNounData(const std::string &id) const
-    {
-        return getNounData(0, id);
     }
 
     CharacterIterator Font::getNounData(int page, const std::string &id) const
@@ -154,11 +139,6 @@ Font::Font(
         }
     }
 
-    void Font::getFontWidths(std::back_insert_iterator<std::vector<int> > inserter) const
-    {
-        getFontWidths(0, inserter);
-    }
-
     void Font::getFontWidths(int page, std::back_insert_iterator<std::vector<int> > inserter) const
     {
         typedef std::pair<std::string, TextNode> TextDataPair;
@@ -188,7 +168,7 @@ Font::Font(
             }
         } else {
             // never ran into an issue with this until I started testing pages
-            // my best guess is that adding those cases somehow messed with emory enough
+            // my best guess is that adding those cases somehow messed with memory enough
             // to trigger the infinite loop condition.
             unsigned int lastCode = m_Pages[page].maxValue+1;
             while (t != v.end()) {
@@ -199,17 +179,17 @@ Font::Font(
                         } else {
                             *(inserter++) = m_DefaultWidth;
                         }
-                        index++;
+                        ++index;
                         lastCode = (t++)->second.code;
                     } else {
                         *(inserter++) = m_DefaultWidth;
-                        index++;
+                        ++index;
                     }
                 } else {
-                    t++;
+                    ++t;
                 }
             }
-            for ( ; index <= m_Pages[page].maxValue; index++) {
+            for ( ; index <= m_Pages[page].maxValue; ++index) {
                 *(inserter++) = m_DefaultWidth;
             }
         }
@@ -224,11 +204,6 @@ Font::Font(
     void Font::addPage(Page &&pg)
     {
         m_Pages.push_back(pg);
-    }
-
-    std::locale Font::getLocale() const
-    {
-        return m_NormLocale;
     }
 
     void Font::validate(bool result)
@@ -267,21 +242,41 @@ Font::Font(
         return m_MaxWidth;
     }
 
-
     int Font::getMaxEncodedValue(int page) const
     {
         return m_Pages[page].maxValue;
-    }
-
-    int Font::getMaxEncodedValue() const
-    {
-        // TODO: needs to be done on a per-page basis, since the final page may have less items
-        return getMaxEncodedValue(0);
     }
 
     bool Font::getHasDigraphs() const
     {
         return m_HasDigraphs;
     }
+
+#ifdef SABLE_KEEP_DEPRECATED
+    std::tuple<unsigned int, bool> Font::getTextCode(const std::string &id, const std::string& next) const
+    {
+        return getTextCode(0, id, next);
+    }
+
+    CharacterIterator Font::getNounData(const std::string &id) const
+    {
+        return getNounData(0, id);
+    }
+
+    void Font::getFontWidths(std::back_insert_iterator<std::vector<int> > inserter) const
+    {
+        getFontWidths(0, inserter);
+    }
+
+    int Font::getWidth(const std::string &id) const
+    {
+        return getWidth(0, id);
+    }
+
+    int Font::getMaxEncodedValue() const
+    {
+        return getMaxEncodedValue(0);
+    }
+#endif
 }
 

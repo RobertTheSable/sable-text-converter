@@ -52,6 +52,16 @@ TEST_CASE("Single lines", "[parser]")
         REQUIRE(settings.label.empty());
         REQUIRE((int)v.back() == 0);
     }
+    SECTION("CR stripping")
+    {
+        sample.str("ABC\r");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 6));
+        REQUIRE(v.size() == 5);
+        REQUIRE(settings.currentAddress == 0x808000);
+        REQUIRE(settings.mode == "normal");
+        REQUIRE(settings.label.empty());
+        REQUIRE((int)v.back() == 0);
+    }
     SECTION("Automatic newline insertion")
     {
         sample.str("ABC\n ");
@@ -411,6 +421,18 @@ TEST_CASE("Change parser settings", "[parser]")
         REQUIRE(pwp.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 0));
         REQUIRE(settings.page == 1);
     }
+    SECTION("Set Width")
+    {
+        sample.str("@width 100");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 0));
+        REQUIRE(settings.maxWidth == 100);
+    }
+    SECTION("Disable width checking")
+    {
+        sample.str("@width off");
+        REQUIRE(p.parseLine(sample, settings, std::back_inserter(v), m) == std::make_pair(true, 0));
+        REQUIRE(settings.maxWidth == -1);
+    }
 }
 
 TEST_CASE("Multiline scenarios", "[parser]")
@@ -473,6 +495,11 @@ TEST_CASE("Parser error checking", "[parser]")
         sample.str("@label ");
         REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v), m), "Option \"label\" is missing a required value");
     }
+    SECTION("Missing font.")
+    {
+        sample.str("@type doesnotexist");
+        REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v), m), "Font \"doesnotexist\" was not defined");
+    }
     SECTION("Width validation")
     {
         sample.str("@width b");
@@ -498,12 +525,28 @@ TEST_CASE("Parser error checking", "[parser]")
         REQUIRE_THROWS_WITH(p.parseLine(sample, settings, std::back_inserter(v), m), "Invalid option \"$608000\" for address: address is too large for the specified ROM size.");
         sample.clear();
     }
+    SECTION("Page number is not a number.")
+    {
+        sample.str("@page abcd");
+        REQUIRE_THROWS_WITH(
+            p.parseLine(sample, settings, std::back_inserter(v), m),
+            "Page \"abcd\" is not a decimal integer."
+        );
+    }
     SECTION("Page out of range in font with no extra pages.")
     {
         sample.str("@page 1");
         REQUIRE_THROWS_WITH(
             p.parseLine(sample, settings, std::back_inserter(v), m),
             "Page 1 not found in font normal"
+        );
+    }
+    SECTION("Page number is not a number.")
+    {
+        sample.str("@");
+        REQUIRE_THROWS_WITH(
+            p.parseLine(sample, settings, std::back_inserter(v), m),
+            "@ symbol found, but no setting specified."
         );
     }
     SECTION("Page out of range in font with one extra pages.")
