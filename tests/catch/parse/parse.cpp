@@ -31,7 +31,7 @@ struct stubWriter: sable::Parser<stubWriter>
     std::vector<errorParams> errors;
 
     stubWriter(const std::string& defaultMode)
-        : Parser(getSampleFonts(), defaultMode, "en_US.utf-8")
+        : Parser(getSampleFonts(), defaultMode, "en_US.utf-8", sable::options::ExportWidth::Off, sable::options::ExportAddress::On)
     {
     }
 
@@ -54,7 +54,9 @@ struct stubWriter: sable::Parser<stubWriter>
         int address,
         size_t start,
         size_t length,
-        bool printpc
+        bool printpc,
+        sable::options::ExportWidth,
+        sable::options::ExportAddress
     )
     {
         cases.push_back({fileName, label, data, address, start, length, printpc});

@@ -31,11 +31,13 @@ public:
         int line = 0;
 
         std::vector<unsigned char> data;
-        while (input) {
-            bool done;
-            int length;
+        bool keepReading = false;
+        Metadata lastRead = Metadata::No;
+        while (input || keepReading) {
+            keepReading = false;
+            TextParser::Result rs {false, 0, settings.label};
             try {
-                std::tie(done, length) = parseLine(input, settings, std::back_inserter(data), mapper);
+                rs = parseLine(input, settings, std::back_inserter(data), lastRead, mapper);
                 line++;
             } catch (std::runtime_error &e) {
                 static_cast<Derived*>(this)->report(
@@ -45,7 +47,7 @@ public:
                     line + 1
                 );
             }
-            if (settings.maxWidth > 0 && length > settings.maxWidth) {
+            if (settings.maxWidth > 0 && rs.length > settings.maxWidth) {
                 static_cast<Derived*>(this)->report(
                     fileKey,
                     error::Levels::Warning,
@@ -53,22 +55,28 @@ public:
                     line
                 );
             }
-            if (!done || data.empty()) {
+            lastRead = rs.metadata;
+            if (!rs.endOfBlock || data.empty()) {
+                keepReading |= (!data.empty() || lastRead == Metadata::Yes);
                 continue;
             }
-            Block bl(settings.currentAddress, mapper.skipToNextBank(settings.currentAddress), std::move(data));
+            Block bl(
+                settings.currentAddress,
+                mapper.skipToNextBank(settings.currentAddress),
+                std::move(data)
+            );
 
             data = {};
 
             if (auto& fl = getFonts(); fl.find(settings.mode) == fl.end()) {
                 continue;
             }
-            if (settings.label.empty()) {
-                settings.label = currentDir + '_' + std::to_string(dirIndex++);
+            if (rs.label.empty()) {
+                rs.label = currentDir + '_' + std::to_string(dirIndex++);
             }
 
             for (auto b: bl.bankBounds) {
-                auto baseOutputFileName = settings.label + b.fileSuffix + ".bin";
+                auto baseOutputFileName = rs.label + b.fileSuffix + ".bin";
 
                 // check for collisions
                 {
@@ -76,13 +84,13 @@ public:
                     if (auto result = textRanges.addBlock(
                             blockLocation,
                             blockLocation + b.length,
-                            settings.label,
+                            rs.label,
                             fileKey
                         ); result != Blocks::Collision::None) {
                         static_cast<Derived*>(this)->report(
                             fileKey,
                             error::Levels::Warning,
-                            std::string{"block \""} + settings.label + "\" collides with block \"" +
+                            std::string{"block \""} + rs.label + "\" collides with block \"" +
                                 result->label + "\" from file \"" + result->file + "\".",
                             line
                         );
@@ -91,19 +99,22 @@ public:
 
                 static_cast<Derived*>(this)->write(
                     baseOutputFileName,
-                    b.labelPrefix + settings.label,
+                    b.labelPrefix + rs.label,
                     bl.data,
                     b.address,
                     b.start,
                     b.length,
-                    settings.printpc
+                    settings.printpc,
+                    settings.exportWidth,
+                    settings.exportAddress
                 );
 
                 settings.printpc = false;
             }
             settings.currentAddress = bl.getNextAddress();
-            settings.label = "";
-
+            if (rs.label == settings.label) {
+                settings.label = "";
+            }
         }
 
         settings.label = "";

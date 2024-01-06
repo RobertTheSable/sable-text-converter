@@ -1,10 +1,7 @@
-set(SABLE_PARSING_SOURCE_FILES "")
+file(GLOB SABLE_PARSING_SOURCE_FILES
 
-list(
-    APPEND SABLE_PARSING_SOURCE_FILES
-
-    "${CMAKE_CURRENT_SOURCE_DIR}/unicode.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/unicode.cpp"
+    unicode.h
+    unicode.cpp
     textparser.h
     textparser.cpp
     parse.h

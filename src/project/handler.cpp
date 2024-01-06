@@ -32,10 +32,19 @@ void Handler::report(std::string file, error::Levels l, std::string msg, int lin
         }
 }
 
-void Handler::write(std::string fileName, std::string label, const std::vector<unsigned char> &data, int address, size_t start, size_t length, bool printpc)
-{
+void Handler::write(
+        std::string fileName,
+        std::string label,
+        const std::vector<unsigned char> &data,
+        int address,
+        size_t start,
+        size_t length,
+        bool printpc,
+        options::ExportWidth exportWidth,
+        options::ExportAddress exportAddress
+) {
     addresses.addAddress({address, label, false});
-    addresses.addFile(label, fileName, length, printpc);
+    addresses.addFile(label, fileName, length, printpc, exportWidth, exportAddress);
     outputFile((baseDir / fileName).string(), data, length, start);
 }
 

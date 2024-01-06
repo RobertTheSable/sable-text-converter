@@ -1,13 +1,12 @@
-set(SABLE_OUTPUT_SOURCE_FILES "")
-
-list(
-    APPEND SABLE_OUTPUT_SOURCE_FILES
+file(GLOB SABLE_OUTPUT_SOURCE_FILES
     "${PROJECT_SOURCE_DIR}/include/asar/asardll.c"
 
     rompatcher.cpp
     rompatcher.h
     outputcapture.cpp
     outputcapture.h
+    formatter.cpp
+    formatter.h
 )
 
 add_library(sable_output STATIC ${SABLE_OUTPUT_SOURCE_FILES})

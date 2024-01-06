@@ -289,6 +289,12 @@ TEST_CASE("Test project config validation", "[project]")
             REQUIRE_THROWS_WITH(ProjectSerializer::read(testNode, "."), "includes section for output must be a sequence.\n");
         }
 
+        SECTION("Invalid exportAllAddresses.")
+        {
+            testNode[Project::CONFIG_SECTION][Project::EXPORT_ALL_ADDRESSES] = std::array{"wrong!"};
+            REQUIRE_THROWS_WITH(ProjectSerializer::read(testNode, "."), "config > exportAllAddresses must be a string with a valid value(on/off or true/false).\n");
+        }
+
         SECTION("Invalid ROM folder")
         {
 
@@ -305,6 +311,7 @@ TEST_CASE("Test project config validation", "[project]")
             testNode[Project::CONFIG_SECTION][Project::LOCALE] = "argleblargleblaaaa";
             REQUIRE_THROWS_WITH(ProjectSerializer::read(testNode, "."), "The provided locale is not valid.");
         }
+
     }
     SECTION("Valid config file throws only exception for missing file.")
     {
@@ -362,6 +369,19 @@ TEST_CASE("Test project config validation", "[project]")
                 FAIL(std::string{"Unexpected exception: "} + e.what());
             }
         }
+        SECTION("address export setting enabled")
+        {
+            testNode[Project::CONFIG_SECTION][Project::EXPORT_ALL_ADDRESSES] = "On";
+            auto p = ProjectSerializer::read(testNode, ".");
+            REQUIRE(p.areAddressesExported());
+        }
+        SECTION("address export setting disabled")
+        {
+            testNode[Project::CONFIG_SECTION][Project::EXPORT_ALL_ADDRESSES] = "Off";
+            auto p = ProjectSerializer::read(testNode, ".");
+            REQUIRE(!p.areAddressesExported());
+        }
+
         SECTION("Input file options")
         {
             SECTION("only one file")

@@ -16,6 +16,7 @@
 #include "localecheck.h"
 #include "errorhandling.h"
 #include "data/addresslist.h"
+#include "data/optionhelpers.h"
 #include "font/builder.h"
 
 #include "wrapper/filesystem.h"
@@ -65,7 +66,15 @@ bool Project::parseText()
     }
 
     auto baseDir = mainDir / m_OutputDir / m_BinsDir / m_TextOutDir;
-    Handler handler(baseDir, std::cerr, std::move(fl), m_DefaultMode, m_LocaleString);
+    Handler handler(
+        baseDir,
+        std::cerr,
+        std::move(fl),
+        m_DefaultMode,
+        m_LocaleString,
+        options::ExportWidth::Off,
+        exportAllAddresses
+    );
     GroupParser gp{handler};
 
     {
@@ -107,12 +116,16 @@ bool Project::parseText()
         for (Rom& romData: m_Roms) {
             std::ofstream mainFile((fs::path(m_MainDir) / (romData.name + ".asm")).string());
             mainFile << r.getMapperDirective(m_Mapper.getType()) + "\n\n";
+
+            r.writeInclude("textDefines.exp", mainFile, fs::path(m_OutputDir));
+            r.writeInclude("text.asm", mainFile, fs::path(m_OutputDir));
+
             r.writeIncludes(romData.includes.cbegin(), romData.includes.cend(), mainFile, fs::path(m_OutputDir));
             r.writeIncludes(m_Includes.cbegin(), m_Includes.cend(), mainFile, fs::path(m_OutputDir));
             r.writeIncludes(m_Extras.cbegin(), m_Extras.cend(), mainFile, fs::path(m_OutputDir) / m_BinsDir);
-            mainFile << r.generateInclude(fs::path(m_OutputDir) / m_BinsDir / m_FontDir / (m_FontDir + ".asm"), fs::path(), false) + '\n';
-            mainFile << r.generateInclude(fs::path(m_OutputDir) / "textDefines.exp", fs::path(), false) + '\n' +
-                        r.generateInclude(fs::path(m_OutputDir) / "text.asm", fs::path(), false) + '\n';
+
+            r.writeInclude(m_FontDir + ".asm", mainFile, fs::path(m_OutputDir) / m_BinsDir / m_FontDir);
+
             mainFile.close();
         }
         fs::path fontFilePath = fs::path(m_MainDir) / m_OutputDir / m_BinsDir / m_FontDir / (m_FontDir + ".asm");
@@ -229,6 +242,11 @@ sable::Project::operator bool() const
 util::Mapper Project::getMapper() const
 {
     return m_Mapper;
+}
+
+bool Project::areAddressesExported() const
+{
+    return options::isEnabled(exportAllAddresses);
 }
 
 ConfigError::ConfigError(std::string message) : std::runtime_error(message) {}

@@ -20,8 +20,16 @@ public:
     std::vector<AddressNode>::const_iterator begin() const;
     std::vector<AddressNode>::const_iterator end() const;
 
-    void addFile(const std::string& label, const std::string& file, std::size_t dataLength, bool printPC);
+
     void addFile(const std::string& label, TextNode&& fileData);
+    void addFile(
+        const std::string& label,
+        const std::string& file,
+        std::size_t dataLength,
+        bool printPC,
+        options::ExportWidth exportWidth,
+        options::ExportAddress exportAddress
+    );
     const TextNode& getFile(const std::string& label) const;
 
     void addTable(const std::string& name, Table&& tbl);

@@ -1,10 +1,12 @@
 #include <catch2/catch.hpp>
 #include "output/rompatcher.h"
+
 #include <cstring>
 #include <fstream>
 
 #include "helpers.h"
 #include "font/builder.h"
+#include "data/options.h"
 #include "project.h"
 
 using sable::RomPatcher;
@@ -29,26 +31,6 @@ auto getLines(std::string& data)
     return lines;
 }
 
-TEST_CASE("Basic generation functions", "[rompatcher]")
-{
-    RomPatcher r;
-    REQUIRE(r.generateDefine("test") == "!test");
-    REQUIRE((r.generateInclude(fs::temp_directory_path() / "test" / "test.txt", fs::path(), false)) == "incsrc " + (fs::temp_directory_path() / "test" / "test.txt").generic_string());
-    REQUIRE((r.generateInclude(fs::temp_directory_path() / "test" / "test.txt", fs::temp_directory_path(), false)) == "incsrc test/test.txt");
-    REQUIRE(r.generateAssignment("test", 0x8081, 1) == "!test = $81");
-    REQUIRE(r.generateAssignment("test", 0x8000, 2) == "!test = $8000");
-    REQUIRE(r.generateAssignment("test", 0x8000, 3) == "!test = $008000");
-    REQUIRE(r.generateAssignment("test", 0x10, 1, 10) == "!test = 16");
-    REQUIRE(r.generateAssignment("test", 0x10, 4, 2) == "!test = %00000000000000000000000000010000");
-    REQUIRE(r.generateAssignment("test", 0x10, 3, 2) == "!test = %000000000000000000010000");
-    REQUIRE(r.generateAssignment("test", 0x10, 2, 2) == "!test = %0000000000010000");
-    REQUIRE(r.generateAssignment("test", 0x10, 1, 2) == "!test = %00010000");
-    REQUIRE(r.generateAssignment("test", 0x10, 1, 10, "testBase") == "!test = !testBase+16");
-    REQUIRE_THROWS(r.generateAssignment("test", 0x10, 5));
-    REQUIRE_THROWS(r.generateAssignment("test", 0x10, 4, 9));
-    REQUIRE_THROWS(r.generateAssignment("test", 0x10, 5, 2));
-}
-
 TEST_CASE("Writing includes", "[rompatcher]")
 {
     std::vector<std::string> includes = {"something", "something2", "something3"};
@@ -63,7 +45,20 @@ TEST_CASE("Writing includes", "[rompatcher]")
     REQUIRE(lines[0] == "incsrc somewhere/something");
     REQUIRE(lines[1] == "incsrc somewhere/something2");
     REQUIRE(lines[2] == "incsrc somewhere/something3");
+}
 
+TEST_CASE("Writing single include", "[rompatcher]")
+{
+    std::string include = "something";
+    std::ostringstream sink;
+    RomPatcher r;
+
+    r.writeInclude(include, sink, fs::path("somewhere"));
+
+    std::string data = sink.str();
+    auto lines = getLines(data);
+    REQUIRE(lines.size() == 1);
+    REQUIRE(lines[0] == "incsrc somewhere/something");
 }
 
 TEST_CASE("Mapper decoding.", "[rompatcher]")
@@ -328,11 +323,12 @@ TEST_CASE("Font output", "[rompatcher]")
 
 TEST_CASE("Address data output", "[rompatcher]")
 {
+    using sable::options::ExportAddress, sable::options::ExportWidth;
     sable::RomPatcher r;
     sable::AddressList al;
     std::ostringstream defineSink, textSink;
     fs::path writeDir("test");
-    al.addFile("somefile", "file.bin", 16, false);
+    al.addFile("somefile", "file.bin", 16, false, ExportWidth::Off, ExportAddress::On);
     SECTION("File include.")
     {
         al.addAddress(0x908000, "somefile", false);
@@ -349,7 +345,7 @@ TEST_CASE("Address data output", "[rompatcher]")
     }
     SECTION("File include with program counter printed.")
     {
-        al.addFile("somefile", "file.bin", 16, true);
+        al.addFile("somefile", "file.bin", 16, true, ExportWidth::Off, ExportAddress::On);
         al.addAddress(0x908000, "somefile", false);
         r.writeParsedData(al, writeDir, textSink, defineSink);
         REQUIRE(defineSink.str() == "!def_somefile = $908000\n");
@@ -362,9 +358,24 @@ TEST_CASE("Address data output", "[rompatcher]")
         REQUIRE(lines[2] == "incbin test/file.bin");
         REQUIRE(lines[3] == "print pc");
     }
+    SECTION("File include with width exported.")
+    {
+        al.addFile("somefile", "file.bin", 16, true, ExportWidth::On, ExportAddress::On);
+        al.addAddress(0x908000, "somefile", false);
+        r.writeParsedData(al, writeDir, textSink, defineSink);
+        REQUIRE(defineSink.str() == "!def_somefile = $908000\n!def_somefile_length = 16\n");
+
+        std::string data = textSink.str();
+        auto lines = getLines(data);
+        REQUIRE(lines.size() == 5);
+        REQUIRE(lines[0] == "ORG !def_somefile");
+        REQUIRE(lines[1] == "somefile:");
+        REQUIRE(lines[2] == "incbin test/file.bin");
+        REQUIRE(lines[3] == "print pc");
+    }
     SECTION("File include with no label.")
     {
-        al.addFile("$somefile", "file2.bin", 16, false);
+        al.addFile("$somefile", "file2.bin", 16, false, ExportWidth::Off, ExportAddress::On);
         al.addAddress(0x908000, "somefile", false);
         al.addAddress(0x90F000, "$somefile", false);
         r.writeParsedData(al, writeDir, textSink, defineSink);
@@ -379,6 +390,46 @@ TEST_CASE("Address data output", "[rompatcher]")
         REQUIRE(lines[3] == "");
 
         REQUIRE(lines[4] == "ORG $90f000");
+        REQUIRE(lines[5] == "incbin test/file2.bin");
+        REQUIRE(lines[6] == "");
+    }
+    SECTION("Second file include with explicit address.")
+    {
+        al.addFile("somefile2", "file2.bin", 16, false, ExportWidth::Off, ExportAddress::On);
+        al.addAddress(0x908000, "somefile", false);
+        al.addAddress(0x908010, "somefile2", false);
+        r.writeParsedData(al, writeDir, textSink, defineSink);
+        REQUIRE(defineSink.str() == "!def_somefile = $908000\n"
+                                    "!def_somefile2 = $908010\n");
+
+        std::string data = textSink.str();
+        auto lines = getLines(data);
+        REQUIRE(lines.size() == 8);
+        REQUIRE(lines[0] == "ORG !def_somefile");
+        REQUIRE(lines[1] == "somefile:");
+        REQUIRE(lines[2] == "incbin test/file.bin");
+        REQUIRE(lines[3] == "");
+        REQUIRE(lines[4] == "ORG !def_somefile2");
+        REQUIRE(lines[5] == "somefile2:");
+        REQUIRE(lines[6] == "incbin test/file2.bin");
+        REQUIRE(lines[7] == "");
+    }
+    SECTION("Second file include with implicit address.")
+    {
+        al.addFile("somefile2", "file2.bin", 16, false, ExportWidth::Off, ExportAddress::Off);
+        al.addAddress(0x908000, "somefile", false);
+        al.addAddress(0x908010, "somefile2", false);
+        r.writeParsedData(al, writeDir, textSink, defineSink);
+        REQUIRE(defineSink.str() == "!def_somefile = $908000\n");
+
+        std::string data = textSink.str();
+        auto lines = getLines(data);
+        REQUIRE(lines.size() == 7);
+        REQUIRE(lines[0] == "ORG !def_somefile");
+        REQUIRE(lines[1] == "somefile:");
+        REQUIRE(lines[2] == "incbin test/file.bin");
+        REQUIRE(lines[3] == "");
+        REQUIRE(lines[4] == "somefile2:");
         REQUIRE(lines[5] == "incbin test/file2.bin");
         REQUIRE(lines[6] == "");
     }

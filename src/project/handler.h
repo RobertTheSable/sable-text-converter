@@ -1,9 +1,9 @@
 #ifndef HANDLER_H
 #define HANDLER_H
 
-
 #include "parse/parse.h"
 #include "data/addresslist.h"
+#include "data/options.h"
 
 #include "exceptions.h"
 
@@ -36,7 +36,9 @@ struct Handler: sable::Parser<Handler>
         int address,
         size_t start,
         size_t length,
-        bool printpc
+        bool printpc,
+        options::ExportWidth exportWidth,
+        options::ExportAddress exportAddress
     );
 
 

@@ -119,11 +119,12 @@ TEST_CASE("Adding addresses")
 
 TEST_CASE("Adding files")
 {
+    using sable::options::ExportAddress, sable::options::ExportWidth;
     AddressList subject;
-    subject.addFile("file_00", "file_00.txt", 5, false);
-    subject.addFile("file_01", {"file_01.txt", 10, false});
-    subject.addFile("file_02", "file_02.txt", 50, true);
-    subject.addFile("file_03", {"file_04.txt", 80, true});
+    subject.addFile("file_00", "file_00.txt", 5, false, ExportWidth::Off, ExportAddress::On);
+    subject.addFile("file_01", {"file_01.txt", 10, false, ExportWidth::Off, ExportAddress::On});
+    subject.addFile("file_02", "file_02.txt", 50, true, ExportWidth::Off, ExportAddress::On);
+    subject.addFile("file_03", {"file_04.txt", 80, true, ExportWidth::Off, ExportAddress::On});
 
     struct { //NOLINT
         std::string label;

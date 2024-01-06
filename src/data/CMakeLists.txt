@@ -1,8 +1,4 @@
-set(SABLE_DATA_SOURCE_FILES "")
-
-list(
-    APPEND SABLE_DATA_SOURCE_FILES
-
+file(GLOB SABLE_DATA_SOURCE_FILES
     addresslist.cpp
     addresslist.h
     table.cpp
@@ -10,6 +6,8 @@ list(
     textblockrange.cpp
     textblockrange.h
     address.h
+    options.h
+    optionhelpers.h
 #    "${CMAKE_CURRENT_SOURCE_DIR}/textblock.h"
 )
 
