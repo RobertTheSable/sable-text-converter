@@ -20,14 +20,14 @@ std::vector<AddressNode>::const_iterator AddressList::end() const
     return m_Addresses.end();
 }
 
-void AddressList::addFile(const std::string &label, const std::string &file, std::size_t dataLength, bool printPC)
-{
-    m_TextNodeList[label] = {file, dataLength, printPC};
-}
-
 void AddressList::addFile(const std::string &label, TextNode &&fileData)
 {
      m_TextNodeList[label] = fileData;
+}
+
+void AddressList::addFile(const std::string &label, const std::string &file, std::size_t dataLength, bool printPC, options::ExportWidth exportWidth, options::ExportAddress exportAddress)
+{
+    addFile(label, {file, dataLength, printPC, exportWidth, exportAddress});
 }
 
 const TextNode &AddressList::getFile(const std::string &label) const

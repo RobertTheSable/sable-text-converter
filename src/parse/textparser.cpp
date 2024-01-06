@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <locale>
 #include <map>
+#include <array>
 #include <unicode/uchar.h>
 #include <boost/locale.hpp>
+#include "data/optionhelpers.h"
 
 using sable::TextParser, sable::Font;
 
@@ -18,7 +20,11 @@ struct TextParser::Impl {
     icu::Locale m_Locale;
     bool useDigraphs;
     int maxWidth;
-    Impl(const std::string& defFont, std::map<std::string, sable::Font>&& fList, icu::Locale&& locale)
+    Impl(
+        const std::string& defFont,
+        std::map<std::string, sable::Font>&& fList,
+        icu::Locale&& locale
+    )
         : defaultFont{defFont}, fontList{fList}, m_Locale{locale} {}
     ~Impl() {
 
@@ -29,14 +35,17 @@ struct TextParser::Impl {
         BreakIterator it,
         const util::Mapper& mapper
     ) {
-        static const std::array SUPPORTED_SETTINGS{
+        static const std::array<const char*, 10> SUPPORTED_SETTINGS{
             "printpc",
             "type",
             "address",
             "width",
             "label",
             "autoend",
-            "page"
+            "page",
+            "end_on_label",
+            "export_width",
+            "export_address"
         };
         ParseSettings retVal = settings;
         if (!it.done()) {
@@ -98,13 +107,7 @@ struct TextParser::Impl {
                         } else if (name == "label") {
                             retVal.label = option;
                         } else if (name == "autoend") {
-                            if (option == "on") {
-                                retVal.autoend = true;
-                            } else if (option == "off") {
-                                retVal.autoend = false;
-                            } else {
-                                throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for autoend: must be on or off.");
-                            }
+                            retVal.autoend = options::parseBool<ParseSettings::Autoend>(name, option);
                         } else if (name == "page") {
                             try {
                                 int page = std::stoi(option);
@@ -112,6 +115,12 @@ struct TextParser::Impl {
                             } catch (std::invalid_argument &e) {
                                 throw std::runtime_error(option.insert(0, "Page \"") + "\" is not a decimal integer.");
                             }
+                        } else if (name == "end_on_label") {
+                            retVal.endOnLabel = options::parseBool<ParseSettings::EndOnLabel>(name, option);
+                        } else if (name == "export_width") {
+                            retVal.exportWidth = options::parseBool<sable::options::ExportWidth>(name, option);
+                        } else if (name == "export_address") {
+                            retVal.exportAddress = options::parseBool<sable::options::ExportAddress>(name, option);
                         } else {
                             // should be unreachable
                             throw std::runtime_error(name.insert(0, "Unrecognized option \"") + '\"');
@@ -136,19 +145,51 @@ struct TextParser::Impl {
     }
 };
 
-TextParser::TextParser(std::map<std::string, sable::Font>&& list, const std::string& defaultMode, const std::string& locale)
+TextParser::TextParser(
+        std::map<std::string,
+        sable::Font>&& list,
+        const std::string& defaultMode,
+        const std::string& locale,
+        options::ExportWidth defaultExportWidth,
+        options::ExportAddress defaultExportAddress
+        ) : defaultExportWidth_{defaultExportWidth}, defaultExportAddress_{defaultExportAddress}
 {
-    _pImpl = std::make_unique<Impl>(defaultMode, std::move(list), icu::Locale::createCanonical(locale.c_str()));
+    _pImpl = std::make_unique<Impl>(
+        defaultMode,
+        std::move(list),
+        icu::Locale::createCanonical(locale.c_str())
+    );
 }
 
 TextParser::~TextParser()=default;
 
-std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & settings, back_inserter insert, const util::Mapper& mapper)
+TextParser::Result TextParser::parseLine(
+        std::istream &input,
+        ParseSettings & settings,
+        back_inserter insert,
+        Metadata lastReadWasMetadata,
+        const util::Mapper& mapper)
 {
     int length = 0;
     bool finished = false;
-    std::string line;
+    std::string line{""};
     std::istream& state = getline(input, line, '\n');
+    auto label = settings.label;
+    Metadata mt = Metadata::No;
+
+    auto insertCommand = [&insert = insert, &_pImpl = _pImpl, &font = _pImpl->fontList[settings.mode]] (std::string code)
+    {
+        if (font.getCommandValue() != -1) {
+            _pImpl->insertData(font.getCommandValue(), font.getByteWidth(), insert);
+        }
+        if (code == "") {
+            _pImpl->insertData(font.getEndValue(), font.getByteWidth(), insert);
+        } else {
+            _pImpl->insertData(font.getCommandCode(code), font.getByteWidth(), insert);
+        }
+
+    };
+
     if (!state.fail()) {
         if (line.find('\r') != std::string::npos) {
             line.erase(line.find('\r'), 1);
@@ -164,6 +205,7 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                 if (input.peek() == std::char_traits<char>::eof()) {
                      printNewLine = false;
                 }
+                mt = Metadata::Yes;
             } else if (ref == "[") {
                 std::string temp;
                 {
@@ -186,7 +228,9 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                         try {
                             const auto& codeStruct = _pImpl->fontList[settings.mode].getCommandData(temp);
                             code = codeStruct.code;
-                            finished = (settings.autoend && code == _pImpl->fontList[settings.mode].getEndValue());
+                            finished = (options::isEnabled(settings.autoend) &&
+                                        code == _pImpl->fontList[settings.mode].getEndValue()
+                                    );
                             if (_pImpl->fontList[settings.mode].getCommandValue() != -1 && !finished) {
                                 _pImpl->insertData(_pImpl->fontList[settings.mode].getCommandValue(), _pImpl->fontList[settings.mode].getByteWidth(), insert);
                             }
@@ -210,14 +254,28 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                                     throw CodeNotFound(temp + " not found in font " + settings.mode);
                                 }
                             }
-                            finished = settings.autoend && (_pImpl->fontList[settings.mode].getCommandValue() == -1) && (code == _pImpl->fontList[settings.mode].getEndValue());
+                            if (auto font = _pImpl->fontList[settings.mode];
+                                font.getCommandValue() == -1 &&
+                                code == font.getEndValue()
+                            ) {
+                                finished |= options::isEnabled(settings.autoend);
+                            }
                         }
                     }
+
+                    if (auto font = _pImpl->fontList[settings.mode];
+                        font.getCommandValue() == -1 &&
+                        code == font.getEndValue()
+                    ) {
+                        finished |= options::isEnabled(settings.autoend);
+                    }
+
                     if (!finished) {
-                        _pImpl->insertData(code, bytes, insert);
+                         _pImpl->insertData(code, bytes, insert);
                     }
                 }
             } else if (ref == "@") {
+                mt = Metadata::Yes;
                 auto startPoint = --it;
                 settings = _pImpl->updateSettings(settings, it, mapper);
                 if (!(settings.page < _pImpl->fontList[settings.mode].getNumberOfPages())) {
@@ -225,8 +283,16 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                         std::string("Page ") + std::to_string(settings.page) + " not found in font " + settings.mode
                     );
                 }
+                if (settings.label != label) {
+                    finished |= options::isEnabled(settings.endOnLabel);
+                }
                 if (it.atStart() && (state.peek() != std::char_traits<char>::eof())) {
-                    return std::make_pair(finished, length);
+                    return Result{
+                        finished,
+                        length,
+                        label,
+                        mt
+                    };
                 }
                 while (!it.done()) {
                     ++it;
@@ -293,23 +359,36 @@ std::pair<bool, int> TextParser::parseLine(std::istream &input, ParseSettings & 
                 }
             }
         }
-        finished |= (state.peek() == std::char_traits<char>::eof());
-        if (printNewLine && !finished && !state.eof() && input.peek() != '#'  && input.peek() != '@') {
-            if (_pImpl->fontList[settings.mode].getCommandValue() != -1) {
-                _pImpl->insertData(_pImpl->fontList[settings.mode].getCommandValue(), _pImpl->fontList[settings.mode].getByteWidth(), insert);
-            }
-            _pImpl->insertData(_pImpl->fontList[settings.mode].getCommandCode("NewLine"), _pImpl->fontList[settings.mode].getByteWidth(), insert);
+
+        if (printNewLine &&
+                !finished &&
+                state.peek() != std::char_traits<char>::eof() &&
+                !state.eof() &&
+                input.peek() != '#'  &&
+                input.peek() != '@') {
+            insertCommand("NewLine");
         }
-        if (settings.autoend && finished) {
-            if (_pImpl->fontList[settings.mode].getCommandValue() != -1) {
-                _pImpl->insertData(_pImpl->fontList[settings.mode].getCommandValue(), _pImpl->fontList[settings.mode].getByteWidth(), insert);
+        if (finished ||
+            (mt == Metadata::No && state.peek() == std::char_traits<char>::eof())
+        ) {
+            if (options::isEnabled(settings.autoend)) {
+                insertCommand("");
             }
-            _pImpl->insertData(_pImpl->fontList[settings.mode].getEndValue(), _pImpl->fontList[settings.mode].getByteWidth(), insert);
+            finished = true;
         }
     } else {
         finished = true;
-    }
-    return std::make_pair(finished, length);
+        if (options::isEnabled(settings.autoend) && lastReadWasMetadata == Metadata::Yes) {
+            insertCommand("");
+        }
+    } // !state.fail()
+
+    return Result{
+        finished,
+        length,
+        label,
+        mt
+    };
 }
 
 const std::map<std::string, sable::Font> &TextParser::getFonts() const
@@ -320,6 +399,17 @@ const std::map<std::string, sable::Font> &TextParser::getFonts() const
 auto TextParser::getDefaultSetting(int address) const -> ParseSettings
 {
     auto def = _pImpl->defaultFont;
-    return {true, false, def, "", _pImpl->fontList[def].getMaxWidth(), address, 0};
+    return {
+        ParseSettings::Autoend::On,
+        false,
+        def,
+        "",
+        _pImpl->fontList[def].getMaxWidth(),
+        address,
+        0,
+        ParseSettings::EndOnLabel::Off,
+        defaultExportAddress_,
+        defaultExportWidth_
+    };
 }
 

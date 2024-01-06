@@ -9,7 +9,10 @@
 #include "wrapper/filesystem.h"
 
 #include "data/addresslist.h"
+#include "data/optionhelpers.h"
+
 #include "outputcapture.h"
+#include "formatter.h"
 
 
 sable::RomPatcher::RomPatcher(const util::MapperType& mapper)
@@ -183,10 +186,11 @@ int sable::RomPatcher::getRealSize() const
 
 void sable::RomPatcher::writeParsedData(const sable::AddressList &addresses, const fs::path& includePath, std::ostream &mainText, std::ostream &textDefines)
 {
+    int predictedNextAddress = 0;
     for (auto& node: addresses) {
         if (node.isTable) {
-            textDefines << generateAssignment("def_table_" + node.label, node.address, 3) << '\n';
-            mainText  << "ORG " + generateDefine("def_table_" + node.label) + '\n';
+            textDefines << formatter::generateAssignment("def_table_" + node.label, node.address, 3) << '\n';
+            mainText  << "ORG " + formatter::generateDefine("def_table_" + node.label) + '\n';
             const Table& t = addresses.getTable(node.label);
             mainText << "table_" + node.label + ":\n";
             for (auto it : t) {
@@ -200,7 +204,7 @@ void sable::RomPatcher::writeParsedData(const sable::AddressList &addresses, con
                     throw std::logic_error("Unsupported address size " + std::to_string(t.getAddressSize()));
                 }
                 if (it.address > 0) {
-                    mainText << dataType + ' ' + generateNumber(it.address, t.getAddressSize());
+                    mainText << dataType + ' ' + formatter::generateNumber(it.address, t.getAddressSize());
                     size = it.size;
                 } else {
                     mainText << dataType + ' ' + it.label;
@@ -212,27 +216,49 @@ void sable::RomPatcher::writeParsedData(const sable::AddressList &addresses, con
                 mainText << '\n';
             }
         } else {
+            auto file = addresses.getFile(node.label);
             if (node.label.front() == '$') {
-                mainText  << "ORG " + generateNumber(node.address, 3) << '\n';
+                mainText  << "ORG " + formatter::generateNumber(node.address, 3) << '\n';
             } else {
-                textDefines << generateAssignment("def_" + node.label, node.address, 3) << '\n';
-                mainText  << "ORG " + generateDefine("def_" + node.label) + '\n'
-                          << node.label + ":\n";
+                if (predictedNextAddress == 0 ||
+                    predictedNextAddress != node.address ||
+                    options::isEnabled(file.exportAddress)
+                ) {
+                    textDefines << formatter::generateAssignment("def_" + node.label, node.address, 3) + '\n';
+                    mainText  << "ORG " + formatter::generateDefine("def_" + node.label) + '\n';
+                }
+                if (options::isEnabled(file.exportWidth)) {
+                    textDefines <<
+                        formatter::generateAssignment(
+                            "def_" + node.label + "_length",
+                            file.size,
+                            3,
+                            10
+                        ) + '\n'
+                    ;
+                }
+                mainText << node.label + ":\n";
             }
-            std::string token = addresses.getFile(node.label).files;
-            mainText << generateInclude(includePath / token , fs::path(), true) + '\n';
-            if (addresses.getFile(node.label).printpc) {
+
+            mainText << formatter::generateInclude(includePath / file.files , fs::path(), true) + '\n';
+            if (file.printpc) {
                 mainText << "print pc\n";
             }
+            predictedNextAddress = node.address + file.size;
         }
         mainText << '\n';
     }
 }
 
+void sable::RomPatcher::writeInclude(const std::string include, std::ostream &mainFile, const fs::path &includePath)
+{
+    mainFile << formatter::generateInclude(includePath / include, fs::path(), false) << '\n';
+}
+
 void sable::RomPatcher::writeIncludes(sable::ConstStringIterator start, sable::ConstStringIterator end, std::ostream &mainFile, const fs::path& includePath)
 {
     for (auto it = start; it != end; ++it) {
-        mainFile << generateInclude(includePath / *it, fs::path(), false) << '\n';
+        mainFile << formatter::generateInclude(includePath / *it, fs::path(), false) << '\n';
     }
 }
 
@@ -256,82 +282,6 @@ std::string sable::RomPatcher::getMapperDirective(const util::MapperType& mapper
             throw std::logic_error("Invalid map type.");
     }
     return value;
-}
-
-std::string sable::RomPatcher::generateInclude(const fs::path &file, const fs::path &basePath, bool isBin) const
-{
-    std::string includePath = isBin ? "incbin " :"incsrc ";
-
-    if (basePath.empty() || file.string().find_first_of(basePath.string()) != 0) {
-        includePath += file.generic_string();
-    } else {
-        // can't use fs::relative because g++ 7 doesn't support it.
-#ifdef NO_FS_RELATIVE
-        includePath +=  file.generic_string().substr(basePath.generic_string().length() + 1);
-#else
-        includePath +=  fs::relative(file, basePath).generic_string();
-#endif
-    }
-    return includePath;
-}
-
-std::string sable::RomPatcher::generateDefine(const std::string& label) const
-{
-    return std::string("!") + label;
-}
-
-std::string sable::RomPatcher::generateNumber(int number, int width, int base) const
-{
-    std::ostringstream output;
-    if (base == 16) {
-        if (width > 4 || width <= 0) {
-            // Asar does support 4-byte data even though the SNES doesn't really.
-            throw std::runtime_error(std::string("Unsupported width ") +  std::to_string(width));
-        }
-        if (width == 3) {
-            number = (number & 0xFFFFFF);
-        } else if (width == 2) {
-            number = (number & 0xFFFF);
-        } else if (width == 1) {
-            number = (number & 0xFF);
-        }
-        output << '$' << std::setfill('0') << std::setw(width *2) << std::hex << number;
-    } else if (base == 10) {
-        output << std::dec << number;
-    } else if (base == 2) {
-        if (width == 4) {
-            output << '%' + std::bitset<32>(number).to_string();
-        } else if (width == 3) {
-            output << '%' + std::bitset<24>(number).to_string();
-        } else if (width == 2) {
-            output << '%' + std::bitset<16>(number).to_string();
-        } else if (width == 1) {
-            output << '%' + std::bitset<8>(number).to_string();
-        } else {
-            throw std::runtime_error(std::string("Unsupported width ") +  std::to_string(width));
-        }
-
-    } else {
-        throw std::runtime_error(std::string("Unsupported base ") +  std::to_string(base));
-    }
-    return output.str();
-
-}
-
-std::string sable::RomPatcher::generateAssignment(const std::string& label, int value, int width, int base, const std::string& baseLabel) const
-{
-    std::ostringstream output;
-    output << generateDefine(label) <<  " = ";
-    if (!baseLabel.empty()) {
-        output << generateDefine(baseLabel);
-        if (value != 0) {
-            output << '+' + generateNumber(value, width, base);
-        }
-    } else {
-        output << generateNumber(value, width, base);
-    }
-
-    return output.str();
 }
 
 //int sable::RomPatcher::getRomSize() const

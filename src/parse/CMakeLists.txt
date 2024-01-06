@@ -1,10 +1,7 @@
-set(SABLE_PARSING_SOURCE_FILES "")
+file(GLOB SABLE_PARSING_SOURCE_FILES
 
-list(
-    APPEND SABLE_PARSING_SOURCE_FILES
-
-    "${CMAKE_CURRENT_SOURCE_DIR}/unicode.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/unicode.cpp"
+    unicode.h
+    unicode.cpp
     textparser.h
     textparser.cpp
     parse.h
@@ -14,4 +11,5 @@ list(
 )
 
 add_library(sable_parsing STATIC ${SABLE_PARSING_SOURCE_FILES})
-target_include_directories(sable_parsing PUBLIC ${SABLE_INCLUDE_DIR})
+target_link_libraries(sable_parsing ${ICU_LIBRARIES})
+target_include_directories(sable_parsing PUBLIC ${SABLE_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${ICU_INCLUDE_DIRS})

@@ -11,7 +11,9 @@ if(SABLE_BUILD_TESTS)
     find_package(Catch2 REQUIRED)
 endif()
 
-find_package(Boost 1.71.0 REQUIRED COMPONENTS locale)
+if (NOT Boost_FOUND)
+    find_package(Boost 1.71.0 REQUIRED COMPONENTS locale)
+endif()
 find_package(ICU 66.1 REQUIRED COMPONENTS in uc dt)
 
 # icu is sometimes in unicode or unicode2 subfolder, but cmake doesn't say which

@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "util.h"
-#include "data/table.h"
+#include "data/options.h"
 #include "font/font.h"
 
 namespace sable {
@@ -34,6 +34,8 @@ class Project
     util::MapperType m_BaseType;
     util::Mapper m_Mapper;
     int maxAddress;
+    options::ExportAddress exportAllAddresses;
+
     Project(util::Mapper&& mapper);
 public:
     static constexpr const char* FILES_SECTION = "files";
@@ -56,6 +58,7 @@ public:
     static constexpr const char* USE_MIRRORED_BANKS = "useMirrorBanks";
     static constexpr const char* OUT_SIZE = "outputSize";
     static constexpr const char* LOCALE = "locale";
+    static constexpr const char* EXPORT_ALL_ADDRESSES = "exportAllAddresses";
 
     static Project from(const std::string &projectDir);
     bool parseText();
@@ -67,6 +70,7 @@ public:
     int getMaxAddress() const;
     explicit operator bool() const;
     util::Mapper getMapper() const;
+    bool areAddressesExported() const;
 };
 }
 

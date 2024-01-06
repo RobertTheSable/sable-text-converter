@@ -3,7 +3,11 @@
 #include "util.h"
 #include <vector>
 #include <string>
+#include <iostream>
+#include <sstream>
 #include <functional>
+#include <type_traits>
+
 #include "wrapper/filesystem.h"
 #include "data/addresslist.h"
 #include "font/font.h"
@@ -28,6 +32,7 @@ public:
     int getRealSize() const;
 
     void writeParsedData(const AddressList& addresses, const fs::path& includePath, std::ostream& mainText, std::ostream& textDefines);
+    void writeInclude(const std::string include, std::ostream& mainFile, const fs::path& includePath = fs::path());
     void writeIncludes(ConstStringIterator start, ConstStringIterator end, std::ostream& mainFile, const fs::path& includePath = fs::path());
     template<class Fl>
     void writeFontData(Fl list, std::ostream& output)
@@ -76,17 +81,12 @@ public:
     }
 
     std::string getMapperDirective(const util::MapperType& mapper);
-    std::string generateInclude(const fs::path& file, const fs::path& basePath, bool isBin) const;
-    std::string generateDefine(const std::string& label) const;
-    std::string generateAssignment(const std::string& label, int value, int width, int base = 16, const std::string& baseLabel = "") const;
-
 //    int getRomSize() const;
 
 //    unsigned char &atROMAddr(int n);
 //    std::string getName() const;
 
 private:
-    std::string generateNumber(int number, int width, int base = 16) const;
     std::vector<unsigned char> m_data;
     int m_RomSize;
     int m_HeaderSize;

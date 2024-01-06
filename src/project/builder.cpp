@@ -102,10 +102,6 @@ bool sable::ProjectSerializer::validateConfig(const YAML::Node &configYML)
             isValid = false;
             errorString << "inMapping for config section must be a filename or sequence of filenames.\n";
         }
-//        if (configYML[Project::CONFIG_SECTION][MAP_TYPE].IsDefined() && !configYML[Project::CONFIG_SECTION][MAP_TYPE].IsScalar()) {;
-//            isValid = false;
-//            errorString << "config > mapper must be a string.\n";
-//        }
         if (configYML[Project::CONFIG_SECTION][Project::OUT_SIZE].IsDefined()) {
             if (!configYML[Project::CONFIG_SECTION][Project::OUT_SIZE].IsScalar()) {
                 errorString << Project::CONFIG_SECTION + std::string(" > ") + Project::OUT_SIZE +
@@ -116,6 +112,12 @@ bool sable::ProjectSerializer::validateConfig(const YAML::Node &configYML)
                                "\" is not a supported rom size.";
                 isValid = false;
             }
+        }
+        if (auto exportAddressesOption = configYML[Project::CONFIG_SECTION][Project::EXPORT_ALL_ADDRESSES];
+                exportAddressesOption.IsDefined() && !exportAddressesOption.IsScalar()) {
+            errorString << Project::CONFIG_SECTION + std::string(" > ") + Project::EXPORT_ALL_ADDRESSES +
+                           " must be a string with a valid value(on/off or true/false).\n";
+            isValid = false;
         }
     }
     if (!configYML[Project::ROMS].IsDefined()) {
@@ -255,6 +257,23 @@ Project ProjectSerializer::read(
         for (auto&& path: config[Project::CONFIG_SECTION][Project::IN_MAP]) {
             pr.m_MappingPaths.push_back((fontLocation / path.as<std::string>()).string());
         }
+    }
+
+    auto isExplicitylDisabled = [] (std::string&& value) -> bool
+    {
+        std::string lower = value;
+        std::transform(value.begin(), value.end(), lower.begin(), [] (char c) {
+            return std::tolower(c);
+        });
+        return lower == "false" || lower == "off";
+    };
+
+    if (auto exportAddressesOption = config[Project::CONFIG_SECTION][Project::EXPORT_ALL_ADDRESSES];
+        exportAddressesOption.IsDefined() && exportAddressesOption.IsScalar() &&
+        isExplicitylDisabled(exportAddressesOption.as<std::string>())) {
+        pr.exportAllAddresses = options::ExportAddress::Off;
+    } else {
+        pr.exportAllAddresses = options::ExportAddress::On;
     }
     return pr;
 }

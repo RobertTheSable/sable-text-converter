@@ -66,6 +66,8 @@ configuration. The "main" asm file for each rom
       to use the expanded mapper format.
   * useMirrorBanks - whether to primarily use the mirrored (0x00 - 0x6F) banks for the LoROM mapper.
     * "true" or "false" are accepted values. The default is "false."
+  * exportAllAddresses - set to "false" or "off" to not export addresses of contiguous text blocks.
+    * In a future version, the default setting for this option may be reversed.
 * roms - a sequence of all the input rom files to generate patches. Each should 
 have the following fields:
   * name - the name of the output file, minus the extension(which is chosen 

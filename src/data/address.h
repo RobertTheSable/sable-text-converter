@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "options.h"
+
 namespace sable {
 struct AddressNode {
     int address;
@@ -14,6 +16,8 @@ struct TextNode {
     std::string files;
     size_t size;
     bool printpc;
+    options::ExportWidth exportWidth;
+    options::ExportAddress exportAddress;
 };
 
 }

@@ -18,4 +18,4 @@ list(
 add_library(sable_font STATIC ${SABLE_FONT_SOURCE_FILES})
 
 target_link_libraries(sable_font)
-target_include_directories(sable_font PUBLIC ${SABLE_INCLUDE_DIR})
+target_include_directories(sable_font PUBLIC ${SABLE_INCLUDE_DIR} ${YAML_INCLUDE_DIR})

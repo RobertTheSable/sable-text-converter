@@ -18,6 +18,7 @@ list(
 
     catch/output/rompatcher.cpp
     catch/output/capture.cpp
+    catch/output/formatter.cpp
 
     catch/parse/textparser.cpp
     catch/parse/unicode.cpp
@@ -43,13 +44,7 @@ add_executable(tests ${SABLE_TEST_FILES})
 target_compile_definitions(sable_lib PUBLIC USER_SABLE_TEST_HELPERS)
 target_link_libraries(tests sable_lib Catch2::Catch2)
 target_include_directories(tests PUBLIC ${Catch2_INCLUDE_DIRS})
-#if (NOT ASAR)
-#    add_custom_command(TARGET tests
-#        POST_BUILD
-#        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:asar> "${CMAKE_CURRENT_BINARY_DIR}"
-#        COMMENT "Copy asar file to ${CMAKE_CURRENT_BINARY_DIR} directory" VERBATIM
-#    )
-#endif()
+
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.sfc" "sample.sfc" COPYONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.smc" "sample.smc" COPYONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.asm" "sample.asm" COPYONLY)

@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "project/handler.h"
+#include "data/options.h"
 
 #include "helpers.h"
 #include "files.h"
@@ -11,13 +12,14 @@ using sable::Handler;
 
 TEST_CASE("Write files")
 {
+    using sable::options::ExportAddress, sable::options::ExportWidth;
     caseFileList cs("samples");
     std::ostringstream sink;
-    Handler subject(fs::path("samples"), sink, sable_tests::getSampleFonts(), "normal", "en_US.utf-8");
+    Handler subject(fs::path("samples"), sink, sable_tests::getSampleFonts(), "normal", "en_US.utf-8", ExportWidth::Off, ExportAddress::On);
     std::vector<unsigned char> data{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     SECTION("Single file")
     {
-        REQUIRE_NOTHROW(subject.write("test1.bin", "test1", data, 0x808000, 0, 10, false));
+        REQUIRE_NOTHROW(subject.write("test1.bin", "test1", data, 0x808000, 0, 10, false, ExportWidth::Off, ExportAddress::On));
 
         auto addresses = subject.done();
         REQUIRE(addresses.end() - addresses.begin() == 1);
@@ -36,8 +38,8 @@ TEST_CASE("Write files")
     }
     SECTION("Two files")
     {
-        REQUIRE_NOTHROW(subject.write("test2.bin", "test2", data, 0x808010, 4, 6, false));
-        REQUIRE_NOTHROW(subject.write("test1.bin", "test1", data, 0x808000, 0, 4, true));
+        REQUIRE_NOTHROW(subject.write("test2.bin", "test2", data, 0x808010, 4, 6, false, ExportWidth::Off, ExportAddress::On));
+        REQUIRE_NOTHROW(subject.write("test1.bin", "test1", data, 0x808000, 0, 4, true, ExportWidth::Off, ExportAddress::On));
 
         auto addresses = subject.done();
         REQUIRE(addresses.end() - addresses.begin() == 2);
@@ -82,18 +84,20 @@ TEST_CASE("Write files")
 
 TEST_CASE("Write files - failed")
 {
+    using sable::options::ExportAddress, sable::options::ExportWidth;
     caseFileList cs("samples");
     cs.add("samples");
     std::ostringstream sink;
-    Handler subject(fs::path("samples"), sink, sable_tests::getSampleFonts(), "normal", "en_US.utf-8");
+    Handler subject(fs::path("samples"), sink, sable_tests::getSampleFonts(), "normal", "en_US.utf-8", ExportWidth::Off, ExportAddress::On);
     std::vector<unsigned char> data{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    REQUIRE_THROWS(subject.write("samples", "test1", data, 0x808000, 0, 10, false));
+    REQUIRE_THROWS(subject.write("samples", "test1", data, 0x808000, 0, 10, false, ExportWidth::Off, ExportAddress::On));
 }
 
 TEST_CASE("Address setting")
 {
+    using sable::options::ExportAddress, sable::options::ExportWidth;
     std::ostringstream sink;
-    Handler subject(fs::path("samples"), sink, sable_tests::getSampleFonts(), "normal", "en_US.utf-8");
+    Handler subject(fs::path("samples"), sink, sable_tests::getSampleFonts(), "normal", "en_US.utf-8", ExportWidth::Off, ExportAddress::On);
     sable::Table tl{};
     tl.setDataAddress(0x908000);
 
@@ -107,9 +111,10 @@ TEST_CASE("Address setting")
 
 TEST_CASE("Error handling.")
 {
+    using sable::options::ExportAddress, sable::options::ExportWidth;
     using sable::error::Levels;
     std::ostringstream sink;
-    Handler subject(fs::path("samples"), sink, sable_tests::getSampleFonts(), "normal", "en_US.utf-8");
+    Handler subject(fs::path("samples"), sink, sable_tests::getSampleFonts(), "normal", "en_US.utf-8", ExportWidth::Off, ExportAddress::On);
     SECTION("Level: Error")
     {
         REQUIRE_THROWS_WITH(subject.report("test.txt", Levels::Error, "some error", 10), "Error in text file test.txt, line 10: some error");
