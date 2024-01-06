@@ -27,7 +27,8 @@ OutputCapture::OutputCapture(std::ostream &sink, int flags)
     close(out_pipe[1]);
 }
 #else
-OutputCapture::OutputCapture()=default;
+OutputCapture::OutputCapture(std::ostream& sink) {}
+
 #endif
 
 #ifndef _WIN32

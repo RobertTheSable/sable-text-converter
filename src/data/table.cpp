@@ -2,6 +2,7 @@
 #include "util.h"
 #include <iomanip>
 #include <algorithm>
+#include <sstream>
 
 namespace sable {
 

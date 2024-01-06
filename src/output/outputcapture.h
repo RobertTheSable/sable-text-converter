@@ -7,10 +7,12 @@
 // This class captures that output and outputs only if all paths failed.
 class OutputCapture
 {
+#ifndef _WIN32
     std::ostream &out;
     char buffer[101];
     int saved_stdout;
     int out_pipe[2];
+#endif
     bool needWrite = false;
 public:
     OutputCapture(std::ostream& sink);

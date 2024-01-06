@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <locale>
 #include <map>
+#include <array>
 #include <unicode/uchar.h>
 #include <boost/locale.hpp>
 #include "data/optionhelpers.h"
@@ -34,7 +35,7 @@ struct TextParser::Impl {
         BreakIterator it,
         const util::Mapper& mapper
     ) {
-        static const std::array SUPPORTED_SETTINGS{
+        static const std::array<const char*, 10> SUPPORTED_SETTINGS{
             "printpc",
             "type",
             "address",

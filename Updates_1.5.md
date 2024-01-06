@@ -32,7 +32,7 @@ in the current file.
 
 A file such as:
 ```
-@@export_width on
+@export_width on
 @label name_alice
 Alice
 @label name_bob

@@ -11,4 +11,5 @@ file(GLOB SABLE_PARSING_SOURCE_FILES
 )
 
 add_library(sable_parsing STATIC ${SABLE_PARSING_SOURCE_FILES})
-target_include_directories(sable_parsing PUBLIC ${SABLE_INCLUDE_DIR})
+target_link_libraries(sable_parsing ${ICU_LIBRARIES})
+target_include_directories(sable_parsing PUBLIC ${SABLE_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${ICU_INCLUDE_DIRS})
