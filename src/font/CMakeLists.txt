@@ -10,6 +10,8 @@ list(
     "${CMAKE_CURRENT_SOURCE_DIR}/builder.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/builder.h"
     fonthelpers.h
+    normalize.cpp
+    normalize.h
     error.cpp
     error.h
 
@@ -17,5 +19,5 @@ list(
 
 add_library(sable_font STATIC ${SABLE_FONT_SOURCE_FILES})
 
-target_link_libraries(sable_font)
-target_include_directories(sable_font PUBLIC ${SABLE_INCLUDE_DIR} ${YAML_INCLUDE_DIR})
+target_link_libraries(sable_font PUBLIC ${ICU_LIBRARIES})
+target_include_directories(sable_font PUBLIC ${SABLE_INCLUDE_DIR} ${YAML_INCLUDE_DIR} ${ICU_INCLUDE_DIRS})

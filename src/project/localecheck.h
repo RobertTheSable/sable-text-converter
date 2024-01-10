@@ -6,8 +6,6 @@
 namespace sable {
 
 bool isLocaleValid(const char* localeName);
-std::string normalize(const std::locale& locale, const std::string& in);
-std::locale getLocale(const std::string &locale);
 
 }
 

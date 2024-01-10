@@ -14,41 +14,13 @@ class SableTextConverterConan(ConanFile):
     options = {
         "build_tests": [True, False], 
         "build_asar": [True, False], 
-        "use_system_icu": [True, False], 
-        "use_system_boost": [True, False]
+        "use_system_icu": [True, False]
     }
     default_options = {
         "build_tests": False, 
         "build_asar": True, 
-        "use_system_icu": False, 
-        "use_system_boost": False
+        "use_system_icu": False
     }
-    
-    BOOST_EXCLUDES = [
-        "context",
-        "contract",
-        "coroutine",
-        "fiber",
-        "filesystem",
-        "graph",
-        "graph_parallel",
-        "iostreams",
-        "json",
-        "log",
-        "math",
-        "mpi",
-        "nowide",
-        "program_options",
-        "python",
-        "random",
-        "regex",
-        "stacktrace",
-        "test",
-        "timer",
-        "type_erasure",
-        "url",
-        "wave"
-    ]
     
     def layout(self):    
         cmake_layout(self)
@@ -56,17 +28,8 @@ class SableTextConverterConan(ConanFile):
     def requirements(self):
         if self.options.build_tests:
             self.requires("catch2/2.13.9")
-        if not self.options.use_system_boost:
-            self.requires("boost/1.81.0")
+        if not self.options.use_system_icu:
             self.requires("icu/73.2")
-        elif not self.options.use_system_icu:
-            self.requires("icu/70.1")
-            
-    def configure(self):
-        if not self.options.use_system_boost:
-            for opt in self.BOOST_EXCLUDES:
-                optString = f"without_{opt}"
-                self.options["boost/*"][optString] = True
 
     def generate(self):
         cmake = CMakeDeps(self)

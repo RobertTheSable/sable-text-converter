@@ -7,7 +7,6 @@
 #include <functional>
 #include <optional>
 #include <cctype>
-#include <locale>
 
 #include "characteriterator.h"
 #include "error.h"
@@ -38,7 +37,7 @@ namespace sable {
 //        enum ReadType {ERROR, TEXT, COMMAND, EXTRA};
         Font(
             const std::string& name,
-            const std::locale& normalizationLocale,
+            const std::string& localeId,
             bool hasDigraphs,
             int commandCode,
             bool isFixedWidth,
@@ -120,7 +119,7 @@ namespace sable {
 
         explicit operator bool() const;
     private:
-        std::locale m_NormLocale;
+        std::string m_LocaleId;
         std::string m_Name;
         bool m_IsValid, m_HasDigraphs, m_IsFixedWidth;
         int m_ByteWidth, m_CommandValue, m_MaxWidth, m_DefaultWidth;

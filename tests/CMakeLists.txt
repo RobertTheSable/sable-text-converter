@@ -15,6 +15,7 @@ list(
     catch/font/fonts.cpp
     catch/font/characteriterator.cpp
     catch/font/error.cpp
+    catch/font/normalize.cpp
 
     catch/output/rompatcher.cpp
     catch/output/capture.cpp

@@ -30,7 +30,7 @@ TEST_CASE("Test 1-byte fonts.")
     {
         normalNode[Font::FONT_ADDR] = "!somewhere";
         normalNode[Font::ENCODING]["[Special]"] = 100;
-        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::getTestLocale());
+        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         REQUIRE(f);
         std::vector<int> v;
         int expectedResult = normalNode[Font::ENCODING]["A"][Font::CODE_VAL].as<int>();
@@ -67,7 +67,7 @@ TEST_CASE("Test 1-byte fonts.")
     SECTION("Font with no default width.")
     {
         normalNode.remove(Font::DEFAULT_WIDTH);
-        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::getTestLocale());
+        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         std::vector<int> v;
         v.reserve(f.getMaxEncodedValue(0));
         f.getFontWidths(0, std::back_inserter(v));
@@ -76,7 +76,7 @@ TEST_CASE("Test 1-byte fonts.")
     SECTION("Test commands")
     {
         normalNode[Font::COMMANDS]["EncodingTest"] = 2;
-        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::getTestLocale());
+        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         REQUIRE(f.getEndValue() == normalNode[Font::COMMANDS]["End"]["code"].as<int>());
         REQUIRE(f.getCommandCode("Test") == normalNode[Font::COMMANDS]["Test"]["code"].as<int>());
         REQUIRE(f.getCommandCode("EncodingTest") == 2);
@@ -88,16 +88,16 @@ TEST_CASE("Test 1-byte fonts.")
     SECTION("Check that End command is required.")
     {
         normalNode[Font::COMMANDS].remove("End");
-        REQUIRE_THROWS(sable::FontBuilder::make(normalNode, "fixedWidth", sable_tests::getTestLocale()));
+        REQUIRE_THROWS(sable::FontBuilder::make(normalNode, "fixedWidth", sable_tests::defaultLocale));
         normalNode.remove(Font::COMMANDS);
-        REQUIRE_THROWS(sable::FontBuilder::make(normalNode, "fixedWidth", sable_tests::getTestLocale()));
+        REQUIRE_THROWS(sable::FontBuilder::make(normalNode, "fixedWidth", sable_tests::defaultLocale));
     }
     SECTION("Test font with fixed widths")
     {
         normalNode.remove(Font::DEFAULT_WIDTH);
         normalNode[Font::FIXED_WIDTH] = 8;
         normalNode[Font::ENCODING]["%"] = 4;
-        Font f = sable::FontBuilder::make(normalNode, "fixedWidth", sable_tests::getTestLocale());
+        Font f = sable::FontBuilder::make(normalNode, "fixedWidth", sable_tests::defaultLocale);
         REQUIRE(std::get<0>(f.getTextCode(0, "%")) == 4);
         REQUIRE(f.getWidth(0, "A") == 8);
         REQUIRE(f.getWidth(0, "A") == f.getWidth(0, "%"));
@@ -109,20 +109,20 @@ TEST_CASE("Test 1-byte fonts.")
     SECTION("Fixed width font with default width.")
     {
         normalNode[Font::FIXED_WIDTH] = "true";
-        Font f = sable::FontBuilder::make(normalNode, "fixedWidth", sable_tests::getTestLocale());
+        Font f = sable::FontBuilder::make(normalNode, "fixedWidth", sable_tests::defaultLocale);
         REQUIRE(f.getWidth(0, "A") == 8);
         REQUIRE(f.getWidth(0, "A") == f.getWidth(0, "❤"));
     }
     SECTION("Test font without digraphs")
     {
         normalNode[Font::USE_DIGRAPHS] = "false";
-        Font f = sable::FontBuilder::make(normalNode, "noDigraphs", sable_tests::getTestLocale());
+        Font f = sable::FontBuilder::make(normalNode, "noDigraphs", sable_tests::defaultLocale);
         REQUIRE(!f.getHasDigraphs());
     }
     SECTION("Test font with extras.")
     {
         normalNode[Font::EXTRAS]["SomeExtra"] = 1;
-        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::getTestLocale());
+        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         REQUIRE(f.getExtraValue("SomeExtra") == 1);
         REQUIRE_THROWS(f.getExtraValue("SomeMissingExtra"));
     }
@@ -153,7 +153,7 @@ TEST_CASE("Test 1-byte fonts.")
             }
             normalNode[Font::NOUNS]["SomeNoun"][Font::CODE_VAL] = stringData;
         }
-        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::getTestLocale());
+        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         REQUIRE_NOTHROW(f.getNounData(0, "SomeNoun"));
         auto nounData = f.getNounData(0, "SomeNoun");
 #ifdef SABLE_KEEP_DEPRECATED
@@ -184,7 +184,7 @@ TEST_CASE("Test 1-byte fonts.")
         SECTION("Pages without nouns")
         {
             normalNode[Font::PAGES] = std::vector{encNode};
-            Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::getTestLocale());
+            Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         }
         SECTION("Pages with different max encodec characters")
         {
@@ -194,7 +194,7 @@ TEST_CASE("Test 1-byte fonts.")
                 }
             );
             normalNode[Font::PAGES][0][Font::MAX_CHAR] = 5;
-            Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::getTestLocale());
+            Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
             expectedSize = 255 + 5;
         }
         SECTION("Pages with nouns")
@@ -218,8 +218,8 @@ TEST_CASE("Test 1-byte fonts.")
             {"code", "0x12"},
             {"page", "1"},
         };
-        REQUIRE_NOTHROW(sable::FontBuilder::make(normalNode, "normal", sable_tests::getTestLocale()));
-        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::getTestLocale());
+        REQUIRE_NOTHROW(sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale));
+        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         REQUIRE_THROWS(f.getTextCode(2, "A"));
         REQUIRE_THROWS(f.getWidth(2, "A"));
         REQUIRE(std::get<0>(f.getTextCode(0, "A")) == 1);
@@ -264,7 +264,7 @@ TEST_CASE("Test 1-byte fonts.")
         normalNode[Font::COMMANDS]["zvýraznit"] = 20;
         normalNode[Font::EXTRAS]["östlich"] = 10;
         normalNode[Font::NOUNS]["Åland"][Font::CODE_VAL] = std::vector{0, 1, 2, 3, 4};
-        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::getTestLocale());
+        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         REQUIRE(std::get<0>(f.getTextCode(0, test1)) == 100);
         REQUIRE(std::get<0>(f.getTextCode(0, test3)) == 100);
         REQUIRE(std::get<0>(f.getTextCode(0, test2)) == 100);
@@ -292,7 +292,7 @@ TEST_CASE("Test 2-byte fonts.")
     auto menuNode = sable_tests::createSampleNode(true, 2, 0, 8, commands, {}, 0, -1, 0, true);
     SECTION("Test 2-byte font with")
     {
-        Font f = sable::FontBuilder::make(menuNode, "menu", sable_tests::getTestLocale());
+        Font f = sable::FontBuilder::make(menuNode, "menu", sable_tests::defaultLocale);
         REQUIRE(f.getByteWidth() == 2);
         REQUIRE(f.getMaxWidth() == 0);
         REQUIRE(f.getFontWidthLocation().empty());
@@ -316,92 +316,92 @@ TEST_CASE("Test config validation")
     SECTION("Test Digraph validation.")
     {
         normalNode[Font::USE_DIGRAPHS] = "invalid";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains("must be true or false."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("must be true or false."));
     }
     SECTION("Check integer validation.")
     {
         normalNode[Font::DEFAULT_WIDTH] = "invalid";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains("must be a scalar integer."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("must be a scalar integer."));
     }
     SECTION("Check bytewidth validation.")
     {
         normalNode[Font::BYTE_WIDTH] = 3;
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains("must be 1 or 2."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("must be 1 or 2."));
         normalNode.remove(Font::BYTE_WIDTH);
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains(reqMessage + Font::BYTE_WIDTH +"\" is missing."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains(reqMessage + Font::BYTE_WIDTH +"\" is missing."));
     }
     SECTION("Check command value validation.")
     {
         normalNode[Font::CMD_CHAR] = "invalid";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains("must be a scalar integer."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("must be a scalar integer."));
     }
     SECTION("Check fixed width validation.")
     {
         normalNode[Font::FIXED_WIDTH] = "invalid";
         normalNode.remove(Font::DEFAULT_WIDTH);
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains(std::string("Field \"") + Font::FIXED_WIDTH + "\" must be a scalar integer."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains(std::string("Field \"") + Font::FIXED_WIDTH + "\" must be a scalar integer."));
         normalNode[Font::DEFAULT_WIDTH] = "invalid";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains(std::string("Field \"") + Font::DEFAULT_WIDTH + "\" must be a scalar integer."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains(std::string("Field \"") + Font::DEFAULT_WIDTH + "\" must be a scalar integer."));
     }
     SECTION("Check fixed width validation.")
     {
         normalNode[Font::MAX_CHAR] = "invalid";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains(std::string("Field \"") + Font::MAX_CHAR + "\" must be a scalar integer."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains(std::string("Field \"") + Font::MAX_CHAR + "\" must be a scalar integer."));
     }
     SECTION("Check fixed width validation.")
     {
         normalNode[Font::MAX_WIDTH] = "invalid";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains(std::string("Field \"") + Font::MAX_WIDTH + "\" must be a scalar integer."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains(std::string("Field \"") + Font::MAX_WIDTH + "\" must be a scalar integer."));
     }
     SECTION("Check font width location validation.")
     {
         normalNode[Font::FONT_ADDR].push_back(1);
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains(std::string("Field \"") + Font::FONT_ADDR + "\" must be a string."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains(std::string("Field \"") + Font::FONT_ADDR + "\" must be a string."));
     }
     SECTION("Check Encoding validation.")
     {
         normalNode[Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL] = "test";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()), Contains("\"A\": has a \"length\" field that is not an integer."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("\"A\": has a \"length\" field that is not an integer."));
         normalNode[Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL] = 0;
         normalNode[Font::ENCODING]["A"][Font::CODE_VAL] = "test";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()), Contains("\"A\": has a \"code\" field that is not an integer."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("\"A\": has a \"code\" field that is not an integer."));
         normalNode[Font::ENCODING]["A"][Font::CODE_VAL] = 0;
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()), Contains("glyphs cannot have a code that matches the command value."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("glyphs cannot have a code that matches the command value."));
         normalNode[Font::ENCODING]["A"] = "test";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()), Contains("\"A\": has a \"code\" field that is not an integer."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("\"A\": has a \"code\" field that is not an integer."));
         normalNode[Font::ENCODING].remove("A");
         normalNode[Font::ENCODING]["A"]["test"] = "test";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()), Contains("Field \"Encoding\" has invalid entry \"A\": must define a numeric code."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("Field \"Encoding\" has invalid entry \"A\": must define a numeric code."));
         normalNode.remove(Font::ENCODING);
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains("is missing."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("is missing."));
         normalNode[Font::ENCODING] = "1";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains("must be a map."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("must be a map."));
     }
     SECTION("Check Commands validation.")
     {
         normalNode[Font::COMMANDS]["TestBad"] = "Test";
-        REQUIRE_THROWS(sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()));
+        REQUIRE_THROWS(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale));
         YAML::Node n;
         n[Font::CODE_VAL] = "Test";
         normalNode[Font::COMMANDS]["TestBad"] = n;
         REQUIRE_THROWS_WITH(
-            sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()),
+            sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
             Contains("Field \"code\" must be an integer.")
         );
         normalNode[Font::COMMANDS]["TestBad"] = std::array{1,2,3};
         REQUIRE_THROWS_WITH(
-            sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()),
+            sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
             Contains("has invalid entry \"TestBad\": must define a numeric code.")
         );
         normalNode[Font::COMMANDS].remove("TestBad");
         normalNode[Font::COMMANDS]["NewLine"]["newline"] = YAML::Load("[1, 2, 3]");
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()), Contains("must be a scalar."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("must be a scalar."));
         normalNode[Font::COMMANDS]["NewLine"] = "test";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()), Contains("must be an integer."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("must be an integer."));
         normalNode.remove(Font::COMMANDS);
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains("is missing."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("is missing."));
         normalNode[Font::COMMANDS] = "1";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains("must be a map."));
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("must be a map."));
     }
 
     SECTION("Check Pages validation.")
@@ -412,7 +412,7 @@ TEST_CASE("Test config validation")
             textNode["A"] = std::vector{"something"};
             normalNode[Font::PAGES] = std::vector{textNode};
             REQUIRE_THROWS_WITH(
-                sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()),
+                sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
                 Contains("Field \"Pages\" has invalid entry \"A\"")
             );
         }
@@ -421,7 +421,7 @@ TEST_CASE("Test config validation")
             textNode["A"] = "something";
             normalNode[Font::PAGES] = std::vector{textNode};
             REQUIRE_THROWS_WITH(
-                sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()),
+                sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
                 Contains("Field \"Pages #1\" has invalid entry \"A\"")
             );
         }
@@ -429,7 +429,7 @@ TEST_CASE("Test config validation")
         {
             normalNode[Font::PAGES] = std::vector{"A", "B"};
             REQUIRE_THROWS_WITH(
-                sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()),
+                sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
                 Contains("Field \"Pages\" must be a sequence of maps.")
             );
         }
@@ -437,7 +437,7 @@ TEST_CASE("Test config validation")
         {
             normalNode[Font::PAGES] = "A";
             REQUIRE_THROWS_WITH(
-                sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()),
+                sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
                 Contains("Field \"Pages\" must be a sequence of maps.")
             );
         }
@@ -447,7 +447,7 @@ TEST_CASE("Test config validation")
     {
         normalNode[Font::COMMANDS].remove("End");
         try {
-            sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale());
+            sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale);
             FAIL("no error thrown");
         } catch (sable::FontError &e) {
             REQUIRE(e.getField() == "End");
@@ -462,7 +462,7 @@ TEST_CASE("Test config validation")
     {
         normalNode[Font::COMMANDS].remove("NewLine");
         REQUIRE_THROWS_WITH(
-            sable::FontBuilder::make(normalNode, "test", sable_tests::getTestLocale()),
+            sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
             Contains("Field \"NewLine\" must be defined in the Commands section.")
         );
     }
@@ -472,7 +472,7 @@ TEST_CASE("Test config validation")
         {
             normalNode[Font::EXTRAS] = "1";
             REQUIRE_THROWS_WITH(
-                sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()),
+                sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale),
                 Contains("must be a map.")
             );
         }
@@ -480,7 +480,7 @@ TEST_CASE("Test config validation")
         {
             normalNode[Font::EXTRAS]["argle"] = "blargle";
             REQUIRE_THROWS_WITH(
-                sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()),
+                sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale),
                 Contains("Field \"Extras\" has invalid entry \"argle\": must define a numeric code.")
             );
         }
@@ -495,13 +495,13 @@ TEST_CASE("Test config validation")
         {
             normalNode[Font::NOUNS] = std::vector<int>{1, 2, 3};
         }
-        REQUIRE_THROWS_AS(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), sable::FontError);
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::getTestLocale()), Contains("must be a map."));
+        REQUIRE_THROWS_AS(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), sable::FontError);
+        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("must be a map."));
     }
     SECTION("Nouns map containing only scalars.")
     {
         normalNode[Font::NOUNS][Font::TEXT_LENGTH_VAL] = "stuff";
-        REQUIRE_THROWS_AS(sable::FontBuilder::make(normalNode, "bad_nouns", sable_tests::getTestLocale()), sable::FontError);
+        REQUIRE_THROWS_AS(sable::FontBuilder::make(normalNode, "bad_nouns", sable_tests::defaultLocale), sable::FontError);
     }
     SECTION("Nouns code field validation")
     {
@@ -517,9 +517,9 @@ TEST_CASE("Test config validation")
         {
             normalNode[Font::NOUNS]["Stuff"][Font::CODE_VAL] = std::vector<std::string>{"a", "b", "c"};
         }
-        REQUIRE_THROWS_AS(sable::FontBuilder::make(normalNode, "bad_nouns", sable_tests::getTestLocale()), sable::FontError);
+        REQUIRE_THROWS_AS(sable::FontBuilder::make(normalNode, "bad_nouns", sable_tests::defaultLocale), sable::FontError);
         REQUIRE_THROWS_WITH(
-            sable::FontBuilder::make(normalNode, "bad_nouns", sable_tests::getTestLocale()),
+            sable::FontBuilder::make(normalNode, "bad_nouns", sable_tests::defaultLocale),
             Contains(std::string("") + "must have a \"" + Font::CODE_VAL + "\" field that is a sequence of integers.")
         );
     }
@@ -534,9 +534,9 @@ TEST_CASE("Test config validation")
         {
             normalNode[Font::NOUNS]["SomeNoun"][Font::TEXT_LENGTH_VAL] = std::vector<int>{0, 1, 2, 3, 4};
         }
-        REQUIRE_THROWS_AS(sable::FontBuilder::make(normalNode, "bad_nouns", sable_tests::getTestLocale()), sable::FontError);
+        REQUIRE_THROWS_AS(sable::FontBuilder::make(normalNode, "bad_nouns", sable_tests::defaultLocale), sable::FontError);
         REQUIRE_THROWS_WITH(
-            sable::FontBuilder::make(normalNode, "bad_nouns", sable_tests::getTestLocale()),
+            sable::FontBuilder::make(normalNode, "bad_nouns", sable_tests::defaultLocale),
             Contains(std::string("") + "has a \"" + Font::TEXT_LENGTH_VAL + "\" field that is not an integer.")
         );
     }

@@ -1,11 +1,7 @@
 #include "helpers.h"
 #include "font/font.h"
 #include "font/builder.h"
-#include "locale/localecheck.h"
 
-namespace {
-    std::locale testLocale = sable::getLocale("en_US.UTF8");
-}
 
 YAML::Node sable_tests::createSampleNode(
         bool digraphs,
@@ -163,17 +159,12 @@ bool YAML::convert<std::map<std::string, sable::Font>>::decode(const Node &node,
         rhs[it->first.Scalar()] = sable::FontBuilder::make(
             it->second,
             it->first.Scalar(),
-            sable_tests::getTestLocale()
+            "en_US.UTF8"
         );
     }
     return true;
 }
 
-}
-
-std::locale sable_tests::getTestLocale()
-{
-    return testLocale;
 }
 
 std::map<std::string, sable::Font> sable_tests::getSampleFonts()

@@ -1,6 +1,6 @@
 #include "builder.h"
 #include "exceptions.h"
-#include "locale/localecheck.h"
+#include "normalize.h"
 
 namespace sable {
 
@@ -82,7 +82,6 @@ void generate(
 
 
 Font::Page buildPage(
-    const std::locale normLocale,
     const std::string& name,
     const YAML::Node& node,
     int commandValue,
@@ -90,7 +89,7 @@ Font::Page buildPage(
 ) {
     Font::Page page;
 
-    auto encodingConv = [&page, commandValue, &locale=normLocale] (const std::string& id, Font::TextNode&& n) {
+    auto encodingConv = [&page, commandValue] (const std::string& id, Font::TextNode&& n) {
         if (n.code == commandValue) {
             throw ConfigError("glyphs cannot have a code that matches the command value.");
         }
@@ -101,7 +100,7 @@ Font::Page buildPage(
         if (newId.back() == ']') {
             newId.pop_back();
         }
-        newId = normalize(locale, newId);
+        newId = normalize(newId);
         page.addGlyph(newId, std::move(n));
     };
     if (node.IsMap() && node[Font::ENCODING].IsDefined()) {
@@ -123,7 +122,7 @@ Font::Page buildPage(
 
         if (node[Font::NOUNS].IsDefined()) {
             try {
-                auto conv = [&page, &locale=normLocale] (const std::string& id, Font::NounNode&& n) {
+                auto conv = [&page] (const std::string& id, Font::NounNode&& n) {
                     std::string newId = id;
                     if (newId.front() == '[') {
                         newId.erase(0,1);
@@ -131,7 +130,7 @@ Font::Page buildPage(
                     if (newId.back() == ']') {
                         newId.pop_back();
                     }
-                    newId = normalize(locale, newId);
+                    newId = normalize(newId);
                     page.addNoun(newId, std::move(n));
                 };
                 generate<Font::NounNode>(name, node[Font::NOUNS], Font::NOUNS, conv);
@@ -194,7 +193,7 @@ ConvertError::ConvertError(std::string f, std::string t, YAML::Mark m):
     std::runtime_error(f + " must be " + t), field(f), type(t), mark(m) {};
 
 
-Font Builder::make(const YAML::Node &config, const std::string &name, const std::locale &normalizationLocale)
+Font Builder::make(const YAML::Node &config, const std::string &name, const std::string& localeId)
 {
 
     bool hasDigraphs = config[Font::USE_DIGRAPHS].IsDefined() ? (validate<std::string>(config[Font::USE_DIGRAPHS], name, Font::USE_DIGRAPHS, [] (const std::string& val) {
@@ -222,11 +221,10 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         }
         return val;
     });
-    auto m_NormLocale = normalizationLocale;
 
     Font f(
         name,
-        normalizationLocale,
+        localeId,
         hasDigraphs,
         commandCode,
         isFixedWidth,
@@ -239,7 +237,7 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
     if (!config[Font::ENCODING].IsDefined()) {
         throw generateError(config.Mark(), name, Font::ENCODING, "is missing.");
     }
-    f.addPage(buildPage(normalizationLocale, name, config, commandCode, byteWidth));
+    f.addPage(buildPage(name, config, commandCode, byteWidth));
 
     if (config[Font::PAGES].IsDefined()) {
         if (!config[Font::PAGES].IsSequence()) {
@@ -248,7 +246,7 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         int pageIdx = 1;
         for (YAML::Node page: config[Font::PAGES]) {
             try {
-                f.addPage(buildPage(normalizationLocale, name, page, commandCode, byteWidth));
+                f.addPage(buildPage(name, page, commandCode, byteWidth));
             } catch (sable::SubfieldError<Font::TextNode>& e) {
                 throw generateError(
                     page.Mark(),

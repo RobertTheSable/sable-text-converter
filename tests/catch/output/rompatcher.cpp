@@ -247,7 +247,7 @@ TEST_CASE("Font output", "[rompatcher]")
         subject1["test"] = sable::FontBuilder::make(
             fl["normal"],
             "test",
-            sable_tests::getTestLocale()
+            sable_tests::defaultLocale
         );
         r.writeFontData(subject1, sink);
         REQUIRE(sink.str() == "");
@@ -258,7 +258,7 @@ TEST_CASE("Font output", "[rompatcher]")
         subject1["test"] = sable::FontBuilder::make(
             fl["normal"],
             "test",
-            sable_tests::getTestLocale()
+            sable_tests::defaultLocale
         );
         r.writeFontData(subject1, sink);
         REQUIRE(sink.str() != "");
@@ -281,7 +281,7 @@ TEST_CASE("Font output", "[rompatcher]")
         subject1["test"] = sable::FontBuilder::make(
             fl["normal"],
             "test",
-            sable_tests::getTestLocale()
+            sable_tests::defaultLocale
         );
         r.writeFontData(subject1, sink);
         REQUIRE(sink.str() != "");
@@ -305,7 +305,7 @@ TEST_CASE("Font output", "[rompatcher]")
         subject1["test"] = sable::FontBuilder::make(
             fl["normal"],
             "test",
-            sable_tests::getTestLocale()
+            sable_tests::defaultLocale
         );
         r.writeFontData(subject1, sink);
         REQUIRE(sink.str() != "");
