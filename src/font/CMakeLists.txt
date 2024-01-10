@@ -1,7 +1,4 @@
-set(SABLE_FONT_SOURCE_FILES "")
-
-list(
-    APPEND SABLE_FONT_SOURCE_FILES
+file(GLOB SABLE_FONT_SOURCE_FILES
 
     "${CMAKE_CURRENT_SOURCE_DIR}/characteriterator.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/characteriterator.h"

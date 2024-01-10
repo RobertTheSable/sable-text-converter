@@ -1,7 +1,4 @@
-set(SABLE_TEST_FILES "")
-
-list(
-    APPEND SABLE_TEST_FILES
+file(GLOB SABLE_TEST_FILES
     
     catch/main.cpp
     helpers/files.h
