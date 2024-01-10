@@ -4,7 +4,7 @@ from conan.tools.cmake import CMakeToolchain, CMakeDeps, CMake, cmake_layout
 
 class SableTextConverterConan(ConanFile):
     name = "sable-text-converter"
-    version = "0.1.0"
+    version = "1.5.0"
     license = "MIT License"
     author = "Robert The Sable <robertthesable@gmail.com>"
     url = "https://github.com/RobertTheSable/sable-text-converter"
