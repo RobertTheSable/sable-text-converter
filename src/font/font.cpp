@@ -5,7 +5,7 @@
 #include <sstream>
 
 #include "exceptions.h"
-#include "localecheck.h"
+#include "locale/localecheck.h"
 
 //TODO: Throw an error here if an encoding has a code or width of 0
 

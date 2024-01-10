@@ -10,8 +10,6 @@ file(GLOB SABLE_SOURCE_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/project/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/project/*.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/exceptions.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/localecheck.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/localecheck.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/util.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/util.h"
     settings.h
@@ -21,6 +19,7 @@ file(GLOB SABLE_SOURCE_FILES
     errorhandling.h
 )
 
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/locale")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/parse")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/font")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/data")
@@ -28,7 +27,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/output")
 
 add_library(sable_lib STATIC ${SABLE_SOURCE_FILES})
 
-target_link_libraries(sable_lib sable_font sable_data sable_parsing sable_output ${SABLE_LIBRARIES} ${ICU_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
+target_link_libraries(sable_lib sable_font sable_data sable_parsing sable_output sable_locale ${SABLE_LIBRARIES} ${ICU_LIBRARIES} ${SABLE_FS_LIBRARIES} ${SABLE_PLATFORM_LIBRARIES})
 
 target_include_directories(sable_lib PUBLIC ${Boost_INCLUDE_DIRS} ${ICU_INCLUDE_DIRS} ${YAML_INCLUDE_DIR} ${SABLE_INC_DIR})
 

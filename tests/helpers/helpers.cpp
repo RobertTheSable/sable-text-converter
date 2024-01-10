@@ -1,10 +1,10 @@
 #include "helpers.h"
 #include "font/font.h"
 #include "font/builder.h"
-#include "localecheck.h"
+#include "locale/localecheck.h"
 
 namespace {
-    std::locale testLocale = getLocale("en_US.UTF8");
+    std::locale testLocale = sable::getLocale("en_US.UTF8");
 }
 
 YAML::Node sable_tests::createSampleNode(

@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <iostream>
 
+namespace sable {
+
 // Boost doesn't have a good way to validate user-provided locales easily
 // Neither does ICU, but it has a less bad way.
 bool isLocaleValid(const char *localeName)
@@ -23,6 +25,7 @@ std::string normalize(const std::locale& locale, const std::string &in)
         locale
     );
 }
+
 namespace {
     std::optional<std::locale> lc = std::nullopt;
 }
@@ -36,4 +39,6 @@ std::locale getLocale(const std::string &locale)
         lc = boost::locale::generator().generate(locale.c_str());
     }
     return lc.value_or(boost::locale::generator().generate(locale.c_str()));
+}
+
 }

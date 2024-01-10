@@ -2,10 +2,13 @@
 #define LOCALECHECK_H
 
 #include <string>
-#include <locale>
+
+namespace sable {
 
 bool isLocaleValid(const char* localeName);
-std::locale getLocale(const std::string &locale);
 std::string normalize(const std::locale& locale, const std::string& in);
+std::locale getLocale(const std::string &locale);
+
+}
 
 #endif // LOCALECHECK_H

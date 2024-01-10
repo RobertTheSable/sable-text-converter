@@ -1,6 +1,6 @@
 #include "builder.h"
 #include "exceptions.h"
-#include "localecheck.h"
+#include "locale/localecheck.h"
 
 namespace sable {
 

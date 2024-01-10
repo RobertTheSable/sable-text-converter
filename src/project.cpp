@@ -10,10 +10,9 @@
 #include "project/group.h"
 #include "project/groupparser.h"
 
-#include <boost/locale.hpp>
 #include "output/rompatcher.h"
 #include "exceptions.h"
-#include "localecheck.h"
+#include "locale/localecheck.h"
 #include "errorhandling.h"
 #include "data/addresslist.h"
 #include "data/optionhelpers.h"
@@ -33,7 +32,7 @@ Project Project::from(const std::string &projectDir)
     auto configPath = (fs::path(projectDir) / "config.yml").string();
 
     auto self = ProjectSerializer::read(YAML::LoadFile(configPath), projectDir);
-    auto locale = getLocale(self.m_LocaleString);
+    auto locale = sable::getLocale(self.m_LocaleString);
     for (auto &path: self.m_MappingPaths) {
         auto inFile = YAML::LoadFile(path);
         for (auto fontIt = inFile.begin(); fontIt != inFile.end(); ++fontIt) {

@@ -18,12 +18,10 @@ find_package(ICU 66.1 REQUIRED COMPONENTS in uc dt)
 
 # icu is sometimes in unicode or unicode2 subfolder, but cmake doesn't say which
 
-
 list(
     APPEND SABLE_LIBRARIES
 
     ${YAML}
-    Boost::locale
 )
 
 function(find_cxxopts_includes Target)

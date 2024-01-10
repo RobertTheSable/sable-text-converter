@@ -5,7 +5,7 @@
 
 #include "exceptions.h"
 #include "wrapper/filesystem.h"
-#include "localecheck.h"
+#include "locale/localecheck.h"
 #include "mapperconv.h"
 
 bool sable::ProjectSerializer::validateConfig(const YAML::Node &configYML)

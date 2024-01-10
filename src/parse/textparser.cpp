@@ -9,7 +9,6 @@
 #include <map>
 #include <array>
 #include <unicode/uchar.h>
-#include <boost/locale.hpp>
 #include "data/optionhelpers.h"
 
 using sable::TextParser, sable::Font;
