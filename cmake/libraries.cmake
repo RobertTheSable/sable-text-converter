@@ -13,6 +13,9 @@ endif()
 
 find_package(ICU 66.1 REQUIRED COMPONENTS in uc dt)
 
+# conan generates more libraries than I need
+set(SABLE_ICU_DEPS ICU::in ICU::uc ICU::dt)
+
 # icu is sometimes in unicode or unicode2 subfolder, but cmake doesn't say which
 
 list(

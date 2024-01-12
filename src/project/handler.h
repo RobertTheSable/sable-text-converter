@@ -7,7 +7,7 @@
 
 #include "exceptions.h"
 
-#include "errorhandling.h"
+#include "parse/errorhandling.h"
 #include "wrapper/filesystem.h"
 
 namespace sable {

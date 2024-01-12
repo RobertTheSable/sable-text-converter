@@ -8,6 +8,10 @@ file(GLOB SABLE_DATA_SOURCE_FILES
     address.h
     options.h
     optionhelpers.h
+    missing_data.cpp
+    missing_data.h
+    mapper.cpp
+    mapper.h
 #    "${CMAKE_CURRENT_SOURCE_DIR}/textblock.h"
 )
 

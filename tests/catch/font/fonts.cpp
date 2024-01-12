@@ -366,7 +366,10 @@ TEST_CASE("Test config validation")
         normalNode[Font::ENCODING]["A"][Font::CODE_VAL] = "test";
         REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("\"A\": has a \"code\" field that is not an integer."));
         normalNode[Font::ENCODING]["A"][Font::CODE_VAL] = 0;
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("glyphs cannot have a code that matches the command value."));
+        REQUIRE_THROWS_WITH(
+            sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
+            Contains("Field \"Encoding\" has invalid entry \"A\": has a \"code\" field that matches the command value, which is not allowed.")
+        );
         normalNode[Font::ENCODING]["A"] = "test";
         REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("\"A\": has a \"code\" field that is not an integer."));
         normalNode[Font::ENCODING].remove("A");

@@ -6,9 +6,10 @@
 #include <string>
 #include <tuple>
 #include <memory>
+
 #include "font/font.h"
-#include "util.h"
 #include "data/options.h"
+#include "data/mapper.h"
 
 namespace sable {
     typedef std::back_insert_iterator<std::vector<unsigned char>> back_inserter;

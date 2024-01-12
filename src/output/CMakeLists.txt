@@ -12,4 +12,5 @@ file(GLOB SABLE_OUTPUT_SOURCE_FILES
 add_library(sable_output STATIC ${SABLE_OUTPUT_SOURCE_FILES})
 set_target_properties(sable_output PROPERTIES LINKER_LANGUAGE CXX)
 
+target_link_libraries(sable_output PUBLIC sable_data)
 target_include_directories(sable_output PUBLIC ${SABLE_INCLUDE_DIR} ${SABLE_INC_DIR})

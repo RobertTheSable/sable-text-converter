@@ -1,10 +1,7 @@
 #include "font.h"
 #include <exception>
 #include <algorithm>
-#include <iostream>
-#include <sstream>
 
-#include "exceptions.h"
 #include "normalize.h"
 
 //TODO: Throw an error here if an encoding has a code or width of 0
@@ -13,7 +10,7 @@ namespace sable {
 
 Font::Font(
     const std::string& name,
-        const std::string& localeId,
+    const std::string& localeId,
     bool hasDigraphs,
     int commandCode,
     bool isFixedWidth,

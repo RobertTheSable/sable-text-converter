@@ -1,5 +1,6 @@
 #include <catch2/catch.hpp>
-#include "util.h"
+#include "data/mapper.h"
+
 
 TEST_CASE("Rom mapper class - ToRom")
 {
@@ -271,26 +272,9 @@ TEST_CASE("String to hex conversion")
     REQUIRE_THROWS(strToHex("$1000000"));
 }
 
-TEST_CASE("File size calculation.")
+TEST_CASE("Mapper file size")
 {
-    using sable::util::calculateFileSize, sable::util::getFileSizeString;
-    SECTION("Calculated from config.")
-    {
-        REQUIRE(calculateFileSize("2048") == 2048);
-        REQUIRE(calculateFileSize("2KB") == 2048);
-        REQUIRE(calculateFileSize("2 kb ") == 2048);
-        REQUIRE(calculateFileSize("2M") == 2097152);
-        REQUIRE(calculateFileSize("2MB") == calculateFileSize("2mb"));
-        REQUIRE(calculateFileSize("2MB") == calculateFileSize("2M"));
-        REQUIRE(calculateFileSize("2KB") == calculateFileSize("2K"));
-        REQUIRE(calculateFileSize("3.5MB") == 3670016);
-        REQUIRE(calculateFileSize("2GB") == 0);
-        REQUIRE(calculateFileSize("10mb") == 0);
-        REQUIRE(calculateFileSize("2.5") == 0);
-        REQUIRE(calculateFileSize("") == 0);
-        REQUIRE(calculateFileSize("test") == 0);
-        REQUIRE(calculateFileSize("2M test") == 0);
-    }
+
     SECTION("Calculated from max address - LoROM")
     {
         sable::util::Mapper m(sable::util::MapperType::LOROM, false, true, sable::util::NORMAL_ROM_MAX_SIZE);
@@ -308,14 +292,5 @@ TEST_CASE("File size calculation.")
         sable::util::Mapper m(sable::util::MapperType::EXLOROM, false, true, sable::util::MAX_ALLOWED_FILESIZE_SHORTCUT);
         REQUIRE(m.calculateFileSize(m.ToRom(0x400000)) == 0x600000);
         REQUIRE(m.calculateFileSize(m.ToRom(0x600000)) == 0x7F0000);
-    }
-
-    SECTION("File size string generation")
-    {
-        REQUIRE(getFileSizeString(128 * 1024) == "128kb");
-        REQUIRE(getFileSizeString(2 * 1024 * 1024) == "2mb");
-        REQUIRE(getFileSizeString(((2*1024) + 512) * 1024) == "2.5mb");
-        REQUIRE(getFileSizeString(sable::util::ROM_MAX_SIZE) == "8mb");
-        REQUIRE(getFileSizeString(0) == "");
     }
 }

@@ -7,9 +7,11 @@
 #include <functional>
 #include <optional>
 #include <cctype>
+#include <iterator>
 
 #include "characteriterator.h"
 #include "error.h"
+#include "codenotfound.h"
 
 namespace sable {
     class Font

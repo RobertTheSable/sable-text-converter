@@ -1,13 +1,13 @@
-#ifndef UTIL_H
-#define UTIL_H
+#ifndef SABLE_UTIL_MAPPER_H
+#define SABLE_UTIL_MAPPER_H
 
+#include <cstdint>
+#include <tuple>
 #include <string>
-#include <vector>
 
 namespace sable {
 namespace util {
 
-// TODO: hirom support
 enum MapperType {
     INVALID,
     LOROM,
@@ -19,13 +19,10 @@ enum MapperType {
 static constexpr const int HEADER_LOCATION = 0x00FFC0;
 static constexpr const int NORMAL_ROM_MAX_SIZE = 0x400000;
 static constexpr const int ROM_MAX_SIZE = 0x007F0000;
+static constexpr std::size_t MAX_ALLOWED_FILESIZE_SHORTCUT = 8388608;
 
-static constexpr size_t MAX_ALLOWED_FILESIZE_SHORTCUT = 8388608;
-
-typedef std::vector<unsigned char> ByteVector;
 std::pair<unsigned int, int> strToHex(const std::string& val);
-size_t calculateFileSize(const std::string& value);
-std::string getFileSizeString(int value);
+
 MapperType getExpandedType(MapperType m);
 class Mapper {
     int shift;
@@ -45,7 +42,8 @@ public:
     int getSize() const;
     int skipToNextBank(int address) const;
 };
-}
 
-}
-#endif // UTIL_H
+} // namespace util
+} // namespace sable
+
+#endif // SABLE_UTIL_MAPPER_H

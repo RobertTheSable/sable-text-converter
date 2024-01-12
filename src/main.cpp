@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cxxopts.hpp>
-#include "project.h"
-#include "exceptions.h"
+#include "project/project.h"
+#include "project/exceptions.h"
 #include "wrapper/filesystem.h"
 
 int main(int argc, char * argv[])

@@ -7,6 +7,7 @@
 #include "wrapper/filesystem.h"
 #include "localecheck.h"
 #include "mapperconv.h"
+#include "util.h"
 
 bool sable::ProjectSerializer::validateConfig(const YAML::Node &configYML)
 {

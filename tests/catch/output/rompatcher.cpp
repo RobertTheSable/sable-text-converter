@@ -7,7 +7,7 @@
 #include "helpers.h"
 #include "font/builder.h"
 #include "data/options.h"
-#include "project.h"
+#include "project/project.h"
 
 using sable::RomPatcher;
 

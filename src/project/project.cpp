@@ -12,9 +12,9 @@
 
 #include "output/rompatcher.h"
 #include "exceptions.h"
-#include "errorhandling.h"
 #include "data/addresslist.h"
 #include "data/optionhelpers.h"
+#include "data/missing_data.h"
 #include "font/builder.h"
 
 #include "wrapper/filesystem.h"
@@ -106,7 +106,16 @@ bool Project::parseText()
             throw ASMError("Could not open files in " + (mainDir / m_OutputDir).string() + " for writing.\n");
         }
         RomPatcher r(m_BaseType);
-        r.writeParsedData(addresses, fs::path(m_BinsDir) / m_TextOutDir, mainText, textDefines);
+        try {
+            r.writeParsedData(addresses, fs::path(m_BinsDir) / m_TextOutDir, mainText, textDefines);
+        }  catch (sable::MissingData &e) {
+            if (e.type == sable::MissingData::Type::Table) {
+                // should not occur
+                throw std::logic_error(e.what());
+            }
+            throw sable::ParseError(e.what());
+        }
+
         textDefines.flush();
         textDefines.close();
         mainText.flush();

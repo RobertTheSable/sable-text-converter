@@ -1,6 +1,5 @@
 #ifndef ROMPATCHER_H
 #define ROMPATCHER_H
-#include "util.h"
 #include <vector>
 #include <string>
 #include <iostream>
@@ -10,8 +9,9 @@
 
 #include "wrapper/filesystem.h"
 #include "data/addresslist.h"
-#include "font/font.h"
 #include "data/table.h"
+#include "data/mapper.h"
+#include "font/font.h"
 
 namespace sable {
 

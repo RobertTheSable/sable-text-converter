@@ -1,14 +1,12 @@
 #include "parse.h"
-#include "util.h"
-#include "exceptions.h"
-#include "unicode.h"
 #include <sstream>
 #include <iostream>
-#include <algorithm>
-#include <locale>
 #include <map>
 #include <array>
+
 #include <unicode/uchar.h>
+
+#include "unicode.h"
 #include "data/optionhelpers.h"
 
 using sable::TextParser, sable::Font;
