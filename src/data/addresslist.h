@@ -2,11 +2,9 @@
 #define DATASTORE_H
 #include <string>
 #include <vector>
-#include <iostream>
-#include <stack>
-#include <queue>
 #include <optional>
-#include "parse/parse.h"
+#include <unordered_map>
+
 #include "table.h"
 #include "textblockrange.h"
 #include "address.h"
@@ -48,7 +46,6 @@ public:
     }
 
 private:
-    using ByteInserter = std::back_insert_iterator<std::vector<unsigned char>>;
     std::vector<AddressNode> m_Addresses;
     std::unordered_map<std::string, TextNode> m_TextNodeList;
     std::unordered_map<std::string, Table> m_TableList;

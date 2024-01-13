@@ -1,7 +1,9 @@
 #include "addresslist.h"
-#include "exceptions.h"
-#include "parse/parse.h"
-#include "util.h"
+#include "mapper.h"
+#include "missing_data.h"
+
+#include <algorithm>
+#include <stdexcept>
 
 namespace sable {
 
@@ -30,12 +32,12 @@ void AddressList::addFile(const std::string &label, const std::string &file, std
     addFile(label, {file, dataLength, printPC, exportWidth, exportAddress});
 }
 
-const TextNode &AddressList::getFile(const std::string &label) const
+const TextNode& AddressList::getFile(const std::string &label) const
 {
-    if (m_TextNodeList.find(label) == m_TextNodeList.cend()) {
-        throw ParseError("Label \"" + label + "\" not found.");
+    if (m_TextNodeList.count(label) == 0) {
+        throw sable::MissingData(MissingData::Type::File, label);
     }
-    return m_TextNodeList.find(label)->second;
+    return m_TextNodeList.at(label);
 }
 
 void AddressList::addTable(const std::string& name, Table &&tbl)
@@ -46,6 +48,9 @@ void AddressList::addTable(const std::string& name, Table &&tbl)
 
 const Table &AddressList::getTable(const std::string &label) const
 {
+    if (m_TableList.count(label) == 0) {
+        throw sable::MissingData(MissingData::Type::Table, label);
+    }
     return m_TableList.at(label);
 }
 

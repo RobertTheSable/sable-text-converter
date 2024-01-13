@@ -1,11 +1,8 @@
 #include "font.h"
 #include <exception>
 #include <algorithm>
-#include <iostream>
-#include <sstream>
 
-#include "exceptions.h"
-#include "localecheck.h"
+#include "normalize.h"
 
 //TODO: Throw an error here if an encoding has a code or width of 0
 
@@ -13,7 +10,7 @@ namespace sable {
 
 Font::Font(
     const std::string& name,
-    const std::locale& normalizationLocale,
+    const std::string& localeId,
     bool hasDigraphs,
     int commandCode,
     bool isFixedWidth,
@@ -23,7 +20,7 @@ Font::Font(
     int glyphByteLength
 ) {
     m_Name = name;
-    m_NormLocale = normalizationLocale;
+    m_LocaleId = localeId;
     m_HasDigraphs = hasDigraphs;
     m_CommandValue = commandCode;
     m_DefaultWidth = defaultWidth;
@@ -35,7 +32,7 @@ Font::Font(
 
     const Font::CommandNode &Font::getCommandData(const std::string &id) const
     {
-        if (auto cIt = m_CommandConvertMap.find(normalize(m_NormLocale, id));
+        if (auto cIt = m_CommandConvertMap.find(normalize(id));
             cIt == m_CommandConvertMap.end()
         ) {
             throw CodeNotFound("Command not found.");
@@ -46,17 +43,17 @@ Font::Font(
 
     void Font::addCommandData(const std::string &id, CommandNode &&data)
     {
-        auto nId = normalize(m_NormLocale, id);
+        auto nId = normalize(id);
         if (nId == "End") {
             endValue = data.code;
         }
-        m_CommandConvertMap[normalize(m_NormLocale, id)] = data;
+        m_CommandConvertMap[nId] = data;
     }
 
 
     void Font::addExtra(const std::string &id, int value)
     {
-        m_Extras[normalize(m_NormLocale, id)] = value;
+        m_Extras[normalize(id)] = value;
     }
 
     bool Font::isCommandNewline(const std::string &id) const
@@ -75,7 +72,7 @@ Font::Font(
             throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
         }
 
-        auto realId = normalize(m_NormLocale, id);
+        auto realId = normalize(id);
 
         const auto &m_TextConvertMap = m_Pages[page].glyphs;
         if (auto it = m_TextConvertMap.find(realId); it == m_TextConvertMap.end()) {
@@ -114,7 +111,7 @@ Font::Font(
         if (!(page < m_Pages.size())) {
             throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
         }
-        auto nounItr = m_Pages[page].nouns.find(normalize(m_NormLocale, id));
+        auto nounItr = m_Pages[page].nouns.find(normalize(id));
         if (nounItr == m_Pages[page].nouns.end()) {
             throw CodeNotFound(id + " not found in " + NOUNS + " of font " + m_Name);
         }
@@ -132,7 +129,7 @@ Font::Font(
 
     int Font::getExtraValue(const std::string &id) const
     {
-        if (auto eIt = m_Extras.find(normalize(m_NormLocale, id)); eIt == m_Extras.end()) {
+        if (auto eIt = m_Extras.find(normalize(id)); eIt == m_Extras.end()) {
             throw CodeNotFound(id + " not found in font " + m_Name);
         } else {
             return eIt->second;

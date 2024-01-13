@@ -1,18 +1,25 @@
 from conan import ConanFile
 from conan.tools.cmake import CMakeToolchain, CMakeDeps, CMake, cmake_layout
 
-
 class SableTextConverterConan(ConanFile):
     name = "sable-text-converter"
-    version = "0.1.0"
+    version = "1.5.0"
     license = "MIT License"
     author = "Robert The Sable <robertthesable@gmail.com>"
     url = "https://github.com/RobertTheSable/sable-text-converter"
     description = "Confiugrable text converter for SNES games."
     settings = "os", "compiler", "build_type", "arch"
     requires = "yaml-cpp/0.6.3", "cxxopts/2.2.0"
-    options = {"build_tests": [True, False], "build_asar": [True, False], "use_system_icu": [True, False], "use_system_boost": [True, False]}
-    default_options = {"build_tests": False, "build_asar": True, "use_system_icu": False, "use_system_boost": False}
+    options = {
+        "build_tests": [True, False], 
+        "build_asar": [True, False], 
+        "use_system_icu": [True, False]
+    }
+    default_options = {
+        "build_tests": False, 
+        "build_asar": True, 
+        "use_system_icu": False
+    }
     
     def layout(self):    
         cmake_layout(self)
@@ -20,10 +27,8 @@ class SableTextConverterConan(ConanFile):
     def requirements(self):
         if self.options.build_tests:
             self.requires("catch2/2.13.9")
-        if not self.options.use_system_boost:
-            self.requires("boost/1.71.0")
         if not self.options.use_system_icu:
-            self.requires("icu/70.1")
+            self.requires("icu/73.2")
 
     def generate(self):
         cmake = CMakeDeps(self)
@@ -35,9 +40,12 @@ class SableTextConverterConan(ConanFile):
         else:
             tc.variables["SABLE_BUILD_TESTS"] = "OFF"
             tc.variables["SABLE_BUILD_MAIN"] = "ON"
-        
-        tc.variables["QT_CREATOR_SKIP_PACKAGE_MANAGER_SETUP"] = "Off"
+        if not self.options.use_system_icu:
+            icu = self.dependencies["icu"]
+            if icu.options.get_safe("data_packaging") in ["files", "archive"]:
+                tc.variables["ICU_DATA_FILE"] = self.dependencies["icu"].runenv_info.vars(self).get("ICU_DATA")
         tc.generate()
+        
 
     def build(self):
         cmake = CMake(self)

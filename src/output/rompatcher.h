@@ -1,6 +1,5 @@
 #ifndef ROMPATCHER_H
 #define ROMPATCHER_H
-#include "util.h"
 #include <vector>
 #include <string>
 #include <iostream>
@@ -10,23 +9,33 @@
 
 #include "wrapper/filesystem.h"
 #include "data/addresslist.h"
-#include "font/font.h"
 #include "data/table.h"
+#include "data/mapper.h"
+#include "font/font.h"
 
 namespace sable {
 
 typedef std::vector<std::string>::const_iterator ConstStringIterator;
 
-class RomPatcher
+struct RomPatcher
 {
+    enum class AsarState {NotRun, Success, Error, InitFailed};
+private:
+    std::vector<unsigned char> m_data;
+    int m_RomSize;
+    int m_HeaderSize;
+    sable::util::MapperType m_MapType;
+    AsarState m_AState;
 public:
+    static bool succeeded(AsarState state);
+    static bool wasRun(AsarState state);
     RomPatcher(const util::MapperType& mapper = util::MapperType::LOROM);
     ~RomPatcher();
     bool loadRom(const std::string& file, const std::string& name, int header = 0);
     void clear();
     //~RomPatcher();
     bool expand(int size, const util::Mapper& mapper);
-    bool applyPatchFile(const std::string& path, const std::string& format = "asm");
+    AsarState applyPatchFile(const std::string& path, const std::string& format = "asm");
     unsigned char& at(int n);
     bool getMessages(std::back_insert_iterator<std::vector<std::string>> v);
     int getRealSize() const;
@@ -86,13 +95,6 @@ public:
 //    unsigned char &atROMAddr(int n);
 //    std::string getName() const;
 
-private:
-    std::vector<unsigned char> m_data;
-    int m_RomSize;
-    int m_HeaderSize;
-    sable::util::MapperType m_MapType;
-    enum AsarState {NotRun, Success, Error};
-    AsarState m_AState;
 };
 }
 

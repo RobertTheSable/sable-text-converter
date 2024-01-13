@@ -1,7 +1,7 @@
 #ifndef SABLE_FONT_BUILDER_H
 #define SABLE_FONT_BUILDER_H
 
-#include <locale>
+#include <string>
 #include <iostream>
 
 #include <yaml-cpp/yaml.h>
@@ -12,7 +12,7 @@ namespace sable {
 
 struct FontBuilder
 {
-    static Font make(const YAML::Node &config, const std::string& name, const std::locale& normalizationLocale);
+    static Font make(const YAML::Node &config, const std::string& name, const std::string& localeId);
 }; // namespace Font
 
 struct ConvertError: public std::runtime_error {

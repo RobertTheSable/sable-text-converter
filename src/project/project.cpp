@@ -10,13 +10,11 @@
 #include "project/group.h"
 #include "project/groupparser.h"
 
-#include <boost/locale.hpp>
 #include "output/rompatcher.h"
 #include "exceptions.h"
-#include "localecheck.h"
-#include "errorhandling.h"
 #include "data/addresslist.h"
 #include "data/optionhelpers.h"
+#include "data/missing_data.h"
 #include "font/builder.h"
 
 #include "wrapper/filesystem.h"
@@ -33,7 +31,7 @@ Project Project::from(const std::string &projectDir)
     auto configPath = (fs::path(projectDir) / "config.yml").string();
 
     auto self = ProjectSerializer::read(YAML::LoadFile(configPath), projectDir);
-    auto locale = getLocale(self.m_LocaleString);
+
     for (auto &path: self.m_MappingPaths) {
         auto inFile = YAML::LoadFile(path);
         for (auto fontIt = inFile.begin(); fontIt != inFile.end(); ++fontIt) {
@@ -41,7 +39,7 @@ Project Project::from(const std::string &projectDir)
                 FontBuilder::make(
                     fontIt->second,
                     fontIt->first.Scalar(),
-                    locale
+                    self.m_LocaleString
                 );
         }
     }
@@ -108,7 +106,16 @@ bool Project::parseText()
             throw ASMError("Could not open files in " + (mainDir / m_OutputDir).string() + " for writing.\n");
         }
         RomPatcher r(m_BaseType);
-        r.writeParsedData(addresses, fs::path(m_BinsDir) / m_TextOutDir, mainText, textDefines);
+        try {
+            r.writeParsedData(addresses, fs::path(m_BinsDir) / m_TextOutDir, mainText, textDefines);
+        }  catch (sable::MissingData &e) {
+            if (e.type == sable::MissingData::Type::Table) {
+                // should not occur
+                throw std::logic_error(e.what());
+            }
+            throw sable::ParseError(e.what());
+        }
+
         textDefines.flush();
         textDefines.close();
         mainText.flush();
@@ -166,13 +173,23 @@ void Project::writePatchData()
                 changeSettings = false;
             }
             r.expand(m_OutputSize, m_Mapper);
-            auto result = r.applyPatchFile(patchFile);
-            if (result) {
+            auto result = [&r, &patchFile] () {
+                try {
+                    return r.applyPatchFile(patchFile);
+                } catch (std::runtime_error &e) {
+                    throw ASMError(e.what());
+                }
+            }();
+
+
+            if (RomPatcher::succeeded(result)) {
                 std::cout << "Assembly for " << romData.name << " completed successfully." << std::endl;
+            } else if (!RomPatcher::wasRun(result)) {
+                throw ASMError("Asar was not initalized.");
             }
             std::vector<std::string> messages;
             r.getMessages(std::back_inserter(messages));
-            if (result) {
+            if (RomPatcher::succeeded(result)) {
                 for (auto& msg: messages) {
                     std::cout << msg << std::endl;
                 }

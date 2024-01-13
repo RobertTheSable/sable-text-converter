@@ -17,9 +17,5 @@ namespace sable {
     public:
         ConfigError(std::string message);
     };
-
-    class CodeNotFound : public std::runtime_error {
-        using std::runtime_error::runtime_error;
-    };
 }
 #endif // EXCEPTIONS_H

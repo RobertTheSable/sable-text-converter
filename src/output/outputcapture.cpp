@@ -7,6 +7,8 @@
 #include <cstring>
 #include <unistd.h>
 #include <fcntl.h>
+#else
+#include <windows.h>
 #endif
 
 #ifndef _WIN32
@@ -27,13 +29,23 @@ OutputCapture::OutputCapture(std::ostream &sink, int flags)
     close(out_pipe[1]);
 }
 #else
-OutputCapture::OutputCapture(std::ostream& sink) {}
+OutputCapture::OutputCapture(std::ostream& sink): out{sink} {}
 
 #endif
 
-#ifndef _WIN32
 OutputCapture::~OutputCapture()
 {
+    flush();
+}
+
+void OutputCapture::write()
+{
+    needWrite = true;
+}
+
+void OutputCapture::flush()
+{
+#ifndef _WIN32
     fflush(stdout);
     dup2(saved_stdout, STDOUT_FILENO);
 
@@ -45,13 +57,30 @@ OutputCapture::~OutputCapture()
     if (needWrite) {
         out << std::flush;
     }
-}
 #else
-OutputCapture::~OutputCapture()=default;
-#endif
+    DWORD errCode = GetLastError();
+    if (errCode == 0) {
+        return;
+    }
+    LPSTR errMsg = nullptr;
+    FormatMessageA(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr,
+        errCode,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPSTR)&errMsg,
+        0,
+        nullptr
+    );
 
-void OutputCapture::write()
-{
-    needWrite = true;
+    if (needWrite) {
+        out << std::string(errMsg);
+        if (errCode == ERROR_MOD_NOT_FOUND) {
+            out << "Make sure that asar.dll is in the same folder as sable.\n";
+        }
+        out << std::flush;
+    }
+    LocalFree(errMsg);
+#endif
 }
 

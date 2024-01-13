@@ -1,20 +1,23 @@
 #include "parse.h"
-#include "util.h"
-#include "exceptions.h"
-#include "unicode.h"
 #include <sstream>
 #include <iostream>
-#include <algorithm>
-#include <locale>
 #include <map>
 #include <array>
+
 #include <unicode/uchar.h>
-#include <boost/locale.hpp>
+#ifdef ICU_DATA_NEEDED
+#include <unicode/putil.h>
+#endif
+
+#include "unicode.h"
 #include "data/optionhelpers.h"
 
 using sable::TextParser, sable::Font;
 
 struct TextParser::Impl {
+#ifdef ICU_DATA_NEEDED
+    inline static bool icuDataDirSet = false;
+#endif
     std::string defaultFont;
     std::map<std::string, sable::Font> fontList;
     icu::Locale m_Locale;
@@ -154,6 +157,12 @@ TextParser::TextParser(
         options::ExportAddress defaultExportAddress
         ) : defaultExportWidth_{defaultExportWidth}, defaultExportAddress_{defaultExportAddress}
 {
+#ifdef ICU_DATA_NEEDED
+    if (!TextParser::Impl::icuDataDirSet) {
+        TextParser::Impl::icuDataDirSet = true;
+        u_setDataDirectory(".");
+    }
+#endif
     _pImpl = std::make_unique<Impl>(
         defaultMode,
         std::move(list),

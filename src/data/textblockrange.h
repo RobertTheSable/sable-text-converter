@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <set>
 #include <string>
-#include <vector>
 
 namespace sable {
 

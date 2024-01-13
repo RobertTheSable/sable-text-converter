@@ -3,7 +3,7 @@
 
 #include <string>
 #include <vector>
-#include "util.h"
+#include "mapper.h"
 
 namespace sable {
 class Table {

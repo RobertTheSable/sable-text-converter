@@ -11,19 +11,17 @@ if(SABLE_BUILD_TESTS)
     find_package(Catch2 REQUIRED)
 endif()
 
-if (NOT Boost_FOUND)
-    find_package(Boost 1.71.0 REQUIRED COMPONENTS locale)
-endif()
 find_package(ICU 66.1 REQUIRED COMPONENTS in uc dt)
 
-# icu is sometimes in unicode or unicode2 subfolder, but cmake doesn't say which
+# conan generates more libraries than I need
+set(SABLE_ICU_DEPS ICU::in ICU::uc ICU::dt)
 
+# icu is sometimes in unicode or unicode2 subfolder, but cmake doesn't say which
 
 list(
     APPEND SABLE_LIBRARIES
 
     ${YAML}
-    Boost::locale
 )
 
 function(find_cxxopts_includes Target)

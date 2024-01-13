@@ -60,23 +60,6 @@ You will need to create symlinks like during the build for each of these files i
 
 Do not symlink libsicudt.a - this is a stub library and will cause errors if you try to link it.
 
-You need to create a link from $PREFIX/lib/libicudt.a > $PREFIX/bin/sicudt.a instead. Or it might be $PREFIX/bin/libsicudt.a. After this you will be ready to compile Boost::locale.
-
-## Boost locale
-
-Boost thankfully is less finicky.
-
-- Grab the Boost source from https://boostorg.jfrog.io/ui/native/main/release/ and unpack it somewhere.
-- Run boostrap.sh.
-- Creare a user-config.jam file with the following configuration:
-    - using gcc : mingw32 : $MINGW_ARCH-g++ ;
-- Run the following command:
-```
-./b2 --with-locale --user-config=user-config.jam -sICU_PATH=/usr/$MINGW_ARCH --prefix=/usr/$MINGW_ARCH variant=release address-model=64 toolset=gcc-mingw32 target-os=windows boost.locale.iconv=off
-./b2 --with-locale --user-config=user-config.jam -sICU_PATH=/usr/$MINGW_ARCH --prefix=/usr/$MINGW_ARCH variant=release address-model=64 toolset=gcc-mingw32 target-os=windows boost.locale.iconv=off install
-```
-Note: Replace address model with 32 when building in 32-bit mode.
-
 ## yaml-cpp
 
 yaml-cpp can be build as part of the normal build process. However, if you have yaml-cpp installed as a system library, it may be picked up by cmake even though it's not in the mingw prefix.

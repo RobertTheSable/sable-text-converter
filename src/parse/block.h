@@ -2,11 +2,7 @@
 #define BLOCKPARSER_H
 
 #include "data/textblockrange.h"
-#include "errorhandling.h"
-#include "util.h"
 
-#include "exceptions.h"
-#include <iostream>
 #include <string>
 #include <vector>
 

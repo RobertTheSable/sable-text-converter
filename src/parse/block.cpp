@@ -1,5 +1,7 @@
 #include "block.h"
 
+#include <stdexcept>
+
 int sable::Block::Bounds::getNextAddress() const
 {
     return address + length;

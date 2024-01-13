@@ -8,6 +8,9 @@
 #include "font/font.h"
 
 namespace sable_tests {
+
+constexpr const char* defaultLocale ="en_US.utf8";
+
 YAML::Node createSampleNode(
         bool digraphs,
         unsigned int byteWidth,

@@ -1,6 +1,6 @@
 #include <catch2/catch.hpp>
 #include "yaml-cpp/yaml.h"
-#include "project.h"
+#include "project/project.h"
 #include "project/builder.h"
 
 #include "files.h"

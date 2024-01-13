@@ -7,7 +7,7 @@
 #include "helpers.h"
 #include "font/builder.h"
 #include "data/options.h"
-#include "project.h"
+#include "project/project.h"
 
 using sable::RomPatcher;
 
@@ -207,18 +207,32 @@ TEST_CASE("Asar patch testing", "[rompatcher]")
     r.expand(m.calculateFileSize(0xE08000), m);
     SECTION("Test that Asar patch can be applied.")
     {
-        REQUIRE(r.applyPatchFile("sample.asm") == true);
+        REQUIRE(RomPatcher::succeeded(r.applyPatchFile("sample.asm")));
         std::vector<std::string> msgs;
         REQUIRE(r.getMessages(std::back_inserter(msgs)));
         REQUIRE(msgs.empty());
     }
     SECTION("Test bad Assar patch.")
     {
-        REQUIRE(r.applyPatchFile("bad_test.asm") == false);
+        REQUIRE(!RomPatcher::succeeded(r.applyPatchFile("bad_test.asm")));
         std::vector<std::string> msgs;
         REQUIRE(r.getMessages(std::back_inserter(msgs)));
         REQUIRE(!msgs.empty());
     }
+}
+
+TEST_CASE("Asar status evaluation", "[rompatcher]")
+{
+    using sable::RomPatcher;
+    using State = sable::RomPatcher::AsarState;
+    REQUIRE(RomPatcher::succeeded(State::Success));
+    REQUIRE(!RomPatcher::succeeded(State::Error));
+    REQUIRE(!RomPatcher::succeeded(State::NotRun));
+    REQUIRE(!RomPatcher::succeeded(State::InitFailed));
+    REQUIRE(RomPatcher::wasRun(State::Success));
+    REQUIRE(RomPatcher::wasRun(State::Error));
+    REQUIRE(!RomPatcher::wasRun(State::NotRun));
+    REQUIRE(!RomPatcher::wasRun(State::InitFailed));
 }
 
 TEST_CASE("Font output", "[rompatcher]")
@@ -247,7 +261,7 @@ TEST_CASE("Font output", "[rompatcher]")
         subject1["test"] = sable::FontBuilder::make(
             fl["normal"],
             "test",
-            sable_tests::getTestLocale()
+            sable_tests::defaultLocale
         );
         r.writeFontData(subject1, sink);
         REQUIRE(sink.str() == "");
@@ -258,7 +272,7 @@ TEST_CASE("Font output", "[rompatcher]")
         subject1["test"] = sable::FontBuilder::make(
             fl["normal"],
             "test",
-            sable_tests::getTestLocale()
+            sable_tests::defaultLocale
         );
         r.writeFontData(subject1, sink);
         REQUIRE(sink.str() != "");
@@ -281,7 +295,7 @@ TEST_CASE("Font output", "[rompatcher]")
         subject1["test"] = sable::FontBuilder::make(
             fl["normal"],
             "test",
-            sable_tests::getTestLocale()
+            sable_tests::defaultLocale
         );
         r.writeFontData(subject1, sink);
         REQUIRE(sink.str() != "");
@@ -305,7 +319,7 @@ TEST_CASE("Font output", "[rompatcher]")
         subject1["test"] = sable::FontBuilder::make(
             fl["normal"],
             "test",
-            sable_tests::getTestLocale()
+            sable_tests::defaultLocale
         );
         r.writeFontData(subject1, sink);
         REQUIRE(sink.str() != "");

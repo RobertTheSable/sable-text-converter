@@ -2,7 +2,7 @@
 #define MAPPERCONV_H
 
 #include <yaml-cpp/yaml.h>
-#include "util.h"
+#include "data/mapper.h"
 
 namespace YAML {
     template <>

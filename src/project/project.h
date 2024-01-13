@@ -6,8 +6,8 @@
 #include <string>
 #include <memory>
 
-#include "util.h"
 #include "data/options.h"
+#include "data/mapper.h"
 #include "font/font.h"
 
 namespace sable {
