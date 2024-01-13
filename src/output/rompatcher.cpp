@@ -15,6 +15,16 @@
 #include "formatter.h"
 
 
+bool sable::RomPatcher::succeeded(AsarState state)
+{
+    return state == AsarState::Success;
+}
+
+bool sable::RomPatcher::wasRun(AsarState state)
+{
+    return (state == AsarState::Success) || (state == AsarState::Error);
+}
+
 sable::RomPatcher::RomPatcher(const util::MapperType& mapper)
     : m_MapType(mapper), m_AState(AsarState::NotRun)
 {
@@ -127,32 +137,33 @@ bool sable::RomPatcher::expand(int size, const util::Mapper& mapper)
     return true;
 }
 
-bool sable::RomPatcher::applyPatchFile(const std::string &path, const std::string &format)
+auto sable::RomPatcher::applyPatchFile(const std::string &path, const std::string &format) -> AsarState
 {
     std::vector<unsigned char> output(m_data);
     if (!fs::exists(path)) {
         throw std::logic_error("Could not open " + path + " patch file.");
     }
 
-    OutputCapture buffer{std::cerr};
+    std::ostringstream sink;
+    OutputCapture buffer{sink};
     if (format == "asm") {
         if (asar_init()) {
             if (asar_patch(path.c_str(), (char*)&m_data[m_HeaderSize], m_RomSize, &m_RomSize)) {
                 m_AState = AsarState::Success;
             } else {
                 m_AState = AsarState::Error;
-                return false;
             }
         } else {
-            m_AState = AsarState::Error;
+            m_AState = AsarState::InitFailed;
             buffer.write();
+            buffer.flush();
+            throw std::runtime_error(std::string{"Failed to initialize Asar library: "} + sink.str());
         }
     } else {
         m_AState = AsarState::Error;
-        return false;
     }
 
-    return m_AState == AsarState::Success;
+    return m_AState;
 }
 
 unsigned char &sable::RomPatcher::at(int n)

@@ -290,7 +290,7 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
                         name,
                         std::string{Font::PAGES} + " #" + std::to_string(pageIdx),
                         e.parentName,
-                        std::string("") + "has a \"" + e.fieldName + "\" field that is not "  + e.constraint
+                        std::string("") + "has a \"" + e.fieldName + "\" field that "  + e.constraint
                     );
                 }
                 throw generateError(

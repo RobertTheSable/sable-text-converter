@@ -26,6 +26,12 @@ if (SABLE_BUILD_MAIN)
         sable sable_project
     )
     find_cxxopts_includes(sable)
+
+    if (ICU_DATA_FILE)
+        message(STATUS "Copying ${ICU_DATA_FILE} to the build folder.")
+        get_filename_component(ICU_DATA_FILENAME ${ICU_DATA_FILE} NAME)
+        configure_file(${ICU_DATA_FILE} ${SABLE_BINARY_PATH}/${ICU_DATA_FILENAME} COPYONLY)
+    endif()
 endif()
 
 if(SABLE_ALT_FILESYSTEM)

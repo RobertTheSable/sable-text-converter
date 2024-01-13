@@ -1,5 +1,6 @@
 file(GLOB SABLE_OUTPUT_SOURCE_FILES
     "${PROJECT_SOURCE_DIR}/include/asar/asardll.c"
+    "${PROJECT_SOURCE_DIR}/include/asar/asardll.h"
 
     rompatcher.cpp
     rompatcher.h

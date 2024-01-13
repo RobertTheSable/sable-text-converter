@@ -48,5 +48,10 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.smc" "sample.smc" COPY
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/sample.asm" "sample.asm" COPYONLY)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/sample/bad_test.asm" "bad_test.asm" COPYONLY)
 
+if (ICU_DATA_FILE)
+    get_filename_component(ICU_DATA_FILENAME ${ICU_DATA_FILE} NAME)
+    configure_file(${ICU_DATA_FILE} ${ICU_DATA_FILENAME} COPYONLY)
+endif()
+
 include(Catch)
 catch_discover_tests(tests)

@@ -1,9 +1,6 @@
 #include <catch2/catch.hpp>
 #include <sstream>
 #include <iostream>
-#include <algorithm>
-#include <iostream>
-
 
 #include "parse/textparser.h"
 #include "font/font.h"

@@ -173,13 +173,23 @@ void Project::writePatchData()
                 changeSettings = false;
             }
             r.expand(m_OutputSize, m_Mapper);
-            auto result = r.applyPatchFile(patchFile);
-            if (result) {
+            auto result = [&r, &patchFile] () {
+                try {
+                    return r.applyPatchFile(patchFile);
+                } catch (std::runtime_error &e) {
+                    throw ASMError(e.what());
+                }
+            }();
+
+
+            if (RomPatcher::succeeded(result)) {
                 std::cout << "Assembly for " << romData.name << " completed successfully." << std::endl;
+            } else if (!RomPatcher::wasRun(result)) {
+                throw ASMError("Asar was not initalized.");
             }
             std::vector<std::string> messages;
             r.getMessages(std::back_inserter(messages));
-            if (result) {
+            if (RomPatcher::succeeded(result)) {
                 for (auto& msg: messages) {
                     std::cout << msg << std::endl;
                 }

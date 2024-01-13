@@ -33,5 +33,16 @@ TEST_CASE("Capturing puts")
         REQUIRE_THROWS(OutputCapture{sink, O_APPEND});
     }
 }
+#else
+#include <windows.h>
 
+TEST_CASE("Getting the last error")
+{
+    std::ostringstream sink;
+    {
+        OutputCapture o{sink};
+        LoadLibraryA("librarywhichdoesnotexist.dll");
+    }
+    REQUIRE(sink.str() != "");
+}
 #endif

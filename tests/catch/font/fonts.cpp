@@ -428,6 +428,17 @@ TEST_CASE("Test config validation")
                 Contains("Field \"Pages #1\" has invalid entry \"A\"")
             );
         }
+        SECTION("Invalid node value")
+        {
+            textNode["A"] = 0;
+            normalNode[Font::PAGES] = std::vector{textNode};
+            REQUIRE_THROWS_WITH(
+                sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
+                Contains("Field \"Pages #1\" has invalid entry \"A\": has a \"code\" field that matches the command value, which is not allowed.")
+
+            );
+
+        }
         SECTION("Invalid Pages node")
         {
             normalNode[Font::PAGES] = std::vector{"A", "B"};

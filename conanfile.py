@@ -1,10 +1,9 @@
 from conan import ConanFile
 from conan.tools.cmake import CMakeToolchain, CMakeDeps, CMake, cmake_layout
 
-
 class SableTextConverterConan(ConanFile):
     name = "sable-text-converter"
-    version = "0.1.0"
+    version = "1.5.0"
     license = "MIT License"
     author = "Robert The Sable <robertthesable@gmail.com>"
     url = "https://github.com/RobertTheSable/sable-text-converter"
@@ -41,7 +40,12 @@ class SableTextConverterConan(ConanFile):
         else:
             tc.variables["SABLE_BUILD_TESTS"] = "OFF"
             tc.variables["SABLE_BUILD_MAIN"] = "ON"
+        if not self.options.use_system_icu:
+            icu = self.dependencies["icu"]
+            if icu.options.get_safe("data_packaging") in ["files", "archive"]:
+                tc.variables["ICU_DATA_FILE"] = self.dependencies["icu"].runenv_info.vars(self).get("ICU_DATA")
         tc.generate()
+        
 
     def build(self):
         cmake = CMake(self)
