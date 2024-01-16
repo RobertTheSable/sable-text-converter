@@ -33,6 +33,7 @@ namespace sable {
         static constexpr const char* CODE_VAL = "code";
         static constexpr const char* TEXT_LENGTH_VAL = "length";
         static constexpr const char* CMD_NEWLINE_VAL = "newline";
+        static constexpr const char* CMD_PREFIX = "prefix";
         static constexpr const char* CMD_PAGE = "page";
         static constexpr const char* PAGES = "Pages";
 
@@ -66,6 +67,7 @@ namespace sable {
             unsigned int code;
             int page;
             bool isNewLine = false;
+            bool isPrefixed = true;
         };
         struct TextNode {
             unsigned int code;
@@ -94,7 +96,10 @@ namespace sable {
 
         const CommandNode& getCommandData(const std::string& id) const;
         void addCommandData(const std::string& id, CommandNode&& data);
+
+        [[deprecated("Use getCommandData(const std::string& id).code instead.")]]
         unsigned int getCommandCode(const std::string& id) const;
+        [[deprecated("Use getCommandData(const std::string& id).isNewLine instead.")]]
         bool isCommandNewline(const std::string& id) const;
 
         std::tuple<unsigned int, bool> getTextCode(int page, const std::string& id, const std::string& next = "") const;

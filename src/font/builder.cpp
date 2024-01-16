@@ -328,7 +328,7 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
     }
     for (auto cd : {"End", "NewLine"}) {
         try {
-             f.getCommandCode(cd);
+             f.getCommandData(cd);
         } catch (CodeNotFound &e) {
             throw generateError(config[Font::COMMANDS].Mark(), name, cd, "defined in the Commands section.");
         }
@@ -341,25 +341,20 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
 } // namespace sable
 
 namespace YAML {
-    auto CODE_VAL = sable::Font::CODE_VAL;
-    auto TEXT_LENGTH_VAL = sable::Font::TEXT_LENGTH_VAL;
-    auto CMD_NEWLINE_VAL = sable::Font::CMD_NEWLINE_VAL;
-    auto CMD_PAGE = sable::Font::CMD_PAGE;
+using sable::Font;
     bool convert<sable::Font::TextNode>::decode(const Node& node, sable::Font::TextNode& rhs)
     {
-
-        using sable::Font;
-        if (node.IsMap() && node[CODE_VAL].IsDefined()) {
+        if (node.IsMap() && node[Font::CODE_VAL].IsDefined()) {
             try {
-                rhs.code = node[CODE_VAL].as<unsigned int>();
+                rhs.code = node[Font::CODE_VAL].as<unsigned int>();
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw sable::SubfieldError<Font::TextNode>(CODE_VAL, sable::SubfieldErrorType::Integer);
+                throw sable::SubfieldError<Font::TextNode>(Font::CODE_VAL, sable::SubfieldErrorType::Integer);
             }
-            if (node[TEXT_LENGTH_VAL].IsDefined()) {
+            if (node[Font::TEXT_LENGTH_VAL].IsDefined()) {
                 try {
-                    rhs.width = node[TEXT_LENGTH_VAL].as<int>();
+                    rhs.width = node[Font::TEXT_LENGTH_VAL].as<int>();
                 } catch(YAML::TypedBadConversion<int> &e) {
-                    throw sable::SubfieldError<Font::TextNode>(TEXT_LENGTH_VAL, sable::SubfieldErrorType::Integer);
+                    throw sable::SubfieldError<Font::TextNode>(Font::TEXT_LENGTH_VAL, sable::SubfieldErrorType::Integer);
                 }
             }
             return true;
@@ -367,7 +362,7 @@ namespace YAML {
             try {
                 rhs.code = node.as<unsigned int>();
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw sable::SubfieldError<Font::TextNode>(CODE_VAL, sable::SubfieldErrorType::Integer);
+                throw sable::SubfieldError<Font::TextNode>(Font::CODE_VAL, sable::SubfieldErrorType::Integer);
             }
             return true;
         }
@@ -377,30 +372,47 @@ namespace YAML {
     {
         using sable::Font;
         rhs.page = -1;
-        if (node.IsMap() && node[CODE_VAL].IsDefined()) {
-            try {
-                rhs.code = node[CODE_VAL].as<unsigned int>();
-            } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw sable::ConvertError(CODE_VAL, "an integer.", e.mark);
-            }
-            if (node[CMD_NEWLINE_VAL].IsDefined()) {
+        if (node.IsMap() && node[Font::CODE_VAL].IsDefined()) {
+            if (auto cNode = node[Font::CODE_VAL]; !cNode.IsScalar()) {
+                throw sable::ConvertError(Font::CODE_VAL, "an integer.", cNode.Mark());
+            } else {
                 try {
-                    node[CMD_NEWLINE_VAL].as<std::string>();
-                } catch(YAML::TypedBadConversion<std::string> &e) {
-                   throw sable::ConvertError(CMD_NEWLINE_VAL, "a scalar.", e.mark);
+                    rhs.code = node[Font::CODE_VAL].as<unsigned int>();
+                } catch(YAML::TypedBadConversion<unsigned int> &e) {
+                    throw sable::ConvertError(Font::CODE_VAL, "an integer.", cNode.Mark());
+                }
+            }
+            if (auto nlNode = node[Font::CMD_NEWLINE_VAL]; nlNode.IsDefined()) {
+                if (!nlNode.IsScalar()) {
+                    throw sable::ConvertError(Font::CMD_NEWLINE_VAL, "a scalar.", nlNode.Mark());
                 }
                 rhs.isNewLine = true;
             }
 
-            if (node[CMD_PAGE].IsDefined()) {
-                rhs.page = node[CMD_PAGE].as<int>();
+            if (node[Font::CMD_PAGE].IsDefined()) {
+                rhs.page = node[Font::CMD_PAGE].as<int>();
+            }
+            if (auto prefixNode = node[Font::CMD_PREFIX]; !prefixNode.IsDefined()) {
+                rhs.isPrefixed = true;
+            } else if (prefixNode.IsScalar()) {
+                auto val = prefixNode.Scalar();
+                std::transform(val.begin(), val.end(), val.begin(), ::tolower);
+                if (val == "yes" || val == "true" || val == "") {
+                    rhs.isPrefixed = true;
+                } else if (val == "no" || val == "false") {
+                    rhs.isPrefixed = false;
+                } else {
+                    throw sable::ConvertError(Font::CMD_PREFIX, "yes, true, no, or false.", prefixNode.Mark());
+                }
+            } else {
+                throw sable::ConvertError(Font::CMD_PREFIX, "a scalar.", prefixNode.Mark());
             }
             return true;
         } else if (node.IsScalar()) {
             try {
                 rhs.code = node.as<unsigned int>();
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw sable::ConvertError(CODE_VAL, "an integer.", e.mark);
+                throw sable::ConvertError(Font::CODE_VAL, "an integer.", node.Mark());
             }
             return true;
         }
@@ -412,22 +424,22 @@ namespace YAML {
         if (!node.IsMap()) {
             return false;
         }
-        if (node[TEXT_LENGTH_VAL].IsDefined()) {
+        if (node[Font::TEXT_LENGTH_VAL].IsDefined()) {
             try {
-               rhs.width = node[TEXT_LENGTH_VAL].as<int>();
+               rhs.width = node[Font::TEXT_LENGTH_VAL].as<int>();
             } catch (YAML::TypedBadConversion<int> &e) {
-                throw sable::SubfieldError<sable::Font::NounNode>{TEXT_LENGTH_VAL, sable::SubfieldErrorType::Integer};
+                throw sable::SubfieldError<sable::Font::NounNode>{Font::TEXT_LENGTH_VAL, sable::SubfieldErrorType::Integer};
             }
         }
-        if (!node[CODE_VAL].IsDefined() || !node[CODE_VAL].IsSequence()) {
-            throw sable::SubfieldError<sable::Font::NounNode>{CODE_VAL, sable::SubfieldErrorType::IntegerSequence};
+        if (!node[Font::CODE_VAL].IsDefined() || !node[Font::CODE_VAL].IsSequence()) {
+            throw sable::SubfieldError<sable::Font::NounNode>{Font::CODE_VAL, sable::SubfieldErrorType::IntegerSequence};
         }
-        rhs.codes.reserve(node[CODE_VAL].size());
-        for (auto it2 = node[CODE_VAL].begin(); it2 != node[CODE_VAL].end(); ++it2) {
+        rhs.codes.reserve(node[Font::CODE_VAL].size());
+        for (auto it2 = node[Font::CODE_VAL].begin(); it2 != node[Font::CODE_VAL].end(); ++it2) {
             try {
                 rhs.codes.push_back(it2->as<int>());
             } catch (YAML::TypedBadConversion<int> &e) {
-                throw sable::SubfieldError<sable::Font::NounNode>{CODE_VAL, sable::SubfieldErrorType::IntegerSequence};
+                throw sable::SubfieldError<sable::Font::NounNode>{Font::CODE_VAL, sable::SubfieldErrorType::IntegerSequence};
             }
         }
         return true;

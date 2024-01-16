@@ -18,11 +18,12 @@ TEST_CASE("Test uninititalized font.")
 
 TEST_CASE("Test 1-byte fonts.")
 {
-    using sable::Font;
-    std::vector<std::tuple<std::string, int, bool>> commands = {
-        {"End", 0, false},
-        {"NewLine", 01, true},
-        {"Test", 07, false}
+    using sable::Font, sable_tests::CommandSample;
+    std::vector<CommandSample> commands = {
+        {"End", 0, CommandSample::NewLine::No, ""},
+        {"NewLine", 01,  CommandSample::NewLine::Yes, "yes"},
+        {"Test", 07,  CommandSample::NewLine::No, "True"},
+        {"NoPrefix", 07,  CommandSample::NewLine::No, "false"}
     };
     auto normalNode = sable_tests::createSampleNode(true, 1, 160, 8, commands, {"ll", "la", "e?", "ia", "❤"}, 4);
 
@@ -78,13 +79,55 @@ TEST_CASE("Test 1-byte fonts.")
         normalNode[Font::COMMANDS]["EncodingTest"] = 2;
         Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         REQUIRE(f.getEndValue() == normalNode[Font::COMMANDS]["End"]["code"].as<int>());
-        REQUIRE(f.getCommandCode("Test") == normalNode[Font::COMMANDS]["Test"]["code"].as<int>());
-        REQUIRE(f.getCommandCode("EncodingTest") == 2);
-        REQUIRE(!f.isCommandNewline("Test"));
-        REQUIRE(f.isCommandNewline("NewLine"));
-        REQUIRE_THROWS(f.getCommandCode("Something"));
-        REQUIRE_THROWS(f.isCommandNewline("Something"));
+        REQUIRE(f.getCommandData("Test").code == normalNode[Font::COMMANDS]["Test"]["code"].as<int>());
+        REQUIRE(f.getCommandData("EncodingTest").code == 2);
+        REQUIRE(!f.getCommandData("Test").isNewLine);
+        REQUIRE(f.getCommandData("NewLine").isNewLine);
+        REQUIRE_THROWS(f.getCommandData("Something"));
     }
+    SECTION("Test command prefixes")
+    {
+        YAML::Node n;
+        n[Font::CODE_VAL] = 2;
+        SECTION("Value = No")
+        {
+            n[Font::CMD_PREFIX] = "No";
+        }
+        SECTION("Value = no")
+        {
+            n[Font::CMD_PREFIX] = "no";
+        }
+        SECTION("Value = False")
+        {
+            n[Font::CMD_PREFIX] = "False";
+        }
+        SECTION("Value = false")
+        {
+            n[Font::CMD_PREFIX] = "false";
+        }
+
+        normalNode[Font::COMMANDS]["EncodingTest"] = n;
+        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
+        REQUIRE(f.getCommandData("End").isPrefixed);
+        REQUIRE(f.getCommandData("NewLine").isPrefixed);
+        REQUIRE(f.getCommandData("Test").isPrefixed);
+        REQUIRE(!f.getCommandData("NoPrefix").isPrefixed);
+        REQUIRE(!f.getCommandData("EncodingTest").isPrefixed);
+    }
+
+#ifndef _MSC_VER
+    SECTION("Test deprecated command methods")
+    {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+        normalNode[Font::COMMANDS]["EncodingTest"] = 2;
+        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
+        REQUIRE(f.getCommandCode("EncodingTest") == 2);
+        REQUIRE(f.isCommandNewline("NewLine"));
+#pragma GCC diagnostic pop
+    }
+#endif
+
     SECTION("Check that End command is required.")
     {
         normalNode[Font::COMMANDS].remove("End");
@@ -271,9 +314,9 @@ TEST_CASE("Test 1-byte fonts.")
         auto nounTest = "\u0041\u030Aland";
         REQUIRE_NOTHROW(f.getNounData(0, "Åland"));
         REQUIRE_NOTHROW(f.getNounData(0, nounTest));
-        REQUIRE_NOTHROW(f.getCommandCode("zvýraznit"));
-        REQUIRE_NOTHROW(f.getCommandCode("zv\u0079\u0301raznit"));
-        REQUIRE(f.getCommandCode("zvýraznit") == f.getCommandCode("zv\u0079\u0301raznit"));
+        REQUIRE_NOTHROW(f.getCommandData("zvýraznit"));
+        REQUIRE_NOTHROW(f.getCommandData("zv\u0079\u0301raznit"));
+        REQUIRE(f.getCommandData("zvýraznit").code == f.getCommandData("zv\u0079\u0301raznit").code);
         REQUIRE_NOTHROW(f.getExtraValue("östlich"));
         REQUIRE_NOTHROW(f.getExtraValue("\u006F\u0308stlich"));
         REQUIRE(f.getExtraValue("östlich") == f.getExtraValue("\u006F\u0308stlich"));
@@ -282,12 +325,12 @@ TEST_CASE("Test 1-byte fonts.")
 
 TEST_CASE("Test 2-byte fonts.")
 {
-    using sable::Font;
+    using sable::Font, sable_tests::CommandSample;
 
-    std::vector<std::tuple<std::string, int, bool>> commands = {
-        {"End", 0xFFFF, false},
-        {"NewLine", 0xFFFD, true},
-        {"Test", 0xFFFE, true}
+    std::vector<CommandSample> commands = {
+        {"End", 0xFFFF, CommandSample::NewLine::No, "No"},
+        {"NewLine", 0xFFFD, CommandSample::NewLine::Yes, "no"},
+        {"Test", 0xFFFE, CommandSample::NewLine::Yes, "false"}
     };
     auto menuNode = sable_tests::createSampleNode(true, 2, 0, 8, commands, {}, 0, -1, 0, true);
     SECTION("Test 2-byte font with")
@@ -297,18 +340,24 @@ TEST_CASE("Test 2-byte fonts.")
         REQUIRE(f.getMaxWidth() == 0);
         REQUIRE(f.getFontWidthLocation().empty());
         REQUIRE(f.getCommandValue() == -1);
-        REQUIRE(f.isCommandNewline("Test"));
+
+        REQUIRE(f.getCommandData("Test").isNewLine);
+
+        REQUIRE(!f.getCommandData("Test").isPrefixed);
+        REQUIRE(!f.getCommandData("NewLine").isPrefixed);
+        REQUIRE(!f.getCommandData("End").isPrefixed);
+
         REQUIRE(f.getEndValue() == 0xFFFF);
     }
 }
 
 TEST_CASE("Test config validation")
 {
-    using sable::Font;
-    std::vector<std::tuple<std::string, int, bool>> commands = {
-        {"End", 0, false},
-        {"NewLine", 01, true},
-        {"Test", 07, false}
+    using sable::Font, sable_tests::CommandSample;
+    std::vector<CommandSample> commands = {
+        {"End", 0, CommandSample::NewLine::No, "Yes"},
+        {"NewLine", 01, CommandSample::NewLine::Yes, "Yes"},
+        {"Test", 07, CommandSample::NewLine::No, "true"}
     };
     auto normalNode = sable_tests::createSampleNode(true, 1, 160, 8, commands, {});
     using Catch::Matchers::Contains;
@@ -382,29 +431,61 @@ TEST_CASE("Test config validation")
     }
     SECTION("Check Commands validation.")
     {
-        normalNode[Font::COMMANDS]["TestBad"] = "Test";
-        REQUIRE_THROWS(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale));
-        YAML::Node n;
-        n[Font::CODE_VAL] = "Test";
-        normalNode[Font::COMMANDS]["TestBad"] = n;
-        REQUIRE_THROWS_WITH(
-            sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
-            Contains("Field \"code\" must be an integer.")
-        );
-        normalNode[Font::COMMANDS]["TestBad"] = std::array{1,2,3};
-        REQUIRE_THROWS_WITH(
-            sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
-            Contains("has invalid entry \"TestBad\": must define a numeric code.")
-        );
-        normalNode[Font::COMMANDS].remove("TestBad");
-        normalNode[Font::COMMANDS]["NewLine"]["newline"] = YAML::Load("[1, 2, 3]");
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("must be a scalar."));
-        normalNode[Font::COMMANDS]["NewLine"] = "test";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("must be an integer."));
-        normalNode.remove(Font::COMMANDS);
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("is missing."));
-        normalNode[Font::COMMANDS] = "1";
-        REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("must be a map."));
+        SECTION("Code validation")
+        {
+            normalNode[Font::COMMANDS]["TestBad"] = "Test";
+            REQUIRE_THROWS(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale));
+            YAML::Node n;
+            n[Font::CODE_VAL] = "Test";
+            normalNode[Font::COMMANDS]["TestBad"] = n;
+            REQUIRE_THROWS_WITH(
+                sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
+                Contains("Field \"code\" must be an integer.")
+            );
+            normalNode[Font::COMMANDS]["TestBad"] = std::array{1,2,3};
+            REQUIRE_THROWS_WITH(
+                sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
+                Contains("has invalid entry \"TestBad\": must define a numeric code.")
+            );
+        }
+
+        SECTION("Prefix validation")
+        {
+            YAML::Node n;
+            n[Font::CODE_VAL] = 1;
+            SECTION("Invalid scalar")
+            {
+                n[Font::CMD_PREFIX] = "something";
+                normalNode[Font::COMMANDS]["TestBad"] = n;
+                REQUIRE_THROWS_WITH(
+                    sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
+                    Contains("Field \"prefix\" must be yes, true, no, or false.")
+                );
+            }
+            SECTION("Invalid type")
+            {
+                n[Font::CMD_PREFIX] = YAML::Load("[1, 2, 3]");
+                normalNode[Font::COMMANDS]["TestBad"] = n;
+                REQUIRE_THROWS_WITH(
+                    sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale),
+                    Contains("Field \"prefix\" must be a scalar.")
+                );
+            }
+        }
+
+        SECTION("Newline validation")
+        {
+            normalNode[Font::COMMANDS]["NewLine"]["newline"] = YAML::Load("[1, 2, 3]");
+            REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "test", sable_tests::defaultLocale), Contains("Field \"newline\" must be a scalar."));
+        }
+
+        SECTION("Overall node validation")
+        {
+            normalNode.remove(Font::COMMANDS);
+            REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("is missing."));
+            normalNode[Font::COMMANDS] = "1";
+            REQUIRE_THROWS_WITH(sable::FontBuilder::make(normalNode, "", sable_tests::defaultLocale), Contains("must be a map."));
+        }
     }
 
     SECTION("Check Pages validation.")

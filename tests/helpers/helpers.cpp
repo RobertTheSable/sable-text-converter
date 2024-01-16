@@ -8,7 +8,7 @@ YAML::Node sable_tests::createSampleNode(
         unsigned int byteWidth,
         unsigned int maxWidth,
         unsigned int defaultWidth,
-        const std::vector<std::tuple<std::string, int, bool> > &commands,
+        const std::vector<CommandSample> &commands,
         const std::vector<std::string> &extras,
         unsigned int skip,
         int command,
@@ -72,10 +72,11 @@ YAML::Node sable_tests::createSampleNode(
         }
     }
     for (auto& cmd: commands) {
-        sample[Font::COMMANDS][std::get<0>(cmd)][Font::CODE_VAL] = std::get<1>(cmd);
-        if (std::get<2>(cmd)) {
-            sample[Font::COMMANDS][std::get<0>(cmd)][Font::CMD_NEWLINE_VAL] = "true";
+        sample[Font::COMMANDS][cmd.name][Font::CODE_VAL] = cmd.code;
+        if (CommandSample::enabled(cmd.newline)) {
+            sample[Font::COMMANDS][cmd.name][Font::CMD_NEWLINE_VAL] = "true";
         }
+        sample[Font::COMMANDS][cmd.name][Font::CMD_PREFIX] = cmd.prefix;
     }
     return sample;
 }
@@ -89,9 +90,9 @@ YAML::Node sable_tests::getSampleNode()
                 160,
                 8,
                 {
-                    {"End", 0, false},
-                    {"NewLine", 01, true},
-                    {"Test", 07, false}
+                    {"End", 0, CommandSample::NewLine::No, "Yes"},
+                    {"NewLine", 01, CommandSample::NewLine::Yes, "Yes"},
+                    {"Test", 07, CommandSample::NewLine::No, "Yes"}
                 },
                 {"ll", "la", "e?", "[special]", "❤", "e†"}
                 );
@@ -116,9 +117,9 @@ YAML::Node sable_tests::getSampleNode()
                 0,
                 8,
                 {
-                    {"End", 0xFFFF, false},
-                    {"NewLine", 0xFFFD, true},
-                    {"Test", 0xFFFE, true}
+                    {"End", 0xFFFF, CommandSample::NewLine::No, "No"},
+                    {"NewLine", 0xFFFD, CommandSample::NewLine::Yes, "No"},
+                    {"Test", 0xFFFE, CommandSample::NewLine::No, "No"}
                 },
                 {},
                 0,
