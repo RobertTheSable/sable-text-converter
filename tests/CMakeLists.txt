@@ -20,9 +20,12 @@ file(GLOB SABLE_TEST_FILES
     catch/output/formatter_test.cpp
 
     catch/parse/textparser_tests.cpp
+    catch/parse/testparser_singleline_tests.cpp
+    catch/parse/textparser_nonprefixed_tests.cpp
     catch/parse/unicode_test.cpp
     catch/parse/block_test.cpp
     catch/parse/parse_test.cpp
+    catch/parse/textparser_test_helpers.h
 
     catch/project/group_test.cpp
     catch/project/groupparser_test.cpp

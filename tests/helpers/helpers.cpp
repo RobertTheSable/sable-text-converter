@@ -36,8 +36,9 @@ YAML::Node sable_tests::createSampleNode(
         sample[Font::ENCODING][i][Font::CODE_VAL] = index;
         sample[Font::ENCODING][lowerCase][Font::CODE_VAL] = index + 26;
         if (!fixedWidth) {
-            sample[Font::ENCODING][i][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
-            sample[Font::ENCODING][lowerCase][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
+            auto calcLength = ((index-1) % 8) + 1;
+            sample[Font::ENCODING][i][Font::TEXT_LENGTH_VAL] = calcLength;
+            sample[Font::ENCODING][lowerCase][Font::TEXT_LENGTH_VAL] = calcLength;
         }
     }
     // add a duplicate entry
@@ -91,7 +92,7 @@ YAML::Node sable_tests::getSampleNode()
                 8,
                 {
                     {"End", 0, CommandSample::NewLine::No, "Yes"},
-                    {"NewLine", 01, CommandSample::NewLine::Yes, "Yes"},
+                    {"NewLine", sable_tests::NEWLINE_VAL, CommandSample::NewLine::Yes, "Yes"},
                     {"Test", 07, CommandSample::NewLine::No, "Yes"}
                 },
                 {"ll", "la", "e?", "[special]", "❤", "e†"}
@@ -109,6 +110,7 @@ YAML::Node sable_tests::getSampleNode()
                 true
                 );
     sampleNode["normal"][sable::Font::EXTRAS]["Extra1"] = 1;
+    sampleNode["normal"][sable::Font::EXTRAS]["Extra2"] = 2;
     sampleNode["nodigraph"][sable::Font::ENCODING] =  sampleNode["normal"][sable::Font::ENCODING];
     sampleNode["nodigraph"][sable::Font::COMMANDS] =  sampleNode["normal"][sable::Font::COMMANDS];
     sampleNode["menu"] = sable_tests::createSampleNode(
@@ -127,6 +129,23 @@ YAML::Node sable_tests::getSampleNode()
                 0,
                 true
                 );
+    sampleNode["offset"] = sable_tests::createSampleNode(
+        true,
+        1,
+        160,
+        8,
+        {
+            {"End", 0, CommandSample::NewLine::No, "No"},
+            {"NewLine", sable_tests::NEWLINE_VAL, CommandSample::NewLine::Yes, "No"},
+            {"TestP", 17, CommandSample::NewLine::No, "Yes"}
+        },
+        {"ll", "la", "e?", "[special]", "❤", "e†"},
+        0,
+        0,
+        17
+    );
+    sampleNode["offset"][sable::Font::EXTRAS]["Extra1"] = 1;
+    sampleNode["offset"][sable::Font::EXTRAS]["Extra2"] = 2;
     return sampleNode;
 }
 

@@ -6,11 +6,7 @@
 #include "font.h"
 
 namespace sable {
-
-    bool contains(const std::map<std::string, sable::Font> &f, std::string key)
-    {
-        return f.find(key) != f.end();
-    }
+    bool contains(const std::map<std::string, sable::Font> &f, std::string key);
 }
 
 #endif // FONTHELPERS_H

@@ -49,7 +49,7 @@ public:
                 settings_.page = cmd.page;
             }
 
-            if (auto cv = font_.getCommandValue(); cv && cmd.isPrefixed) {
+            if (auto cv = font_.getCommandValue(); (bool)cv && cmd.isPrefixed) {
                 insertData(cv.value(), font_.getByteWidth());
             }
             insertData(cmd.code, font_.getByteWidth());

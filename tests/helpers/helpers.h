@@ -11,6 +11,8 @@ namespace sable_tests {
 
 constexpr const char* defaultLocale ="en_US.utf8";
 
+constexpr const int NEWLINE_VAL = 3;
+
 struct CommandSample { //NOLINT
     std::string name;
     int code;
