@@ -35,35 +35,31 @@ TEST_CASE("Test 1-byte fonts.")
         REQUIRE(f);
         std::vector<int> v;
         int expectedResult = normalNode[Font::ENCODING]["A"][Font::CODE_VAL].as<int>();
-        REQUIRE(std::get<0>(f.getTextCode(0, "A")) == expectedResult);
-        REQUIRE(std::get<0>(f.getTextCode(0, "Special")) == 100);
+        REQUIRE((bool)f.getTextCode(0, "A"));
+        REQUIRE(std::get<0>(f.getTextCode(0, "A").value()) == expectedResult);
+        REQUIRE(std::get<0>(f.getTextCode(0, "Special").value()) == 100);
         expectedResult = normalNode[Font::ENCODING]["ll"][Font::CODE_VAL].as<int>();
-        REQUIRE(std::get<0>( f.getTextCode(0, "l", "l")) == expectedResult);
+        REQUIRE(std::get<0>( f.getTextCode(0, "l", "l").value()) == expectedResult);
         REQUIRE(f.getWidth(0, "l") == normalNode[Font::ENCODING]["l"][Font::TEXT_LENGTH_VAL].as<int>());
         REQUIRE(f.getWidth(0, "la") == normalNode[Font::ENCODING]["la"][Font::TEXT_LENGTH_VAL].as<int>());
         REQUIRE(f.getWidth(0, "❤") == normalNode[Font::ENCODING]["❤"][Font::TEXT_LENGTH_VAL].as<int>());
-        REQUIRE(!std::get<1>(f.getTextCode(0, "l", "d")));
+        REQUIRE(!std::get<1>(f.getTextCode(0, "l", "d").value()));
         REQUIRE(f.getMaxEncodedValue(0) == 255);
-#ifdef SABLE_KEEP_DEPRECATED
-        REQUIRE(std::get<0>( f.getTextCode("l", "l")) == expectedResult);
-        REQUIRE(f.getWidth("l") == normalNode[Font::ENCODING]["l"][Font::TEXT_LENGTH_VAL].as<int>());
-        REQUIRE(f.getMaxEncodedValue() == 255);
-#endif
+
         v.reserve(f.getMaxEncodedValue(0));
         f.getFontWidths(0, std::back_inserter(v));
         REQUIRE(v.size() == f.getMaxEncodedValue(0));
         REQUIRE(v[0] == normalNode[Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL].as<int>());
         REQUIRE(v[74] == normalNode[Font::DEFAULT_WIDTH].as<int>());
-#ifdef SABLE_KEEP_DEPRECATED
-#endif
+
         REQUIRE(f.getCommandValue() == 0);
         REQUIRE(f.getMaxWidth() == 160);
         REQUIRE(f.getByteWidth() == 1);
-        REQUIRE_THROWS(f.getTextCode(0, "@"));
+        REQUIRE(!f.getTextCode(0, "@"));
         REQUIRE_THROWS(f.getWidth(0, "@"));
         REQUIRE(f.getHasDigraphs());
         REQUIRE(f.getFontWidthLocation() == "!somewhere");
-        REQUIRE_THROWS(f.getExtraValue("SomeExtra"));
+        REQUIRE(!f.getExtraValue("SomeExtra"));
     }
     SECTION("Font with no default width.")
     {
@@ -141,7 +137,8 @@ TEST_CASE("Test 1-byte fonts.")
         normalNode[Font::FIXED_WIDTH] = 8;
         normalNode[Font::ENCODING]["%"] = 4;
         Font f = sable::FontBuilder::make(normalNode, "fixedWidth", sable_tests::defaultLocale);
-        REQUIRE(std::get<0>(f.getTextCode(0, "%")) == 4);
+        REQUIRE(f.getTextCode(0, "%"));
+        REQUIRE(std::get<0>(f.getTextCode(0, "%").value()) == 4);
         REQUIRE(f.getWidth(0, "A") == 8);
         REQUIRE(f.getWidth(0, "A") == f.getWidth(0, "%"));
         std::vector<int> v;
@@ -167,7 +164,7 @@ TEST_CASE("Test 1-byte fonts.")
         normalNode[Font::EXTRAS]["SomeExtra"] = 1;
         Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         REQUIRE(f.getExtraValue("SomeExtra") == 1);
-        REQUIRE_THROWS(f.getExtraValue("SomeMissingExtra"));
+        REQUIRE(!f.getExtraValue("SomeMissingExtra"));
     }
     SECTION("Test font with nouns.")
     {
@@ -199,9 +196,7 @@ TEST_CASE("Test 1-byte fonts.")
         Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
         REQUIRE_NOTHROW(f.getNounData(0, "SomeNoun"));
         auto nounData = f.getNounData(0, "SomeNoun");
-#ifdef SABLE_KEEP_DEPRECATED
-        REQUIRE_NOTHROW(f.getNounData("SomeNoun"));
-#endif
+
         REQUIRE(nounData.getWidth() == expectedWidth);
         REQUIRE(data.front() == *nounData);
         int count = 0;
@@ -263,12 +258,14 @@ TEST_CASE("Test 1-byte fonts.")
         };
         REQUIRE_NOTHROW(sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale));
         Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
+        // pages out of bound
         REQUIRE_THROWS(f.getTextCode(2, "A"));
         REQUIRE_THROWS(f.getWidth(2, "A"));
-        REQUIRE(std::get<0>(f.getTextCode(0, "A")) == 1);
-        REQUIRE(std::get<0>(f.getTextCode(1, "A")) == 5);
-        REQUIRE_THROWS(f.getTextCode(0, "待"));
-        REQUIRE(std::get<0>(f.getTextCode(1, "待")) == 1);
+
+        REQUIRE(std::get<0>(f.getTextCode(0, "A").value()) == 1);
+        REQUIRE(std::get<0>(f.getTextCode(1, "A").value()) == 5);
+        REQUIRE(!f.getTextCode(0, "待"));
+        REQUIRE(std::get<0>(f.getTextCode(1, "待").value()) == 1);
         REQUIRE(f.getWidth(1, "祖") == 13);
         REQUIRE(f.getWidth(1, "東") == 12);
         REQUIRE(f.getWidth(1, "老") == 8);
@@ -308,17 +305,17 @@ TEST_CASE("Test 1-byte fonts.")
         normalNode[Font::EXTRAS]["östlich"] = 10;
         normalNode[Font::NOUNS]["Åland"][Font::CODE_VAL] = std::vector{0, 1, 2, 3, 4};
         Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
-        REQUIRE(std::get<0>(f.getTextCode(0, test1)) == 100);
-        REQUIRE(std::get<0>(f.getTextCode(0, test3)) == 100);
-        REQUIRE(std::get<0>(f.getTextCode(0, test2)) == 100);
+        REQUIRE(std::get<0>(f.getTextCode(0, test1).value()) == 100);
+        REQUIRE(std::get<0>(f.getTextCode(0, test3).value()) == 100);
+        REQUIRE(std::get<0>(f.getTextCode(0, test2).value()) == 100);
         auto nounTest = "\u0041\u030Aland";
         REQUIRE_NOTHROW(f.getNounData(0, "Åland"));
         REQUIRE_NOTHROW(f.getNounData(0, nounTest));
         REQUIRE_NOTHROW(f.getCommandData("zvýraznit"));
         REQUIRE_NOTHROW(f.getCommandData("zv\u0079\u0301raznit"));
         REQUIRE(f.getCommandData("zvýraznit").code == f.getCommandData("zv\u0079\u0301raznit").code);
-        REQUIRE_NOTHROW(f.getExtraValue("östlich"));
-        REQUIRE_NOTHROW(f.getExtraValue("\u006F\u0308stlich"));
+        REQUIRE((bool)f.getExtraValue("östlich"));
+        REQUIRE((bool)f.getExtraValue("\u006F\u0308stlich"));
         REQUIRE(f.getExtraValue("östlich") == f.getExtraValue("\u006F\u0308stlich"));
     }
 }
@@ -339,7 +336,7 @@ TEST_CASE("Test 2-byte fonts.")
         REQUIRE(f.getByteWidth() == 2);
         REQUIRE(f.getMaxWidth() == 0);
         REQUIRE(f.getFontWidthLocation().empty());
-        REQUIRE(f.getCommandValue() == -1);
+        REQUIRE(!f.getCommandValue());
 
         REQUIRE(f.getCommandData("Test").isNewLine);
 

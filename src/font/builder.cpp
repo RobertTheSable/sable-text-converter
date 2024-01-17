@@ -238,7 +238,9 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         }
         return val;
     }) == "true") : false;
-    auto commandCode = config[Font::CMD_CHAR].IsDefined() ? validate<int>(config[Font::CMD_CHAR], name, Font::CMD_CHAR) : -1;
+    auto commandCode = config[Font::CMD_CHAR].IsDefined() ?
+                std::optional<unsigned int>{validate<int>(config[Font::CMD_CHAR], name, Font::CMD_CHAR)} :
+                std::nullopt;
     auto isFixedWidth = config[Font::FIXED_WIDTH].IsDefined();
     auto defaultwidth = [&config, isFixedWidth, &name]() {
         if (config[Font::DEFAULT_WIDTH].IsDefined()) {
@@ -273,7 +275,7 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
     if (!config[Font::ENCODING].IsDefined()) {
         throw generateError(config.Mark(), name, Font::ENCODING, "is missing.");
     }
-    f.addPage(buildPage(name, config, commandCode, byteWidth));
+    f.addPage(buildPage(name, config, commandCode.value_or(-1), byteWidth));
 
     if (config[Font::PAGES].IsDefined()) {
         if (!config[Font::PAGES].IsSequence()) {
@@ -282,7 +284,7 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         int pageIdx = 1;
         for (YAML::Node page: config[Font::PAGES]) {
             try {
-                f.addPage(buildPage(name, page, commandCode, byteWidth));
+                f.addPage(buildPage(name, page, commandCode.value_or(-1), byteWidth));
             } catch (sable::SubfieldError<Font::TextNode>& e) {
                 if (e.type == SubfieldErrorType::FollowConstraint) {
                     throw generateError(

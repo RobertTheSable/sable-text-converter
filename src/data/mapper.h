@@ -2,7 +2,7 @@
 #define SABLE_UTIL_MAPPER_H
 
 #include <cstdint>
-#include <tuple>
+#include <optional>
 #include <string>
 
 namespace sable {
@@ -21,7 +21,12 @@ static constexpr const int NORMAL_ROM_MAX_SIZE = 0x400000;
 static constexpr const int ROM_MAX_SIZE = 0x007F0000;
 static constexpr std::size_t MAX_ALLOWED_FILESIZE_SHORTCUT = 8388608;
 
-std::pair<unsigned int, int> strToHex(const std::string& val);
+struct ParsedHex {
+    unsigned int value;
+    int length;
+};
+
+std::optional<ParsedHex> strToHex(const std::string& val);
 
 MapperType getExpandedType(MapperType m);
 class Mapper {

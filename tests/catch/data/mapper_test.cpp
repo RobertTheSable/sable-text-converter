@@ -259,16 +259,21 @@ TEST_CASE("Expanded type tests")
     REQUIRE(sable::util::getExpandedType(MapperType::HIROM) == MapperType::EXHIROM);
 }
 
+bool operator==(const sable::util::ParsedHex& lhs, const sable::util::ParsedHex& rhs)
+{
+    return lhs.length == rhs.length && lhs.value == rhs.value;
+}
+
 
 TEST_CASE("String to hex conversion")
 {
     using sable::util::strToHex;
-    REQUIRE(strToHex("0") == std::make_pair<unsigned int, int>(0, 1));
-    REQUIRE(strToHex("0000") == std::make_pair<unsigned int, int>(0, 2));
-    REQUIRE(strToHex("000000") == std::make_pair<unsigned int, int>(0, 3));
-    REQUIRE(strToHex("$000000") == std::make_pair<unsigned int, int>(0, 3));
-    REQUIRE(strToHex("$FF") == std::make_pair<unsigned int, int>(255, 1));
-    REQUIRE(strToHex("XYV") == std::make_pair<unsigned int, int>(0, -1));
+    REQUIRE(strToHex("0").value() == sable::util::ParsedHex{0, 1});
+    REQUIRE(strToHex("0000").value() == sable::util::ParsedHex{ 0, 2});
+    REQUIRE(strToHex("000000").value() == sable::util::ParsedHex{0, 3});
+    REQUIRE(strToHex("$000000").value() == sable::util::ParsedHex{0, 3});
+    REQUIRE(strToHex("$FF").value() == sable::util::ParsedHex{255, 1});
+    REQUIRE(!strToHex("XYV"));
     REQUIRE_THROWS(strToHex("$1000000"));
 }
 

@@ -9,6 +9,8 @@ file(GLOB SABLE_PARSING_SOURCE_FILES
     block.cpp
     result.h
     errorhandling.h
+    inserter.h
+    settings.h
 )
 
 add_library(sable_parsing STATIC ${SABLE_PARSING_SOURCE_FILES})

@@ -10,24 +10,10 @@
 #include "font/font.h"
 #include "data/options.h"
 #include "data/mapper.h"
+#include "settings.h"
 
 namespace sable {
     typedef std::back_insert_iterator<std::vector<unsigned char>> back_inserter;
-    struct ParseSettings {
-        enum class Autoend {
-            On, Off
-        } autoend;
-        bool printpc;
-        std::string mode, label;
-        int maxWidth;
-        int currentAddress;
-        int page;
-        enum class EndOnLabel {
-            On, Off
-        } endOnLabel;
-        sable::options::ExportAddress exportAddress;
-        sable::options::ExportWidth exportWidth;
-    };
 
     class TextParser
     {
@@ -62,11 +48,11 @@ namespace sable {
         };
 
         Result parseLine(
-                std::istream &input,
-                ParseSettings &settings,
-                back_inserter insert,
-                Metadata lastReadWasMetadata,
-                const util::Mapper& mapper
+            std::istream &input,
+            ParseSettings &settings,
+            back_inserter insert,
+            Metadata lastReadWasMetadata,
+            const util::Mapper& mapper
         );
         const std::map<std::string, sable::Font>& getFonts() const;
         ParseSettings getDefaultSetting(int address) const;

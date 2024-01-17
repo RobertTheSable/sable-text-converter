@@ -3,7 +3,7 @@
 #include <sstream>
 #include <iomanip>
 
-std::pair<unsigned int, int> sable::util::strToHex(const std::string &val)
+auto sable::util::strToHex(const std::string &val) -> std::optional<ParsedHex>
 {
     int bytes;
     std::stringstream t;
@@ -14,16 +14,16 @@ std::pair<unsigned int, int> sable::util::strToHex(const std::string &val)
         bytes = (val.length() + 1) / 2;
         t = std::stringstream(val);
     }
-    int tmp;
+    unsigned int tmp;
     t >> std::hex >> tmp;
 
     if (tmp > 0xFFFFFF) {
         throw std::runtime_error(std::string("Hex value \"") + val +"\" too large.");
     }
     if (!t.eof()){
-        return std::make_pair(0, -1);
+        return std::nullopt;
     }
-    return std::make_pair(tmp, bytes);
+    return ParsedHex{tmp, bytes};
 }
 
 sable::util::MapperType sable::util::getExpandedType(sable::util::MapperType m)
