@@ -24,15 +24,15 @@ Use `sable.exe --help` for more detailed options.
 
 ## Compiling:
 * Requires CMake 
-* Requires c++17 Filesystem or Boost filesystem libraries.
-* Requires ICU (il8n, uc, and data) and Boost locale libraries
-* Tested compilers: g++, clang++ (Linux), mingw-w64.
+* Requires c++17 Filesystem.
+* Requires ICU (il8n, uc, and data)
+* Tested compilers: g++, clang (Linux), clang-cl, mingw-w64.
 
 Simply clone the repo or download the source and run 
-* `mkdir build`
+* `conan install .`
 * `cd build`
-* `cmake ..`
-* `make` or `cmake --build .`
+* `cmake .. -G Ninja <include toolchain/presets etc>`
+* `cmake --build .`
 
 ## Coverage
 
