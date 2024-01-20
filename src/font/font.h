@@ -18,6 +18,7 @@ namespace sable {
     {
     public:
         friend class FontBuilder;
+
         static constexpr const char* USE_DIGRAPHS = "HasDigraphs";
         static constexpr const char* BYTE_WIDTH = "ByteWidth";
         static constexpr const char* CMD_CHAR = "CommandValue";
@@ -26,10 +27,14 @@ namespace sable {
         static constexpr const char* MAX_CHAR = "MaxEncodedValue";
         static constexpr const char* MAX_WIDTH = "MaxWidth";
         static constexpr const char* FONT_ADDR = "FontWidthAddress";
+        static constexpr const char* MIN_PREFIX_VAL = "FirstPrefixedCommand";
+        static constexpr const char* MAX_PREFIX_VAL = "LastUnprefixedCommand";
+
         static constexpr const char* ENCODING = "Encoding";
         static constexpr const char* COMMANDS = "Commands";
         static constexpr const char* NOUNS = "Nouns";
         static constexpr const char* EXTRAS = "Extras";
+
         static constexpr const char* CODE_VAL = "code";
         static constexpr const char* TEXT_LENGTH_VAL = "length";
         static constexpr const char* CMD_NEWLINE_VAL = "newline";
@@ -118,8 +123,8 @@ namespace sable {
         std::string m_LocaleId;
         std::string m_Name;
         bool m_IsValid, m_HasDigraphs, m_IsFixedWidth;
-        int m_ByteWidth,m_MaxWidth, m_DefaultWidth;
-        unsigned int endValue, m_MaxUnprefixedCommand;
+        int m_ByteWidth, m_MaxWidth, m_DefaultWidth;
+        unsigned int endValue, m_FirstPrefixedCommand;
         std::optional<unsigned int> m_CommandValue;
         std::string m_FontWidthLocation;
         std::vector<Page> m_Pages;

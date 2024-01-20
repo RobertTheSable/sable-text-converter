@@ -28,7 +28,6 @@ YAML::Node sable_tests::createSampleNode(
     } else if (defaultWidth != 0) {
         sample[Font::DEFAULT_WIDTH] = defaultWidth;
     }
-    static const char* parsedChars = " (),.!?\"01234567890';";
     int index = offset;
     for (char i = 'A'; i <= 'Z'; i++) {
         char lowerCase = i+0x20;
@@ -48,10 +47,10 @@ YAML::Node sable_tests::createSampleNode(
 //                sample[Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL].Scalar();
 //    }
     index = offset + 52;
-    for (int var = 0; var < 21; ++var) {
-        sample[Font::ENCODING][parsedChars[var]][Font::CODE_VAL] = index++;
+    for (int var = 0; var < sizeof (parsedChars); ++var) {
+        sample[Font::ENCODING][sable_tests::parsedChars[var]][Font::CODE_VAL] = index++;
         if (!fixedWidth) {
-            sample[Font::ENCODING][parsedChars[var]][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
+            sample[Font::ENCODING][sable_tests::parsedChars[var]][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
         }
     }
     if (!extras.empty()) {

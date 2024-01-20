@@ -23,7 +23,7 @@ TEST_CASE("Test 1-byte fonts.")
         {"End", 0, CommandSample::NewLine::No, ""},
         {"NewLine", 01,  CommandSample::NewLine::Yes, "yes"},
         {"Test", 07,  CommandSample::NewLine::No, "True"},
-        {"NoPrefix", 07,  CommandSample::NewLine::No, "false"}
+//        {"NoPrefix", 07,  CommandSample::NewLine::No, "false"}
     };
     auto normalNode = sable_tests::createSampleNode(true, 1, 160, 8, commands, {"ll", "la", "e?", "ia", "❤"}, 4);
 
@@ -80,35 +80,6 @@ TEST_CASE("Test 1-byte fonts.")
         REQUIRE(!f.getCommandData("Test").isNewLine);
         REQUIRE(f.getCommandData("NewLine").isNewLine);
         REQUIRE_THROWS(f.getCommandData("Something"));
-    }
-    SECTION("Test command prefixes")
-    {
-        YAML::Node n;
-        n[Font::CODE_VAL] = 2;
-        SECTION("Value = No")
-        {
-            n[Font::CMD_PREFIX] = "No";
-        }
-        SECTION("Value = no")
-        {
-            n[Font::CMD_PREFIX] = "no";
-        }
-        SECTION("Value = False")
-        {
-            n[Font::CMD_PREFIX] = "False";
-        }
-        SECTION("Value = false")
-        {
-            n[Font::CMD_PREFIX] = "false";
-        }
-
-        normalNode[Font::COMMANDS]["EncodingTest"] = n;
-        Font f = sable::FontBuilder::make(normalNode, "normal", sable_tests::defaultLocale);
-        REQUIRE(f.getCommandData("End").isPrefixed);
-        REQUIRE(f.getCommandData("NewLine").isPrefixed);
-        REQUIRE(f.getCommandData("Test").isPrefixed);
-        REQUIRE(!f.getCommandData("NoPrefix").isPrefixed);
-        REQUIRE(!f.getCommandData("EncodingTest").isPrefixed);
     }
 
 #ifndef _MSC_VER

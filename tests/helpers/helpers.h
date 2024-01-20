@@ -55,6 +55,8 @@ struct NounNode {
     std::string length;
 };
 
+static constexpr const char parsedChars[] = " (),.!?\"01234567890'";
+
 };
 
 namespace YAML {

@@ -11,6 +11,7 @@ file(GLOB SABLE_TEST_FILES
     catch/data/mapper_test.cpp
 
     catch/font/fonts_test.cpp
+    catch/font/fonts_prefix_tests.cpp
     catch/font/characteriterator_test.cpp
     catch/font/error_test.cpp
     catch/font/normalize_test.cpp

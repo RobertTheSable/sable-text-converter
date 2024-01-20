@@ -112,13 +112,16 @@ Font::Page buildPage(
     const std::string& name,
     const YAML::Node& node,
     int commandValue,
+    int firstPrefixedCommand,
     int glyphWidth
 ) {
     Font::Page page;
 
-    auto encodingConv = [&page, commandValue] (const std::string& id, Font::TextNode&& n) {
+    auto encodingConv = [&page, commandValue, firstPrefixedCommand] (const std::string& id, Font::TextNode&& n) {
         if (n.code == commandValue) {
             throw SubfieldError<Font::TextNode>(Font::CODE_VAL, "matches the command value, which is not allowed.");
+        } else if (commandValue >= 0 && n.code < firstPrefixedCommand) {
+            throw SubfieldError<Font::TextNode>(Font::CODE_VAL, "is less that the first prefixed command, which is not allowed.");
         }
         std::string newId = id;
         if (newId.front() == '[') {
@@ -272,10 +275,29 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         byteWidth
     );
 
+
+    if (auto minPfx = config[Font::MIN_PREFIX_VAL]; minPfx.IsDefined() && minPfx.IsScalar()) {
+        f.m_FirstPrefixedCommand = minPfx.as<int>();
+    } else if (auto maxPfx = config[Font::MAX_PREFIX_VAL]; maxPfx.IsDefined() && maxPfx.IsScalar()) {
+        f.m_FirstPrefixedCommand = maxPfx.as<int>() + 1;
+    }
+
+    try {
+        // I'd like to validate page command configs here
+        // but there's no way to do that and allow commands to be mirrored.
+        auto conv = [&f] (const std::string& id, Font::CommandNode&& c) {
+            f.addCommandData(id, std::move(c));
+
+        };
+        generate<Font::CommandNode>(name, config[Font::COMMANDS], Font::COMMANDS, conv);
+    } catch (ConvertError &e) {
+        throw generateError(e.mark, name, e.field, e.type);
+    }
+
     if (!config[Font::ENCODING].IsDefined()) {
         throw generateError(config.Mark(), name, Font::ENCODING, "is missing.");
     }
-    f.addPage(buildPage(name, config, commandCode.value_or(-1), byteWidth));
+    f.addPage(buildPage(name, config, commandCode.value_or(-1), f.m_FirstPrefixedCommand, byteWidth));
 
     if (config[Font::PAGES].IsDefined()) {
         if (!config[Font::PAGES].IsSequence()) {
@@ -284,7 +306,7 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         int pageIdx = 1;
         for (YAML::Node page: config[Font::PAGES]) {
             try {
-                f.addPage(buildPage(name, page, commandCode.value_or(-1), byteWidth));
+                f.addPage(buildPage(name, page, commandCode.value_or(-1), f.m_FirstPrefixedCommand, byteWidth));
             } catch (sable::SubfieldError<Font::TextNode>& e) {
                 if (e.type == SubfieldErrorType::FollowConstraint) {
                     throw generateError(
@@ -307,16 +329,6 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         }
     }
 
-    try {
-        // I'd like to validate page command configs here
-        // but there's no way to do that and allow commands to be mirrored.
-        auto conv = [&f] (const std::string& id, Font::CommandNode&& c) {
-            f.addCommandData(id, std::move(c));
-        };
-        generate<Font::CommandNode>(name, config[Font::COMMANDS], Font::COMMANDS, conv);
-    } catch (ConvertError &e) {
-        throw generateError(e.mark, name, e.field, e.type);
-    }
     if (config[Font::EXTRAS].IsDefined()) {
         try {
             auto conv = [&f] (const std::string& id, int i) {

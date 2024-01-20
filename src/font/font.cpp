@@ -27,9 +27,14 @@ Font::Font(
     m_IsFixedWidth{isFixedWidth},
     m_MaxWidth{maxWidth},
     m_FontWidthLocation{fontWidthLocation},
-    m_ByteWidth{glyphByteLength},
-    m_MaxUnprefixedCommand{commandCode.value_or(0)}
-{}
+    m_ByteWidth{glyphByteLength}
+{
+    if (commandCode) {
+        m_FirstPrefixedCommand = commandCode.value() + 1;
+    } else {
+        m_FirstPrefixedCommand = 0;
+    }
+}
 
     const Font::CommandNode &Font::getCommandData(const std::string &id) const
     {
@@ -48,6 +53,13 @@ Font::Font(
         if (nId == "End") {
             endValue = data.code;
         }
+
+        if (!data.isPrefixed && (bool)m_CommandValue) {
+            if (auto minPrefix = data.code + 1; minPrefix > m_FirstPrefixedCommand) {
+                m_FirstPrefixedCommand = minPrefix;
+            }
+        }
+
         m_CommandConvertMap[nId] = data;
     }
 
@@ -155,13 +167,14 @@ Font::Font(
         std::sort(v.begin(), v.end(), [](TextDataPair& a, TextDataPair& b) {
             return a.second.code < b.second.code;
         });
-        int index = 0;
-        if (this->getCommandValue() == 0) {
-            index = 1;
+
+        int index = 0, limit = m_Pages[page].maxValue;
+        if ((bool)m_CommandValue) {
+            index = m_FirstPrefixedCommand;
         }
         auto t = v.begin();
         if (m_IsFixedWidth) {
-            while (index <= m_Pages[page].maxValue) {
+            while (index <= limit) {
                 *(inserter++) = m_DefaultWidth;
                 index++;
                 ++t;
@@ -170,7 +183,7 @@ Font::Font(
             // never ran into an issue with this until I started testing pages
             // my best guess is that adding those cases somehow messed with memory enough
             // to trigger the infinite loop condition.
-            unsigned int lastCode = m_Pages[page].maxValue+1;
+            unsigned int lastCode = limit+1;
             while (t != v.end()) {
                 if (lastCode != t->second.code ) {
                     if (index == t->second.code) {
@@ -189,7 +202,7 @@ Font::Font(
                     ++t;
                 }
             }
-            for ( ; index <= m_Pages[page].maxValue; ++index) {
+            for ( ; index <= limit; ++index) {
                 *(inserter++) = m_DefaultWidth;
             }
         }
