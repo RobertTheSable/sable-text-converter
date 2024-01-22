@@ -8,7 +8,7 @@ YAML::Node sable_tests::createSampleNode(
         unsigned int byteWidth,
         unsigned int maxWidth,
         unsigned int defaultWidth,
-        const std::vector<std::tuple<std::string, int, bool> > &commands,
+        const std::vector<CommandSample> &commands,
         const std::vector<std::string> &extras,
         unsigned int skip,
         int command,
@@ -28,7 +28,6 @@ YAML::Node sable_tests::createSampleNode(
     } else if (defaultWidth != 0) {
         sample[Font::DEFAULT_WIDTH] = defaultWidth;
     }
-    static const char* parsedChars = " (),.!?\"01234567890';";
     int index = offset;
     for (char i = 'A'; i <= 'Z'; i++) {
         char lowerCase = i+0x20;
@@ -36,8 +35,9 @@ YAML::Node sable_tests::createSampleNode(
         sample[Font::ENCODING][i][Font::CODE_VAL] = index;
         sample[Font::ENCODING][lowerCase][Font::CODE_VAL] = index + 26;
         if (!fixedWidth) {
-            sample[Font::ENCODING][i][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
-            sample[Font::ENCODING][lowerCase][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
+            auto calcLength = ((index-1) % 8) + 1;
+            sample[Font::ENCODING][i][Font::TEXT_LENGTH_VAL] = calcLength;
+            sample[Font::ENCODING][lowerCase][Font::TEXT_LENGTH_VAL] = calcLength;
         }
     }
     // add a duplicate entry
@@ -47,10 +47,10 @@ YAML::Node sable_tests::createSampleNode(
 //                sample[Font::ENCODING]["A"][Font::TEXT_LENGTH_VAL].Scalar();
 //    }
     index = offset + 52;
-    for (int var = 0; var < 21; ++var) {
-        sample[Font::ENCODING][parsedChars[var]][Font::CODE_VAL] = index++;
+    for (int var = 0; var < sizeof (parsedChars); ++var) {
+        sample[Font::ENCODING][sable_tests::parsedChars[var]][Font::CODE_VAL] = index++;
         if (!fixedWidth) {
-            sample[Font::ENCODING][parsedChars[var]][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
+            sample[Font::ENCODING][sable_tests::parsedChars[var]][Font::TEXT_LENGTH_VAL] = ((index-1) % 8) + 1;
         }
     }
     if (!extras.empty()) {
@@ -72,10 +72,11 @@ YAML::Node sable_tests::createSampleNode(
         }
     }
     for (auto& cmd: commands) {
-        sample[Font::COMMANDS][std::get<0>(cmd)][Font::CODE_VAL] = std::get<1>(cmd);
-        if (std::get<2>(cmd)) {
-            sample[Font::COMMANDS][std::get<0>(cmd)][Font::CMD_NEWLINE_VAL] = "true";
+        sample[Font::COMMANDS][cmd.name][Font::CODE_VAL] = cmd.code;
+        if (CommandSample::enabled(cmd.newline)) {
+            sample[Font::COMMANDS][cmd.name][Font::CMD_NEWLINE_VAL] = "true";
         }
+        sample[Font::COMMANDS][cmd.name][Font::CMD_PREFIX] = cmd.prefix;
     }
     return sample;
 }
@@ -89,9 +90,9 @@ YAML::Node sable_tests::getSampleNode()
                 160,
                 8,
                 {
-                    {"End", 0, false},
-                    {"NewLine", 01, true},
-                    {"Test", 07, false}
+                    {"End", 0, CommandSample::NewLine::No, "Yes"},
+                    {"NewLine", sable_tests::NEWLINE_VAL, CommandSample::NewLine::Yes, "Yes"},
+                    {"Test", 07, CommandSample::NewLine::No, "Yes"}
                 },
                 {"ll", "la", "e?", "[special]", "❤", "e†"}
                 );
@@ -108,6 +109,7 @@ YAML::Node sable_tests::getSampleNode()
                 true
                 );
     sampleNode["normal"][sable::Font::EXTRAS]["Extra1"] = 1;
+    sampleNode["normal"][sable::Font::EXTRAS]["Extra2"] = 2;
     sampleNode["nodigraph"][sable::Font::ENCODING] =  sampleNode["normal"][sable::Font::ENCODING];
     sampleNode["nodigraph"][sable::Font::COMMANDS] =  sampleNode["normal"][sable::Font::COMMANDS];
     sampleNode["menu"] = sable_tests::createSampleNode(
@@ -116,9 +118,9 @@ YAML::Node sable_tests::getSampleNode()
                 0,
                 8,
                 {
-                    {"End", 0xFFFF, false},
-                    {"NewLine", 0xFFFD, true},
-                    {"Test", 0xFFFE, true}
+                    {"End", 0xFFFF, CommandSample::NewLine::No, "No"},
+                    {"NewLine", 0xFFFD, CommandSample::NewLine::Yes, "No"},
+                    {"Test", 0xFFFE, CommandSample::NewLine::No, "No"}
                 },
                 {},
                 0,
@@ -126,6 +128,23 @@ YAML::Node sable_tests::getSampleNode()
                 0,
                 true
                 );
+    sampleNode["offset"] = sable_tests::createSampleNode(
+        true,
+        1,
+        160,
+        8,
+        {
+            {"End", 0, CommandSample::NewLine::No, "No"},
+            {"NewLine", sable_tests::NEWLINE_VAL, CommandSample::NewLine::Yes, "No"},
+            {"TestP", 17, CommandSample::NewLine::No, "Yes"}
+        },
+        {"ll", "la", "e?", "[special]", "❤", "e†"},
+        0,
+        0,
+        17
+    );
+    sampleNode["offset"][sable::Font::EXTRAS]["Extra1"] = 1;
+    sampleNode["offset"][sable::Font::EXTRAS]["Extra2"] = 2;
     return sampleNode;
 }
 

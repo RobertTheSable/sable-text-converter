@@ -5,33 +5,37 @@ file(GLOB SABLE_TEST_FILES
     helpers/helpers.h
     helpers/helpers.cpp
 
-    catch/data/collisions.cpp
-    catch/data/table.cpp
-    catch/data/addresslist.cpp
-    catch/data/mapper.cpp
+    catch/data/collisions_test.cpp
+    catch/data/table_test.cpp
+    catch/data/addresslist_test.cpp
+    catch/data/mapper_test.cpp
 
-    catch/font/fonts.cpp
-    catch/font/characteriterator.cpp
-    catch/font/error.cpp
-    catch/font/normalize.cpp
+    catch/font/fonts_test.cpp
+    catch/font/fonts_prefix_tests.cpp
+    catch/font/characteriterator_test.cpp
+    catch/font/error_test.cpp
+    catch/font/normalize_test.cpp
 
-    catch/output/rompatcher.cpp
-    catch/output/capture.cpp
-    catch/output/formatter.cpp
+    catch/output/rompatcher_test.cpp
+    catch/output/capture_test.cpp
+    catch/output/formatter_test.cpp
 
-    catch/parse/textparser.cpp
-    catch/parse/unicode.cpp
-    catch/parse/block.cpp
-    catch/parse/parse.cpp
+    catch/parse/textparser_tests.cpp
+    catch/parse/testparser_singleline_tests.cpp
+    catch/parse/textparser_nonprefixed_tests.cpp
+    catch/parse/unicode_test.cpp
+    catch/parse/block_test.cpp
+    catch/parse/parse_test.cpp
+    catch/parse/textparser_test_helpers.h
 
-    catch/project/group.cpp
-    catch/project/groupparser.cpp
-    catch/project/folder.cpp
-    catch/project/handler.cpp
-    catch/project/mapperconv.cpp
-    catch/project/roms.cpp
-    catch/project/project.cpp
-    catch/project/util.cpp
+    catch/project/group_test.cpp
+    catch/project/groupparser_test.cpp
+    catch/project/folder_test.cpp
+    catch/project/handler_test.cpp
+    catch/project/mapperconv_test.cpp
+    catch/project/roms_test.cpp
+    catch/project/project_test.cpp
+    catch/project/util_test.cpp
 )
 
 include_directories(helpers)

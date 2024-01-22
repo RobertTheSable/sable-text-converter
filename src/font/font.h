@@ -18,6 +18,7 @@ namespace sable {
     {
     public:
         friend class FontBuilder;
+
         static constexpr const char* USE_DIGRAPHS = "HasDigraphs";
         static constexpr const char* BYTE_WIDTH = "ByteWidth";
         static constexpr const char* CMD_CHAR = "CommandValue";
@@ -26,13 +27,18 @@ namespace sable {
         static constexpr const char* MAX_CHAR = "MaxEncodedValue";
         static constexpr const char* MAX_WIDTH = "MaxWidth";
         static constexpr const char* FONT_ADDR = "FontWidthAddress";
+        static constexpr const char* MIN_PREFIX_VAL = "FirstPrefixedCommand";
+        static constexpr const char* MAX_PREFIX_VAL = "LastUnprefixedCommand";
+
         static constexpr const char* ENCODING = "Encoding";
         static constexpr const char* COMMANDS = "Commands";
         static constexpr const char* NOUNS = "Nouns";
         static constexpr const char* EXTRAS = "Extras";
+
         static constexpr const char* CODE_VAL = "code";
         static constexpr const char* TEXT_LENGTH_VAL = "length";
         static constexpr const char* CMD_NEWLINE_VAL = "newline";
+        static constexpr const char* CMD_PREFIX = "prefix";
         static constexpr const char* CMD_PAGE = "page";
         static constexpr const char* PAGES = "Pages";
 
@@ -41,7 +47,7 @@ namespace sable {
             const std::string& name,
             const std::string& localeId,
             bool hasDigraphs,
-            int commandCode,
+            std::optional<unsigned int> commandCode,
             bool isFixedWidth,
             int defaultWidth,
             int maxWidth,
@@ -54,18 +60,12 @@ namespace sable {
         Font(Font&)=default;
         Font(const Font&)=default;
         Font& operator=(const Font&)=default;
-        int getByteWidth() const;
-        int getCommandValue() const;
-        int getMaxWidth() const;
-        bool getHasDigraphs() const;
-        const std::string& getFontWidthLocation() const;
-
-        int getNumberOfPages() const;
 
         struct CommandNode {
             unsigned int code;
             int page;
             bool isNewLine = false;
+            bool isPrefixed = true;
         };
         struct TextNode {
             unsigned int code;
@@ -94,45 +94,44 @@ namespace sable {
 
         const CommandNode& getCommandData(const std::string& id) const;
         void addCommandData(const std::string& id, CommandNode&& data);
+
+        [[deprecated("Use getCommandData(const std::string& id).code instead.")]]
         unsigned int getCommandCode(const std::string& id) const;
+        [[deprecated("Use getCommandData(const std::string& id).isNewLine instead.")]]
         bool isCommandNewline(const std::string& id) const;
 
-        std::tuple<unsigned int, bool> getTextCode(int page, const std::string& id, const std::string& next = "") const;
-        int getMaxEncodedValue(int page) const;
+        std::optional<int> getExtraValue(const std::string& id) const noexcept;
+        void addExtra(const std::string& id, int value);
+
+        std::optional<std::tuple<unsigned int, bool>> getTextCode(int page, const std::string& id, const std::string& next = "") const;
         CharacterIterator getNounData(int page, const std::string& id) const;
+
+
+        int getMaxEncodedValue(int page) const;
         int getWidth(int page, const std::string& id) const;
         void getFontWidths(int page, std::back_insert_iterator<std::vector<int>> inserter) const;
 
-#ifdef SABLE_KEEP_DEPRECATED
-        [[deprecated("Use getTextCode(int page, const std::string& id, ...) instead.")]]
-        std::tuple<unsigned int, bool> getTextCode(const std::string& id, const std::string& next = "") const;
-        [[deprecated ("Use getMaxEncodedValue(int page) instead.")]]
-        int getMaxEncodedValue() const;
-        [[deprecated("Use getNounData(int page, const std::string& id) instead.")]]
-        CharacterIterator getNounData(const std::string& id) const;
-        [[deprecated("Use getWidth(int page, const std::string& id) instead.")]]
-        int getWidth(const std::string& id) const;
-        [[deprecated("Use getFontWidths(int page, ...) instead.")]]
-        void getFontWidths(std::back_insert_iterator<std::vector<int>> inserter) const;
-#endif
-
-        int getExtraValue(const std::string& id) const;
-        void addExtra(const std::string& id, int value);
+        int getByteWidth() const;
+        std::optional<unsigned int> getCommandValue() const;
+        int getMaxWidth() const;
+        bool getHasDigraphs() const;
+        const std::string& getFontWidthLocation() const;
+        int getNumberOfPages() const;
 
         explicit operator bool() const;
     private:
         std::string m_LocaleId;
         std::string m_Name;
         bool m_IsValid, m_HasDigraphs, m_IsFixedWidth;
-        int m_ByteWidth, m_CommandValue, m_MaxWidth, m_DefaultWidth;
-        unsigned int endValue;
+        int m_ByteWidth, m_MaxWidth, m_DefaultWidth;
+        unsigned int endValue, m_FirstPrefixedCommand;
+        std::optional<unsigned int> m_CommandValue;
         std::string m_FontWidthLocation;
         std::vector<Page> m_Pages;
         std::unordered_map<std::string, CommandNode> m_CommandConvertMap;
         std::unordered_map<std::string, int> m_Extras;
 
-
-        std::optional<TextNode> lookupTextNode(int page, const std::string& id, bool throwsIfCodeMissing) const;
+        std::optional<TextNode> lookupTextNode(int page, const std::string& id) const;
     public:
         unsigned int getEndValue() const;
         void addPage(Page&& pg);

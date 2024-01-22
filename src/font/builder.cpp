@@ -112,13 +112,16 @@ Font::Page buildPage(
     const std::string& name,
     const YAML::Node& node,
     int commandValue,
+    int firstPrefixedCommand,
     int glyphWidth
 ) {
     Font::Page page;
 
-    auto encodingConv = [&page, commandValue] (const std::string& id, Font::TextNode&& n) {
+    auto encodingConv = [&page, commandValue, firstPrefixedCommand] (const std::string& id, Font::TextNode&& n) {
         if (n.code == commandValue) {
             throw SubfieldError<Font::TextNode>(Font::CODE_VAL, "matches the command value, which is not allowed.");
+        } else if (commandValue >= 0 && n.code < firstPrefixedCommand) {
+            throw SubfieldError<Font::TextNode>(Font::CODE_VAL, "is less that the first prefixed command, which is not allowed.");
         }
         std::string newId = id;
         if (newId.front() == '[') {
@@ -238,7 +241,9 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         }
         return val;
     }) == "true") : false;
-    auto commandCode = config[Font::CMD_CHAR].IsDefined() ? validate<int>(config[Font::CMD_CHAR], name, Font::CMD_CHAR) : -1;
+    auto commandCode = config[Font::CMD_CHAR].IsDefined() ?
+                std::optional<unsigned int>{validate<int>(config[Font::CMD_CHAR], name, Font::CMD_CHAR)} :
+                std::nullopt;
     auto isFixedWidth = config[Font::FIXED_WIDTH].IsDefined();
     auto defaultwidth = [&config, isFixedWidth, &name]() {
         if (config[Font::DEFAULT_WIDTH].IsDefined()) {
@@ -270,10 +275,29 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         byteWidth
     );
 
+
+    if (auto minPfx = config[Font::MIN_PREFIX_VAL]; minPfx.IsDefined() && minPfx.IsScalar()) {
+        f.m_FirstPrefixedCommand = minPfx.as<int>();
+    } else if (auto maxPfx = config[Font::MAX_PREFIX_VAL]; maxPfx.IsDefined() && maxPfx.IsScalar()) {
+        f.m_FirstPrefixedCommand = maxPfx.as<int>() + 1;
+    }
+
+    try {
+        // I'd like to validate page command configs here
+        // but there's no way to do that and allow commands to be mirrored.
+        auto conv = [&f] (const std::string& id, Font::CommandNode&& c) {
+            f.addCommandData(id, std::move(c));
+
+        };
+        generate<Font::CommandNode>(name, config[Font::COMMANDS], Font::COMMANDS, conv);
+    } catch (ConvertError &e) {
+        throw generateError(e.mark, name, e.field, e.type);
+    }
+
     if (!config[Font::ENCODING].IsDefined()) {
         throw generateError(config.Mark(), name, Font::ENCODING, "is missing.");
     }
-    f.addPage(buildPage(name, config, commandCode, byteWidth));
+    f.addPage(buildPage(name, config, commandCode.value_or(-1), f.m_FirstPrefixedCommand, byteWidth));
 
     if (config[Font::PAGES].IsDefined()) {
         if (!config[Font::PAGES].IsSequence()) {
@@ -282,7 +306,7 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         int pageIdx = 1;
         for (YAML::Node page: config[Font::PAGES]) {
             try {
-                f.addPage(buildPage(name, page, commandCode, byteWidth));
+                f.addPage(buildPage(name, page, commandCode.value_or(-1), f.m_FirstPrefixedCommand, byteWidth));
             } catch (sable::SubfieldError<Font::TextNode>& e) {
                 if (e.type == SubfieldErrorType::FollowConstraint) {
                     throw generateError(
@@ -305,16 +329,6 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
         }
     }
 
-    try {
-        // I'd like to validate page command configs here
-        // but there's no way to do that and allow commands to be mirrored.
-        auto conv = [&f] (const std::string& id, Font::CommandNode&& c) {
-            f.addCommandData(id, std::move(c));
-        };
-        generate<Font::CommandNode>(name, config[Font::COMMANDS], Font::COMMANDS, conv);
-    } catch (ConvertError &e) {
-        throw generateError(e.mark, name, e.field, e.type);
-    }
     if (config[Font::EXTRAS].IsDefined()) {
         try {
             auto conv = [&f] (const std::string& id, int i) {
@@ -328,7 +342,7 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
     }
     for (auto cd : {"End", "NewLine"}) {
         try {
-             f.getCommandCode(cd);
+             f.getCommandData(cd);
         } catch (CodeNotFound &e) {
             throw generateError(config[Font::COMMANDS].Mark(), name, cd, "defined in the Commands section.");
         }
@@ -341,25 +355,20 @@ Font Builder::make(const YAML::Node &config, const std::string &name, const std:
 } // namespace sable
 
 namespace YAML {
-    auto CODE_VAL = sable::Font::CODE_VAL;
-    auto TEXT_LENGTH_VAL = sable::Font::TEXT_LENGTH_VAL;
-    auto CMD_NEWLINE_VAL = sable::Font::CMD_NEWLINE_VAL;
-    auto CMD_PAGE = sable::Font::CMD_PAGE;
+using sable::Font;
     bool convert<sable::Font::TextNode>::decode(const Node& node, sable::Font::TextNode& rhs)
     {
-
-        using sable::Font;
-        if (node.IsMap() && node[CODE_VAL].IsDefined()) {
+        if (node.IsMap() && node[Font::CODE_VAL].IsDefined()) {
             try {
-                rhs.code = node[CODE_VAL].as<unsigned int>();
+                rhs.code = node[Font::CODE_VAL].as<unsigned int>();
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw sable::SubfieldError<Font::TextNode>(CODE_VAL, sable::SubfieldErrorType::Integer);
+                throw sable::SubfieldError<Font::TextNode>(Font::CODE_VAL, sable::SubfieldErrorType::Integer);
             }
-            if (node[TEXT_LENGTH_VAL].IsDefined()) {
+            if (node[Font::TEXT_LENGTH_VAL].IsDefined()) {
                 try {
-                    rhs.width = node[TEXT_LENGTH_VAL].as<int>();
+                    rhs.width = node[Font::TEXT_LENGTH_VAL].as<int>();
                 } catch(YAML::TypedBadConversion<int> &e) {
-                    throw sable::SubfieldError<Font::TextNode>(TEXT_LENGTH_VAL, sable::SubfieldErrorType::Integer);
+                    throw sable::SubfieldError<Font::TextNode>(Font::TEXT_LENGTH_VAL, sable::SubfieldErrorType::Integer);
                 }
             }
             return true;
@@ -367,7 +376,7 @@ namespace YAML {
             try {
                 rhs.code = node.as<unsigned int>();
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw sable::SubfieldError<Font::TextNode>(CODE_VAL, sable::SubfieldErrorType::Integer);
+                throw sable::SubfieldError<Font::TextNode>(Font::CODE_VAL, sable::SubfieldErrorType::Integer);
             }
             return true;
         }
@@ -377,30 +386,47 @@ namespace YAML {
     {
         using sable::Font;
         rhs.page = -1;
-        if (node.IsMap() && node[CODE_VAL].IsDefined()) {
-            try {
-                rhs.code = node[CODE_VAL].as<unsigned int>();
-            } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw sable::ConvertError(CODE_VAL, "an integer.", e.mark);
-            }
-            if (node[CMD_NEWLINE_VAL].IsDefined()) {
+        if (node.IsMap() && node[Font::CODE_VAL].IsDefined()) {
+            if (auto cNode = node[Font::CODE_VAL]; !cNode.IsScalar()) {
+                throw sable::ConvertError(Font::CODE_VAL, "an integer.", cNode.Mark());
+            } else {
                 try {
-                    node[CMD_NEWLINE_VAL].as<std::string>();
-                } catch(YAML::TypedBadConversion<std::string> &e) {
-                   throw sable::ConvertError(CMD_NEWLINE_VAL, "a scalar.", e.mark);
+                    rhs.code = node[Font::CODE_VAL].as<unsigned int>();
+                } catch(YAML::TypedBadConversion<unsigned int> &e) {
+                    throw sable::ConvertError(Font::CODE_VAL, "an integer.", cNode.Mark());
+                }
+            }
+            if (auto nlNode = node[Font::CMD_NEWLINE_VAL]; nlNode.IsDefined()) {
+                if (!nlNode.IsScalar()) {
+                    throw sable::ConvertError(Font::CMD_NEWLINE_VAL, "a scalar.", nlNode.Mark());
                 }
                 rhs.isNewLine = true;
             }
 
-            if (node[CMD_PAGE].IsDefined()) {
-                rhs.page = node[CMD_PAGE].as<int>();
+            if (node[Font::CMD_PAGE].IsDefined()) {
+                rhs.page = node[Font::CMD_PAGE].as<int>();
+            }
+            if (auto prefixNode = node[Font::CMD_PREFIX]; !prefixNode.IsDefined()) {
+                rhs.isPrefixed = true;
+            } else if (prefixNode.IsScalar()) {
+                auto val = prefixNode.Scalar();
+                std::transform(val.begin(), val.end(), val.begin(), ::tolower);
+                if (val == "yes" || val == "true" || val == "") {
+                    rhs.isPrefixed = true;
+                } else if (val == "no" || val == "false") {
+                    rhs.isPrefixed = false;
+                } else {
+                    throw sable::ConvertError(Font::CMD_PREFIX, "yes, true, no, or false.", prefixNode.Mark());
+                }
+            } else {
+                throw sable::ConvertError(Font::CMD_PREFIX, "a scalar.", prefixNode.Mark());
             }
             return true;
         } else if (node.IsScalar()) {
             try {
                 rhs.code = node.as<unsigned int>();
             } catch(YAML::TypedBadConversion<unsigned int> &e) {
-                throw sable::ConvertError(CODE_VAL, "an integer.", e.mark);
+                throw sable::ConvertError(Font::CODE_VAL, "an integer.", node.Mark());
             }
             return true;
         }
@@ -412,22 +438,22 @@ namespace YAML {
         if (!node.IsMap()) {
             return false;
         }
-        if (node[TEXT_LENGTH_VAL].IsDefined()) {
+        if (node[Font::TEXT_LENGTH_VAL].IsDefined()) {
             try {
-               rhs.width = node[TEXT_LENGTH_VAL].as<int>();
+               rhs.width = node[Font::TEXT_LENGTH_VAL].as<int>();
             } catch (YAML::TypedBadConversion<int> &e) {
-                throw sable::SubfieldError<sable::Font::NounNode>{TEXT_LENGTH_VAL, sable::SubfieldErrorType::Integer};
+                throw sable::SubfieldError<sable::Font::NounNode>{Font::TEXT_LENGTH_VAL, sable::SubfieldErrorType::Integer};
             }
         }
-        if (!node[CODE_VAL].IsDefined() || !node[CODE_VAL].IsSequence()) {
-            throw sable::SubfieldError<sable::Font::NounNode>{CODE_VAL, sable::SubfieldErrorType::IntegerSequence};
+        if (!node[Font::CODE_VAL].IsDefined() || !node[Font::CODE_VAL].IsSequence()) {
+            throw sable::SubfieldError<sable::Font::NounNode>{Font::CODE_VAL, sable::SubfieldErrorType::IntegerSequence};
         }
-        rhs.codes.reserve(node[CODE_VAL].size());
-        for (auto it2 = node[CODE_VAL].begin(); it2 != node[CODE_VAL].end(); ++it2) {
+        rhs.codes.reserve(node[Font::CODE_VAL].size());
+        for (auto it2 = node[Font::CODE_VAL].begin(); it2 != node[Font::CODE_VAL].end(); ++it2) {
             try {
                 rhs.codes.push_back(it2->as<int>());
             } catch (YAML::TypedBadConversion<int> &e) {
-                throw sable::SubfieldError<sable::Font::NounNode>{CODE_VAL, sable::SubfieldErrorType::IntegerSequence};
+                throw sable::SubfieldError<sable::Font::NounNode>{Font::CODE_VAL, sable::SubfieldErrorType::IntegerSequence};
             }
         }
         return true;

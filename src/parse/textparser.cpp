@@ -11,6 +11,7 @@
 
 #include "unicode.h"
 #include "data/optionhelpers.h"
+#include "inserter.h"
 
 using sable::TextParser, sable::Font;
 
@@ -87,9 +88,12 @@ struct TextParser::Impl {
                         } else if (name == "address") {
                             if (option != "auto") {
                                 auto result = util::strToHex(option);
-                                int convertedAddress = mapper.ToPC(result.first);
-                                if (result.second >= 0 && mapper.ToPC(result.first) >= 0) {
-                                    retVal.currentAddress = util::strToHex(option).first;
+                                if (!result) {
+                                    throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for address: must be auto or a SNES address.");
+                                }
+
+                                if (int convertedAddress = mapper.ToPC(result->value); convertedAddress >= 0) {
+                                    retVal.currentAddress = result->value;
                                 } else {
                                     if (convertedAddress == -2) {
                                         throw std::runtime_error(option.insert(0, "Invalid option \"") + "\" for address: address is too large for the specified ROM size.");
@@ -139,13 +143,6 @@ struct TextParser::Impl {
         }
         return retVal;
     }
-    static void insertData(unsigned int code, int size, back_inserter bi)
-    {
-        while (size-- > 0) {
-            *(bi++) = (code & 0xFF);
-            code >>= 8;
-        }
-    }
 };
 
 TextParser::TextParser(
@@ -186,18 +183,12 @@ TextParser::Result TextParser::parseLine(
     auto label = settings.label;
     Metadata mt = Metadata::No;
 
-    auto insertCommand = [&insert = insert, &_pImpl = _pImpl, &font = _pImpl->fontList[settings.mode]] (std::string code)
-    {
-        if (font.getCommandValue() != -1) {
-            _pImpl->insertData(font.getCommandValue(), font.getByteWidth(), insert);
-        }
-        if (code == "") {
-            _pImpl->insertData(font.getEndValue(), font.getByteWidth(), insert);
-        } else {
-            _pImpl->insertData(font.getCommandCode(code), font.getByteWidth(), insert);
-        }
+    if (_pImpl->fontList.count(settings.mode) == 0) {
 
-    };
+    }
+    const auto& font = _pImpl->fontList[settings.mode];
+
+    sable::Inserter<back_inserter> inserter(font, settings, insert);
 
     if (!state.fail()) {
         if (line.find('\r') != std::string::npos) {
@@ -216,73 +207,30 @@ TextParser::Result TextParser::parseLine(
                 }
                 mt = Metadata::Yes;
             } else if (ref == "[") {
-                std::string temp;
-                {
-                    std::string bracketContents = "";
-                    for ( ; *it != "]" && !it.done(); ++it) {
-                        bracketContents += *it;
-                    }
-                    if (it.done()) {
-                        throw std::runtime_error("Closing bracket not found.");
-                    }
-                    temp = bracketContents;
-                    ref = *(++it);
+                std::string bracketContents = "";
+                for ( ; *it != "]" && !it.done(); ++it) {
+                    bracketContents += *it;
                 }
-                {
-                    unsigned int code;
-                    int bytes;
-                    std::tie(code, bytes) = util::strToHex(temp);
-                    if (bytes < 0) {
-                        bytes = _pImpl->fontList[settings.mode].getByteWidth();
-                        try {
-                            const auto& codeStruct = _pImpl->fontList[settings.mode].getCommandData(temp);
-                            code = codeStruct.code;
-                            finished = (options::isEnabled(settings.autoend) &&
-                                        code == _pImpl->fontList[settings.mode].getEndValue()
-                                    );
-                            if (_pImpl->fontList[settings.mode].getCommandValue() != -1 && !finished) {
-                                _pImpl->insertData(_pImpl->fontList[settings.mode].getCommandValue(), _pImpl->fontList[settings.mode].getByteWidth(), insert);
-                            }
-                            if (codeStruct.page >= 0) {
-                                if (!(codeStruct.page < _pImpl->fontList[settings.mode].getNumberOfPages())) {
-                                    throw std::runtime_error(
-                                        std::string("Page ") + std::to_string(codeStruct.page) + " not found in font " + settings.mode
-                                    );
-                                }
-                                settings.page = codeStruct.page;
-                            }
-                            printNewLine = !codeStruct.isNewLine;
-                        } catch (CodeNotFound &e) {
-                            try {
-                                std::tie(code, std::ignore) = _pImpl->fontList[settings.mode].getTextCode(settings.page, temp);
-                                length += _pImpl->fontList[settings.mode].getWidth(settings.page, temp);
-                            } catch (CodeNotFound &e) {
-                                try {
-                                    code = _pImpl->fontList[settings.mode].getExtraValue(temp);
-                                } catch (CodeNotFound &e) {
-                                    throw CodeNotFound(temp + " not found in font " + settings.mode);
-                                }
-                            }
-                            if (auto font = _pImpl->fontList[settings.mode];
-                                font.getCommandValue() == -1 &&
-                                code == font.getEndValue()
-                            ) {
-                                finished |= options::isEnabled(settings.autoend);
-                            }
-                        }
-                    }
-
-                    if (auto font = _pImpl->fontList[settings.mode];
-                        font.getCommandValue() == -1 &&
-                        code == font.getEndValue()
-                    ) {
-                        finished |= options::isEnabled(settings.autoend);
-                    }
-
-                    if (!finished) {
-                         _pImpl->insertData(code, bytes, insert);
-                    }
+                if (it.done()) {
+                    throw std::runtime_error("Closing bracket not found.");
                 }
+
+                auto br = inserter.handleBrackets(bracketContents, printNewLine);
+
+                printNewLine = br.printNewLine;
+                finished |= br.finished;
+                length += br.length;
+                // should only be true if commmand is End and autoend is enabled
+                if (finished) {
+                    return Result{
+                        finished,
+                        length,
+                        label,
+                        mt
+                    };
+                }
+
+                ref = *(++it);
             } else if (ref == "@") {
                 mt = Metadata::Yes;
                 auto startPoint = --it;
@@ -316,9 +264,9 @@ TextParser::Result TextParser::parseLine(
                 }
                 std::string contents = ref;
                 try {
-                    auto noun = _pImpl->fontList[settings.mode].getNounData(settings.page, contents);
+                    auto noun = font.getNounData(settings.page, contents);
                     while (noun) {
-                        _pImpl->insertData(*(noun++), _pImpl->fontList[settings.mode].getByteWidth(), insert);
+                        inserter.insertData(*(noun++), _pImpl->fontList[settings.mode].getByteWidth());
                     }
                 } catch (CodeNotFound &e) {
                     auto checkDigraphs = _pImpl->fontList[settings.mode].getHasDigraphs();
@@ -343,7 +291,12 @@ TextParser::Result TextParser::parseLine(
                         unsigned int code;
                         bool advance;
 
-                        std::tie<>(code, advance) = _pImpl->fontList[settings.mode].getTextCode(settings.page, currentChar, nextChar);
+                        if (auto tx = font.getTextCode(settings.page, currentChar, nextChar); !tx) {
+                            throw CodeNotFound(std::string("\"") + currentChar + "\" not found in " + sable::Font::ENCODING + " of font " + settings.mode);
+                        } else {
+                            std::tie<>(code, advance) = tx.value();
+                        }
+
                         if (advance) {
                             if (!peek.done()) {
                                 ++charIt;
@@ -352,11 +305,11 @@ TextParser::Result TextParser::parseLine(
                                     ++(*nextCharItr);
                                 }
                             }
-                            length += _pImpl->fontList[settings.mode].getWidth(settings.page, currentChar + nextChar);
+                            length += font.getWidth(settings.page, currentChar + nextChar);
                         } else {
-                            length += _pImpl->fontList[settings.mode].getWidth(settings.page, currentChar);
+                            length += font.getWidth(settings.page, currentChar);
                         }
-                        _pImpl->insertData(code, _pImpl->fontList[settings.mode].getByteWidth(), insert);
+                        inserter.insertData(code, font.getByteWidth());
                     }
                     if (nextCharItr != std::nullopt) {
                         ref = "";
@@ -370,25 +323,26 @@ TextParser::Result TextParser::parseLine(
         }
 
         if (printNewLine &&
-                !finished &&
-                state.peek() != std::char_traits<char>::eof() &&
-                !state.eof() &&
-                input.peek() != '#'  &&
-                input.peek() != '@') {
-            insertCommand("NewLine");
+            !finished &&
+            state.peek() != std::char_traits<char>::eof() &&
+            !state.eof() &&
+            input.peek() != '#'  &&
+            input.peek() != '@'
+        ) {
+            inserter.insertCommand("NewLine");
         }
         if (finished ||
             (mt == Metadata::No && state.peek() == std::char_traits<char>::eof())
         ) {
             if (options::isEnabled(settings.autoend)) {
-                insertCommand("");
+                inserter.insertCommand("End");
             }
             finished = true;
         }
     } else {
         finished = true;
         if (options::isEnabled(settings.autoend) && lastReadWasMetadata == Metadata::Yes) {
-            insertCommand("");
+            inserter.insertCommand("End");
         }
     } // !state.fail()
 

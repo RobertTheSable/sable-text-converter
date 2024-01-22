@@ -151,6 +151,10 @@ portraits, closing windows, and the like.
         * page: Optional. If set, sable will switch to the specified text page
         when this command is parsed. 
         Should be a number 0 or higher, but not higher than the number of pages + 1. 
+        * prefix: Optional. If a value of "no" or "false" is used, then the 
+        CommandValue will not be inserted when this command is parsed.
+        The difference between the last unprefixed command and the first glpyh
+        will be added as an offset to `FontWidthAddress`.
     * Certain tags will be used by Sable for specific purposes:
         * End: The code defined for this command will automatically be defined 
         at the end of a text node, unless the "autoend" setting is disabled.
@@ -219,7 +223,7 @@ Each text type entry may have the following additional tags:
         ```
 * CommandValue
     * If defined, this value will be inserted into the encoded text before 
-    every command.
+    every command, unless the command disabled prefixing.
 * MaxWidth:
     * The default maximum line width of the current font.
 * FontWidthAddress:
@@ -234,11 +238,15 @@ Each text type entry may have the following additional tags:
         * If DefaultWidth is specified, that value is used.
         * Otherwise FixedWidth must be a numeric value, which 
         will be used as the width for all characters.
-* MaxEncodedValue:
+* MaxEncodedValue
     * Used when writing font widths. If set, this will limit the number of font widths 
     which are written to the fotn file for the first page. 
     If this value is not defined, the maximum value will be calculated based on the 
     given byte width.
+* LastUnprefixedCommand
+    * If defined, sable will assume the last prefixed command is equal to this value.
+* FirstPrefixedCommand
+    * If defined, sable will assume the last prefixed command is one less than this value.
 ## Text file format
 
 Text files should be grouped into subdirectories and placed inside the 

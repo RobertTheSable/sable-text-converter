@@ -11,12 +11,27 @@ namespace sable_tests {
 
 constexpr const char* defaultLocale ="en_US.utf8";
 
+constexpr const int NEWLINE_VAL = 3;
+
+struct CommandSample { //NOLINT
+    std::string name;
+    int code;
+    enum class NewLine {
+        Yes, No
+    } newline;
+    std::string prefix;
+    template <class E>
+    inline static bool enabled(E opt) {
+        return opt == E::Yes;
+    }
+};
+
 YAML::Node createSampleNode(
         bool digraphs,
         unsigned int byteWidth,
         unsigned int maxWidth,
         unsigned int defaultWidth,
-        const std::vector<std::tuple<std::string, int, bool>>& commands,
+        const std::vector<CommandSample>& commands,
         const std::vector<std::string>& extras = {},
         unsigned int skip = 0,
         int command = 0,
@@ -35,11 +50,12 @@ struct EncNode {
     bool scalar = false;
 };
 
-
 struct NounNode {
     std::vector<std::string> codes;
     std::string length;
 };
+
+static constexpr const char parsedChars[] = " (),.!?\"01234567890'";
 
 };
 

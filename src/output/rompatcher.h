@@ -26,6 +26,7 @@ private:
     int m_HeaderSize;
     sable::util::MapperType m_MapType;
     AsarState m_AState;
+    void writeSingleFontData(const sable::Font& font, std::ostream& output) const;
 public:
     static bool succeeded(AsarState state);
     static bool wasRun(AsarState state);
@@ -44,48 +45,11 @@ public:
     void writeInclude(const std::string include, std::ostream& mainFile, const fs::path& includePath = fs::path());
     void writeIncludes(ConstStringIterator start, ConstStringIterator end, std::ostream& mainFile, const fs::path& includePath = fs::path());
     template<class Fl>
-    void writeFontData(Fl list, std::ostream& output)
+    void writeFontData(Fl list, std::ostream& output) const
     {
         for (auto& fontIt: list) {
             auto font = fontIt.second;
-            if (!font.getFontWidthLocation().empty()) {
-                output << "\n"
-                          "ORG " + font.getFontWidthLocation();
-                std::vector<int> widths;
-
-                for (int pIdx = 0; pIdx < font.getNumberOfPages(); pIdx++) {
-                                widths.reserve(font.getMaxEncodedValue(pIdx));
-                    font.getFontWidths(pIdx, std::back_insert_iterator(widths));
-                }
-
-                int column = 0;
-                int skipCount = 0;
-                for (auto it = widths.begin(); it != widths.end(); ++it) {
-                    int width = *it;
-                    if (width == 0) {
-                        skipCount++;
-                        column = 0;
-                    } else {
-                        if (skipCount > 0) {
-                            output << "\n"
-                                      "skip " << std::dec << skipCount;
-                            skipCount = 0;
-                        }
-                        if (column == 0) {
-                            output << "\n"
-                                      "db ";
-                        } else {
-                            output << ", ";
-                        }
-                        output << "$" << std::hex << std::setw(2) << std::setfill('0') << width;
-                        column++;
-                        if (column ==16) {
-                            column = 0;
-                        }
-                    }
-                }
-                output << '\n' ;
-            }
+            writeSingleFontData(font, output);
         }
     }
 

@@ -7,6 +7,7 @@ file(GLOB SABLE_FONT_SOURCE_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/builder.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/builder.h"
     fonthelpers.h
+    fonthelpers.cpp
     normalize.cpp
     normalize.h
     error.cpp

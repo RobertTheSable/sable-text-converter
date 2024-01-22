@@ -76,13 +76,13 @@ std::vector<std::string> Table::getDataFromFile(
                                 );
                 }
                 auto result = util::strToHex(option);
-                if (result.second < 0 || mapper.ToPC(result.first) == -1) {
+                if (!result || mapper.ToPC(result->value) == -1) {
                     throw std::runtime_error(
                                 "line " + std::to_string(tableLine) +
                                 ": " + option + " is not a valid SNES address."
                                 );
                 }
-                m_Address = result.first;
+                m_Address = result->value;
             } else if (input == "file") {
                 if (lineStream >> option) {
                     v.push_back(option);
@@ -108,18 +108,18 @@ std::vector<std::string> Table::getDataFromFile(
                             option.pop_back();
                         }
                         auto result = util::strToHex(option);
-                        if (result.second < 0) {
+                        if (!result) {
                             throw std::runtime_error(
                                         "line " + std::to_string(tableLine) +
                                         ": " + option + " is not a valid SNES address."
                                         );
-                        } else if (result.second > m_AddressSize) {
+                        } else if (result->length > m_AddressSize) {
                             throw std::runtime_error(
                                         "line " + std::to_string(tableLine) +
                                         ": " + option + " is larger than the max width for the table."
                                         );
                         }
-                        address = result.first;
+                        address = result->value;
                         if (getStoreWidths()) {
                             if (!(lineStream >> option)) {
                                 throw std::runtime_error(
@@ -129,13 +129,13 @@ std::vector<std::string> Table::getDataFromFile(
                             }
                             if (option.front() == '$') {
                                 result = util::strToHex(option);
-                                if (result.second < 0) {
+                                if (!result) {
                                     throw std::runtime_error(
                                                 "line " + std::to_string(tableLine) +
                                                 ": " + option + " is not a valid hexadecimal number."
                                                 );
                                 }
-                                size = result.first;
+                                size = result->value;
                             } else {
                                 try {
                                     size = std::stoi(option);
@@ -164,13 +164,13 @@ std::vector<std::string> Table::getDataFromFile(
             } else if (input == "data") {
                 if (lineStream >> option) {
                     auto result = util::strToHex(option);
-                    if (result.second < 0 || mapper.ToPC(result.first) == -1) {
+                    if (!result || mapper.ToPC(result->value) == -1) {
                         throw std::runtime_error(
                                     "line " + std::to_string(tableLine) +
                                     ": " + option + " is not a valid SNES address."
                                     );
                     }
-                    m_DataAddress = result.first;
+                    m_DataAddress = result->value;
                 } else {
                     throw std::runtime_error(
                                 "line " + std::to_string(tableLine) +

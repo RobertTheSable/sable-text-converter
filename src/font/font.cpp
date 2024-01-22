@@ -12,22 +12,28 @@ Font::Font(
     const std::string& name,
     const std::string& localeId,
     bool hasDigraphs,
-    int commandCode,
+    std::optional<unsigned int> commandCode,
     bool isFixedWidth,
     int defaultWidth,
     int maxWidth,
     const std::string& fontWidthLocation,
     int glyphByteLength
-) {
-    m_Name = name;
-    m_LocaleId = localeId;
-    m_HasDigraphs = hasDigraphs;
-    m_CommandValue = commandCode;
-    m_DefaultWidth = defaultWidth;
-    m_IsFixedWidth = isFixedWidth;
-    m_MaxWidth = maxWidth;
-    m_FontWidthLocation = fontWidthLocation;
-    m_ByteWidth = glyphByteLength;
+):
+    m_Name{name},
+    m_LocaleId{localeId},
+    m_HasDigraphs{hasDigraphs},
+    m_CommandValue{commandCode},
+    m_DefaultWidth{defaultWidth},
+    m_IsFixedWidth{isFixedWidth},
+    m_MaxWidth{maxWidth},
+    m_FontWidthLocation{fontWidthLocation},
+    m_ByteWidth{glyphByteLength}
+{
+    if (commandCode) {
+        m_FirstPrefixedCommand = commandCode.value() + 1;
+    } else {
+        m_FirstPrefixedCommand = 0;
+    }
 }
 
     const Font::CommandNode &Font::getCommandData(const std::string &id) const
@@ -47,6 +53,13 @@ Font::Font(
         if (nId == "End") {
             endValue = data.code;
         }
+
+        if (!data.isPrefixed && (bool)m_CommandValue) {
+            if (auto minPrefix = data.code + 1; minPrefix > m_FirstPrefixedCommand) {
+                m_FirstPrefixedCommand = minPrefix;
+            }
+        }
+
         m_CommandConvertMap[nId] = data;
     }
 
@@ -66,7 +79,7 @@ Font::Font(
         return getCommandData(id).code;
     }
 
-    std::optional<Font::TextNode> Font::lookupTextNode(int page, const std::string &id, bool throws) const
+    std::optional<Font::TextNode> Font::lookupTextNode(int page, const std::string &id) const
     {
         if (!(page < m_Pages.size())) {
             throw CodeNotFound(std::string("font " + m_Name + " does not have page " + std::to_string(page)));
@@ -76,10 +89,7 @@ Font::Font(
 
         const auto &m_TextConvertMap = m_Pages[page].glyphs;
         if (auto it = m_TextConvertMap.find(realId); it == m_TextConvertMap.end()) {
-            if (!throws) {
-                return std::nullopt;
-            }
-            throw CodeNotFound(std::string("\"") + id + "\" not found in " + ENCODING + " of font " + m_Name);
+            return std::nullopt;
         } else {
             auto tmp = it->second;
             return tmp;
@@ -88,22 +98,27 @@ Font::Font(
 
     int Font::getWidth(int page, const std::string &id) const
     {
-       auto wVal = lookupTextNode(page, id, true)->width;
-       if (m_IsFixedWidth || wVal <= 0) {
-           return m_DefaultWidth;
-       } else {
-           return wVal;
-       }
+        if (auto lv = lookupTextNode(page, id); (bool)lv) {
+            if (m_IsFixedWidth || lv->width <= 0) {
+                return m_DefaultWidth;
+            } else {
+                return lv->width;
+            }
+        }
+        throw CodeNotFound(std::string("\"") + id + "\" not found in " + ENCODING + " of font " + m_Name);
     }
 
-    std::tuple<unsigned int, bool> Font::getTextCode(int page, const std::string &id, const std::string& next) const
+   std::optional<std::tuple<unsigned int, bool>> Font::getTextCode(int page, const std::string &id, const std::string& next) const
     {
         if (!next.empty()) {
-            if (auto dg = lookupTextNode(page, id + next, false); (bool)dg) {
+            if (auto dg = lookupTextNode(page, id + next); (bool)dg) {
                 return std::make_tuple(dg->code, true);
             }
         }
-        return std::make_tuple(lookupTextNode(page, id, true)->code, false);
+        if (auto sg = lookupTextNode(page, id); (bool)sg) {
+            return std::make_tuple(sg->code, false);
+        }
+        return std::nullopt;
     }
 
     CharacterIterator Font::getNounData(int page, const std::string &id) const
@@ -127,10 +142,10 @@ Font::Font(
         );
     }
 
-    int Font::getExtraValue(const std::string &id) const
+    std::optional<int> Font::getExtraValue(const std::string &id) const noexcept
     {
         if (auto eIt = m_Extras.find(normalize(id)); eIt == m_Extras.end()) {
-            throw CodeNotFound(id + " not found in font " + m_Name);
+            return std::nullopt;
         } else {
             return eIt->second;
         }
@@ -152,13 +167,14 @@ Font::Font(
         std::sort(v.begin(), v.end(), [](TextDataPair& a, TextDataPair& b) {
             return a.second.code < b.second.code;
         });
-        int index = 0;
-        if (this->getCommandValue() == 0) {
-            index = 1;
+
+        int index = 0, limit = m_Pages[page].maxValue;
+        if ((bool)m_CommandValue) {
+            index = m_FirstPrefixedCommand;
         }
         auto t = v.begin();
         if (m_IsFixedWidth) {
-            while (index <= m_Pages[page].maxValue) {
+            while (index <= limit) {
                 *(inserter++) = m_DefaultWidth;
                 index++;
                 ++t;
@@ -167,7 +183,7 @@ Font::Font(
             // never ran into an issue with this until I started testing pages
             // my best guess is that adding those cases somehow messed with memory enough
             // to trigger the infinite loop condition.
-            unsigned int lastCode = m_Pages[page].maxValue+1;
+            unsigned int lastCode = limit+1;
             while (t != v.end()) {
                 if (lastCode != t->second.code ) {
                     if (index == t->second.code) {
@@ -186,7 +202,7 @@ Font::Font(
                     ++t;
                 }
             }
-            for ( ; index <= m_Pages[page].maxValue; ++index) {
+            for ( ; index <= limit; ++index) {
                 *(inserter++) = m_DefaultWidth;
             }
         }
@@ -229,7 +245,7 @@ Font::Font(
         return m_ByteWidth;
     }
 
-    int Font::getCommandValue() const
+    std::optional<unsigned int> Font::getCommandValue() const
     {
         return m_CommandValue;
     }
@@ -248,32 +264,5 @@ Font::Font(
     {
         return m_HasDigraphs;
     }
-
-#ifdef SABLE_KEEP_DEPRECATED
-    std::tuple<unsigned int, bool> Font::getTextCode(const std::string &id, const std::string& next) const
-    {
-        return getTextCode(0, id, next);
-    }
-
-    CharacterIterator Font::getNounData(const std::string &id) const
-    {
-        return getNounData(0, id);
-    }
-
-    void Font::getFontWidths(std::back_insert_iterator<std::vector<int> > inserter) const
-    {
-        getFontWidths(0, inserter);
-    }
-
-    int Font::getWidth(const std::string &id) const
-    {
-        return getWidth(0, id);
-    }
-
-    int Font::getMaxEncodedValue() const
-    {
-        return getMaxEncodedValue(0);
-    }
-#endif
 }
 
