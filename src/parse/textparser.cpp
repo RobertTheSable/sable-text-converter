@@ -3,6 +3,7 @@
 #include <iostream>
 #include <map>
 #include <array>
+#include <algorithm>
 
 #include <unicode/uchar.h>
 #ifdef ICU_DATA_NEEDED
