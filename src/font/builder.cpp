@@ -2,6 +2,8 @@
 #include "normalize.h"
 #include "codenotfound.h"
 
+#include <algorithm>
+
 namespace sable {
 
 using Builder = FontBuilder;

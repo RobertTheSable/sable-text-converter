@@ -2,6 +2,7 @@
 
 #include <yaml-cpp/yaml.h>
 #include <stdexcept>
+#include <algorithm>
 
 #include "exceptions.h"
 #include "wrapper/filesystem.h"
