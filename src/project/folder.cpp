@@ -1,6 +1,8 @@
 #include "folder.h"
 
 #include <fstream>
+#include <algorithm>
+#include <utility>
 
 #include "exceptions.h"
 

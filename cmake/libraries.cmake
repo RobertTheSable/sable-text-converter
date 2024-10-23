@@ -1,11 +1,8 @@
 set(SABLE_LIBRARIES "")
 
-find_library(YAML yaml-cpp)
-if(NOT YAML)
-    find_package(yaml-cpp)
-    set(YAML ${yaml-cpp_LIBRARIES})
-    set(YAML_INCLUDE_DIR ${yaml-cpp_INCLUDE_DIRS})
-endif()
+find_package(yaml-cpp)
+set(YAML ${yaml-cpp_LIBRARIES})
+set(YAML_INCLUDE_DIR ${yaml-cpp_INCLUDE_DIRS})
 
 if(SABLE_BUILD_TESTS)
     find_package(Catch2 REQUIRED)
